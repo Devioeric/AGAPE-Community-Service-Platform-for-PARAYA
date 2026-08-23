@@ -21,6 +21,7 @@ const aggregateSchema = z.object({
     targetHouseholds: z.number().int().positive(),
     registeredHouseholds: z.number().int().nonnegative(),
     participatingHouseholds: z.number().int().nonnegative(),
+    nonparticipatingHouseholds: z.number().int().nonnegative(),
     approvedHouseholds: z.number().int().nonnegative(),
     approvedResidents: z.number().int().nonnegative(),
     coveragePercent: z.number().min(0).max(100).nullable(),

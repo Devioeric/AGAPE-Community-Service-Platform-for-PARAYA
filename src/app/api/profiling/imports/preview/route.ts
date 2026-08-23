@@ -4,7 +4,7 @@ import { isProfilingV2Enabled } from "@/lib/profiling/feature";
 import { profilingDisabledResponse, profilingRpcError } from "@/lib/profiling/api";
 import { buildStagedProfilingPackages, parsePairedProfilingCsv, parseProfilingWorkbook } from "@/lib/profiling/import-parser";
 import { PROFILING_MAX_UPLOAD_BYTES } from "@/lib/profiling/contracts";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthorizedProfilingCycleContext } from "@/lib/profiling/server-context";
 import { readLimitedFormData, RequestBodyTooLargeError } from "@/lib/http/limited-form-data";
 
 export async function POST(request: Request) {
@@ -24,7 +24,9 @@ export async function POST(request: Request) {
   const householdCsv = form.get("household_csv");
   const residentCsv = form.get("resident_csv");
   const replacesBatchId = String(form.get("replaces_batch_id") ?? "") || null;
-  const { data: cycle } = await createAdminClient().from("profiling_cycles").select("collection_starts_on").eq("id", cycleId).maybeSingle();
+  let cycle;
+  try { cycle = await getAuthorizedProfilingCycleContext(auth.supabase, cycleId); }
+  catch (error) { return profilingRpcError(error); }
   if (!cycle?.collection_starts_on) return NextResponse.json({ error: "Profiling cycle not found" }, { status: 404 });
   try {
     let parsed;

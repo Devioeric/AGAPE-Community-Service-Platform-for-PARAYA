@@ -38,6 +38,26 @@ test("setup remains available while collection and analytics stay runtime-gated"
   assert.match(submissions, /isProfilingV2Enabled/);
 });
 
+test("profiling mutations use scoped cycle context and database-returned row versions", async () => {
+  const create = await source("src/app/api/profiling/submissions/route.ts");
+  const revise = await source("src/app/api/profiling/submissions/[id]/revise/route.ts");
+  const preview = await source("src/app/api/profiling/imports/preview/route.ts");
+  const workspace = await source("src/components/profiling/ProfilingWorkspace.tsx");
+  for (const route of [create, revise, preview]) {
+    assert.doesNotMatch(route, /createAdminClient/);
+    assert.match(route, /getAuthorizedProfilingCycleContext/);
+  }
+  assert.match(create, /getProfilingSubmissionMutationDTO/);
+  assert.match(revise, /getProfilingSubmissionMutationDTO/);
+  assert.match(workspace, /expected_version: created\.rowVersion/);
+  assert.doesNotMatch(workspace, /expected_version:\s*1/);
+  assert.match(workspace, /expected_version: selectedCycle\.row_version/);
+  assert.match(workspace, /deriveMinorStatus/);
+  assert.doesNotMatch(workspace, /estimated_age < 18/);
+  const parser = await source("src/lib/profiling/import-parser.ts");
+  assert.match(parser, /resident_id:\s*String\(resident\.resident_id\)\.trim\(\)/);
+});
+
 test("the UI cannot assert minor status and Secretary approval requires detail review", async () => {
   const workspace = await source("src/components/profiling/ProfilingWorkspace.tsx");
   const contracts = await source("src/lib/profiling/contracts.ts");

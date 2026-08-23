@@ -4,9 +4,12 @@ import {
   PROFILING_MAX_IMPORT_ROWS,
   PROFILING_MAX_UPLOAD_BYTES,
   PROFILING_TEMPLATE_VERSION,
+  HOUSEHOLD_IMPORT_FIELDS,
+  RESIDENT_IMPORT_FIELDS,
   findProhibitedProfileKeys,
   parseProfilingPackage,
 } from "@/lib/profiling/contracts";
+import { normalizeProfilingImportHeader, validateProfilingImportHeaders } from "@/lib/profiling/import-headers";
 
 export type ImportRowError = { sheet: "Households" | "Residents"; row: number; field?: string; message: string; fatal: boolean };
 export type ParsedProfilingImport = {
@@ -24,7 +27,7 @@ const HOUSEHOLD_REQUIRED = ["household_row_key", "sample_reference", "sitio_id",
 const RESIDENT_REQUIRED = ["household_row_key", "first_name", "last_name", "consent_status"];
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalizeProfilingImportHeader(value);
 }
 
 function normalizeRow(input: Record<string, unknown>): Record<string, unknown> {
@@ -47,10 +50,18 @@ function validateRows(sheet: "Households" | "Residents", rows: Record<string, un
   return errors;
 }
 
-function sheetRows(workbook: XLSX.WorkBook, sheetName: "Households" | "Residents"): Record<string, unknown>[] {
+function validateHeaders(sheet: XLSX.WorkSheet, sheetName: "Households" | "Residents", allowed: readonly string[]): ImportRowError[] {
+  const firstRow = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: false })[0] ?? [];
+  return validateProfilingImportHeaders(firstRow, allowed).map((issue) => ({ sheet: sheetName, row: 1, field: issue.field, message: issue.message, fatal: true }));
+}
+
+function sheetRows(workbook: XLSX.WorkBook, sheetName: "Households" | "Residents", allowed: readonly string[]): { rows: Record<string, unknown>[]; errors: ImportRowError[] } {
   const sheet = workbook.Sheets[sheetName];
   if (!sheet) throw new Error(`Required sheet is missing: ${sheetName}`);
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false }).map(normalizeRow);
+  return {
+    rows: XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false }).map(normalizeRow),
+    errors: validateHeaders(sheet, sheetName, allowed),
+  };
 }
 
 export function parseProfilingWorkbook(bytes: Uint8Array): ParsedProfilingImport {
@@ -58,15 +69,17 @@ export function parseProfilingWorkbook(bytes: Uint8Array): ParsedProfilingImport
   if (bytes.byteLength > PROFILING_MAX_UPLOAD_BYTES) throw new Error("Workbook exceeds the 10 MB limit");
 
   const workbook = XLSX.read(bytes, { type: "array", cellDates: false });
-  const households = sheetRows(workbook, "Households");
-  const residents = sheetRows(workbook, "Residents");
+  const householdSheet = sheetRows(workbook, "Households", HOUSEHOLD_IMPORT_FIELDS);
+  const residentSheet = sheetRows(workbook, "Residents", RESIDENT_IMPORT_FIELDS);
+  const households = householdSheet.rows;
+  const residents = residentSheet.rows;
   const totalRows = households.length + residents.length;
   if (totalRows > PROFILING_MAX_IMPORT_ROWS) throw new Error("Workbook exceeds the 10,000-row limit");
 
   const metadata = workbook.Sheets.Metadata;
   const metadataRows = metadata ? XLSX.utils.sheet_to_json<Record<string, unknown>>(metadata, { defval: null }) : [];
   const version = String(metadataRows[0]?.template_version ?? "").trim();
-  const errors: ImportRowError[] = [];
+  const errors: ImportRowError[] = [...householdSheet.errors, ...residentSheet.errors];
   if (version !== PROFILING_TEMPLATE_VERSION) {
     errors.push({ sheet: "Households", row: 1, field: "template_version", message: `Expected template ${PROFILING_TEMPLATE_VERSION}`, fatal: true });
   }
@@ -94,11 +107,18 @@ export function parsePairedProfilingCsv(householdBytes: Uint8Array, residentByte
   if (householdBytes.byteLength + residentBytes.byteLength > PROFILING_MAX_UPLOAD_BYTES) throw new Error("CSV files exceed the combined 10 MB limit");
   const householdBook = XLSX.read(householdBytes, { type: "array" });
   const residentBook = XLSX.read(residentBytes, { type: "array" });
-  const households = XLSX.utils.sheet_to_json<Record<string, unknown>>(householdBook.Sheets[householdBook.SheetNames[0]!]!, { defval: null, raw: false }).map(normalizeRow);
-  const residents = XLSX.utils.sheet_to_json<Record<string, unknown>>(residentBook.Sheets[residentBook.SheetNames[0]!]!, { defval: null, raw: false }).map(normalizeRow);
+  const householdSheet = householdBook.Sheets[householdBook.SheetNames[0]!]!;
+  const residentSheet = residentBook.Sheets[residentBook.SheetNames[0]!]!;
+  const households = XLSX.utils.sheet_to_json<Record<string, unknown>>(householdSheet, { defval: null, raw: false }).map(normalizeRow);
+  const residents = XLSX.utils.sheet_to_json<Record<string, unknown>>(residentSheet, { defval: null, raw: false }).map(normalizeRow);
   const totalRows = households.length + residents.length;
   if (totalRows > PROFILING_MAX_IMPORT_ROWS) throw new Error("CSV files exceed the 10,000-row limit");
-  const errors = [...validateRows("Households", households, [...HOUSEHOLD_REQUIRED, "template_version"]), ...validateRows("Residents", residents, RESIDENT_REQUIRED)];
+  const errors = [
+    ...validateHeaders(householdSheet, "Households", HOUSEHOLD_IMPORT_FIELDS),
+    ...validateHeaders(residentSheet, "Residents", RESIDENT_IMPORT_FIELDS),
+    ...validateRows("Households", households, [...HOUSEHOLD_REQUIRED, "template_version"]),
+    ...validateRows("Residents", residents, RESIDENT_REQUIRED),
+  ];
   households.forEach((row, index) => {
     if (String(row.template_version ?? "").trim() !== PROFILING_TEMPLATE_VERSION) errors.push({ sheet: "Households", row: index + 2, field: "template_version", message: `Expected template ${PROFILING_TEMPLATE_VERSION}`, fatal: true });
   });
@@ -143,6 +163,7 @@ export function buildStagedProfilingPackages(parsed: ParsedProfilingImport, cycl
   parsed.households.forEach((household, index) => {
     const key = String(household.household_row_key ?? "").trim();
     const residentPayloads = (byHousehold.get(key) ?? []).map((resident) => ({
+      ...(resident.resident_id && String(resident.resident_id).trim() ? { resident_id: String(resident.resident_id).trim() } : {}),
       household_row_key: key,
       first_name: resident.first_name,
       middle_name: resident.middle_name || null,

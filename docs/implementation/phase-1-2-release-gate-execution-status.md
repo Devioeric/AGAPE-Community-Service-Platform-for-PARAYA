@@ -9,6 +9,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Safe checkpoint revision: `1a1c73ceb8334f1b03b66f42af9d2d67928ce05c`
 - Packet 0 intermediate revision: `6ddfda10f58b97c943ac7d148a6eb4e57441886e`
 - Packet 2 intermediate revision: `854ce1e11e3b096fc4d6914a5debab8773fcee30`
+- Packet 3 intermediate revision: `0e21c21c926b5001b6c78db1f107859efff63974`
 - Production/shared deployment authorized: No
 - Profiling application flag: `false`
 - Phase 2 application flags: `false`
@@ -36,6 +37,8 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 | J — Browser/AI interception | pending | Not started. | Begin after role-specific interfaces and synthetic fixtures. |
 | K — Reconciliation/rollback | pending | Not started. | Run only on disposable synthetic state. |
 | L — Release evidence | blocked | Requires immutable candidate, private artifacts, and independent reviewers. | Do not create executed evidence until all suites pass. |
+
+| 4 — Deterministic Phase 1 corrections | locally_complete | Locked the strict aggregate v2 sample contract to include nonparticipating households, returned actual submission row versions, removed hard-coded mutation versions, aligned Captain endorsement and minor derivation, preserved imported resident linkage, rejected normalized duplicate/unknown headers, and replaced direct service-role cycle reads with actor-scoped RPC-backed context. Focused tests pass 12/12; the full suite passes 137/137, typecheck, lint, and the 155-route build. | Begin Packet 5 Phase 1 role interfaces. The dedicated database cycle-context/version-returning RPC remains a forward-only Packet 9 migration after ledger reconciliation. |
 
 ## Human prerequisite lane
 
@@ -90,6 +93,17 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Replaced `release-gate-synthetic.sql` with the Phase 1-only `release-gate-phase1.sql` and Phase 2-only `release-gate-phase2-supplement.sql`. Added separate phase-specific seeded integrity tests and a Phase 1 cutoff smoke test.
 - Added loopback-only raw Auth, PostgREST, RPC, and Storage helpers; synchronized race execution; sanitized scenario IDs; and exact before/after count capture/diff helpers.
 - Packet 3 focused tests passed 20 tests. The full Node suite passed 134 tests with zero failures/skips; typecheck, lint, and the 155-route production build passed.
+
+## Packet 4 implementation record
+
+- Files changed: profiling public types and privacy schema, shared import-header validation, import parsing, actor-scoped server context, profiling API error normalization, submission/create/revise/import-preview routes, the profiling workspace, focused security tests, and this ledger.
+- Migrations added or modified: none. The narrow database cycle-context and version-returning mutation RPCs remain reserved for the forward-only Packet 9 integrity migration after authoritative ledger reconciliation.
+- Commands: focused Phase 1 contract/completion tests, complete Node suite, typecheck, lint, production build, targeted source scans, inclusion-manifest regeneration, and filename/count-only secret scan.
+- Results: focused 12 passed; full 137 passed; zero failed/skipped; typecheck/lint/build passed. The first parallel typecheck overlapped Next.js build regeneration and failed on transient missing `.next/types` files; the required sequential rerun passed. No database replay was attempted.
+- Security/RLS impact: direct service-role reads were removed from the affected profiling routes. Cycle context and post-mutation versions are resolved through authenticated actor-scoped RPCs and strict allowlisted projections. Database-side cycle-context narrowing remains pending Packet 9 and executable RLS/RPC proof remains blocked by the canonical chain.
+- Rollback: revert only the Packet 4 checkpoint. No database, Supabase stack, Auth identity, Storage object, external service, evidence envelope, or runtime configuration was changed.
+- External blocker: authoritative capture, credential/Auth evidence, canonical baseline, and independent approvals remain unavailable. Packets 7–10 cannot close until those artifacts pass validation.
+- Next exact action: execute Packet 5 only, splitting the profiling workspace into capability-specific operational panels without starting Phase 2 or changing runtime flags.
 
 ## Packet 2 implementation record
 

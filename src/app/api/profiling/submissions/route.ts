@@ -3,7 +3,7 @@ import { authorizeAnyCapability, authorizeCapability } from "@/lib/auth/authoriz
 import { isProfilingV2Enabled } from "@/lib/profiling/feature";
 import { profilingDisabledResponse, profilingRpcError } from "@/lib/profiling/api";
 import { parseProfilingPackage } from "@/lib/profiling/contracts";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthorizedProfilingCycleContext, getProfilingSubmissionMutationDTO } from "@/lib/profiling/server-context";
 
 export async function GET(request: Request) {
   if (!isProfilingV2Enabled()) return profilingDisabledResponse();
@@ -22,7 +22,9 @@ export async function POST(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const raw = await request.json().catch(() => null);
   const cycleId = raw && typeof raw === "object" ? String((raw as Record<string, unknown>).cycle_id ?? "") : "";
-  const { data: cycle } = await createAdminClient().from("profiling_cycles").select("collection_starts_on").eq("id", cycleId).maybeSingle();
+  let cycle;
+  try { cycle = await getAuthorizedProfilingCycleContext(auth.supabase, cycleId); }
+  catch (error) { return profilingRpcError(error); }
   if (!cycle?.collection_starts_on) return NextResponse.json({ error: "Profiling cycle not found" }, { status: 404 });
   const result = parseProfilingPackage(raw, cycle.collection_starts_on);
   if (!result.success) return NextResponse.json({ error: result.error }, { status: 400 });
@@ -32,5 +34,6 @@ export async function POST(request: Request) {
     p_source_type: "manual", p_import_batch_id: null,
   });
   if (error) return profilingRpcError(error);
-  return NextResponse.json({ data: { id: data } }, { status: 201 });
+  try { return NextResponse.json({ data: await getProfilingSubmissionMutationDTO(auth.supabase, payload.cycle_id, String(data)) }, { status: 201 }); }
+  catch (readError) { return profilingRpcError(readError); }
 }

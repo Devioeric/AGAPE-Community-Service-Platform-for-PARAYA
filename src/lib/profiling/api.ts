@@ -7,8 +7,10 @@ export function profilingDisabledResponse() {
   );
 }
 
-export function profilingRpcError(error: { message?: string; code?: string } | null) {
-  const code = error?.code;
+export function profilingRpcError(error: unknown) {
+  const safeError = error && typeof error === "object" ? error as { message?: unknown; code?: unknown } : null;
+  const code = typeof safeError?.code === "string" ? safeError.code : undefined;
+  const message = typeof safeError?.message === "string" ? safeError.message : "Profiling operation failed";
   const status = code === "42501" ? 403 : code === "P0002" ? 404 : code === "40001" ? 409 : code === "22023" || code === "23514" ? 422 : 500;
-  return NextResponse.json({ error: error?.message ?? "Profiling operation failed" }, { status });
+  return NextResponse.json({ error: message }, { status });
 }

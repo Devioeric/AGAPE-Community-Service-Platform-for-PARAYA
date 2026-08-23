@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "854ce1e11e3b096fc4d6914a5debab8773fcee30",
+  "head": "0e21c21c926b5001b6c78db1f107859efff63974",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,14 +14,14 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 12,
-    "include": 12,
+    "total": 14,
+    "include": 14,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
     "ambiguous-needs-owner-review": 0,
     "secretFindings": 0,
-    "acknowledgedSyntheticSecretFindings": 2
+    "acknowledgedSyntheticSecretFindings": 0
   },
   "entries": [
     {
@@ -43,93 +43,108 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "scripts/lib/release-gate-http.mjs",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/database/phase1/00_scope_smoke.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/fixtures/release-gate-phase1.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/fixtures/release-gate-phase2-supplement.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/fixtures/release-gate-synthetic.sql",
-      "state": " D",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/seeded/00_release_fixture_integrity.sql",
-      "state": " D",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/seeded/phase1/00_release_fixture_integrity.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/seeded/phase2/00_release_fixture_integrity.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/local-database-gate.test.mjs",
+      "path": "src/app/api/profiling/imports/preview/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": [
-        "jwt-token",
-        "postgres-credential-url"
-      ]
+      "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/release-gate-http.test.mjs",
+      "path": "src/app/api/profiling/submissions/[id]/revise/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/profiling/submissions/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/components/profiling/ProfilingWorkspace.tsx",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/profiling/api.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/profiling/import-headers.ts",
       "state": "??",
       "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/profiling/import-parser.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/profiling/privacy.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/profiling/server-context.ts",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/types/profiling.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/phase1-completion-gate.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/phase1-profiling-contracts.test.mjs",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],

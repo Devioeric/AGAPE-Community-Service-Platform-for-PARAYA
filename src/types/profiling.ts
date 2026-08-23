@@ -18,6 +18,7 @@ export interface ProfilingAggregateDTO {
     targetHouseholds: number;
     registeredHouseholds: number;
     participatingHouseholds: number;
+    nonparticipatingHouseholds: number;
     approvedHouseholds: number;
     approvedResidents: number;
     coveragePercent: number | null;

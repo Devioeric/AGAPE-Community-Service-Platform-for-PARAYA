@@ -12,6 +12,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Packet 3 intermediate revision: `0e21c21c926b5001b6c78db1f107859efff63974`
 - Packet 4 intermediate revision: `b35550ac09903ddc57ec9203b92f5cec578ce0ad`
 - Packet 5 intermediate revision: `88625b13b52a5c21471c1806cd2e0d00ce19205d`
+- Packet 6 intermediate revision: `867e58795224a650b111d0f64fa2fad0a1d54cc8`
 - Production/shared deployment authorized: No
 - Profiling application flag: `false`
 - Phase 2 application flags: `false`
@@ -43,6 +44,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 | 4 — Deterministic Phase 1 corrections | locally_complete | Locked the strict aggregate v2 sample contract to include nonparticipating households, returned actual submission row versions, removed hard-coded mutation versions, aligned Captain endorsement and minor derivation, preserved imported resident linkage, rejected normalized duplicate/unknown headers, and replaced direct service-role cycle reads with actor-scoped RPC-backed context. Focused tests pass 12/12; the full suite passes 137/137, typecheck, lint, and the 155-route build. | Packet 5 completed; retain the dedicated database RPC work for Packet 9. |
 | 5 — Phase 1 role interfaces | locally_complete | Added a traceability matrix and extracted Researcher operations, structured Secretary review, and structured aggregate panels. Researcher browser controls now cover prefix, sitios, privacy notice, official snapshot intake, cycle creation, sample register/replacement, assignments, duplicate resolution, and expected-version lifecycle correction. Existing Mother Leader, Captain, and aggregate-only flows remain capability-separated. Focused tests pass 3/3; full suite passes 140/140, typecheck, lint, and the 155-route build. | Begin Packet 6 executable Phase 1 security-suite preparation. Authenticated execution remains pending canonical replay. |
 | 6 — Phase 1 executable security definitions | locally_complete | Added dynamic Phase 1 catalog and seeded pgTAP, a versioned mandatory scenario registry covering all nine roles, account states, JWT boundaries, 16 malicious RPC classes, 10 races, and 15 Storage behaviors, plus strict definition/plan-count validation. Focused tests pass 3/3; full suite passes 143/143, typecheck, lint, and the 155-route build. These are reviewed executable definitions, not database execution evidence. | Packet 7 is blocked until credential rotation and the encrypted authoritative schema/ledger/catalog capture are supplied outside Git. |
+| 7 — Authoritative reconciliation and baseline branch | blocked | No `agape.authoritative-capture.v1` bundle or private capture reference is available. Fail-closed preflight confirms the canonical baseline is missing and all 53 unordered legacy SQL files remain active; no migration, seed, reset, or evidence write ran. Choosing a baseline branch without the authoritative ledger/schema would require guessing. | Supabase owner confirms rotation/revocation; database operator supplies the encrypted capture outside Git; then run the structural validator and object reconciliation. |
 
 ## Human prerequisite lane
 
@@ -130,6 +132,17 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Rollback: revert only the Packet 6 checkpoint. No database, Docker stack, Auth identity, Storage object, external service, evidence envelope, or runtime configuration was changed.
 - External blocker: Packet 7 requires credential-rotation confirmation and a valid encrypted authoritative capture containing schema, ledger, catalog, grants, RLS, and Storage evidence. These have not been supplied.
 - Next exact action: the authorized Supabase owner and database operator provide Packet 1 artifacts outside Git; then validate the capture and select the evidenced baseline branch in Packet 7.
+
+## Packet 7 blocker record
+
+- Files changed: this informational ledger only.
+- Migrations added or modified: none.
+- Commands: workspace search for the required private capture contract files and `npm.cmd run test:db:preflight` with access to the local Docker engine.
+- Results: no private capture was found. Docker-aware preflight failed safely on the missing canonical baseline, the 53 non-timestamped active SQL files, and the Phase 2 scope reference to the missing baseline. It attempted no migration, seed, reset, database write, or evidence write.
+- Blocking owner/artifact: authorized Supabase owner provides independent credential-rotation/revocation confirmation; authorized database operator provides the encrypted authoritative capture and ledger outside Git; a distinct database/security reviewer must be named.
+- Why later packets cannot proceed: Packets 8–18 depend on the evidenced baseline branch, replayable canonical chain, forward-migration timestamp maximum, executable database results, or approved evidence. Proceeding would violate the no-guess and no-edit-applied-migration rules.
+- Rollback: none required; preflight was read-only and fail-closed.
+- Next exact action: validate the supplied private capture with `npm.cmd run db:validate-evidence -- <outside-repository-capture-path>`, then execute Packet 7 reconciliation if and only if it passes.
 
 ## Packet 2 implementation record
 

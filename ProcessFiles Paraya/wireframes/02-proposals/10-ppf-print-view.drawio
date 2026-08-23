@@ -1,0 +1,181 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="10 - PPF Print View" id="p10">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="bar" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1600" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="bk" value="← Back to Proposal" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=20;fontSize=11;fontStyle=4;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="prtb" value="[ 🖨 PRINT ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1450" y="9" width="130" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="paper" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="350" y="80" width="900" height="980" as="geometry" />
+        </mxCell>
+        <mxCell id="hd1" value="DR. YANGA'S COLLEGES, INC." style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="100" width="900" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="hd2" value="PARAYA Office — Community Extension Program" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="350" y="124" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hd3" value="Bocaue, Bulacan · Philippines" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="350" y="146" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ttl" value="PROJECT PARTICIPATION FORM" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="186" width="900" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ttld" style="endArrow=none;html=1;strokeColor=#000;strokeWidth=2;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="380" y="230" as="sourcePoint" />
+            <mxPoint x="1220" y="230" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="244" width="840" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r1l" value="Project Title:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="244" width="160" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r1v" value="Skills Training: Sewing &amp; Tailoring" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="244" width="680" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="280" width="420" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r2l" value="Proponent:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="280" width="120" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r2v" value="R. Mendoza" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="280" width="300" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="800" y="280" width="420" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r3l" value="Date Approved:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="280" width="140" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r3v" value="May 14, 2026" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="280" width="280" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="316" width="420" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r4l" value="Target Barangay:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="316" width="160" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r4v" value="Bolacan" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="316" width="260" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="800" y="316" width="420" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r5l" value="Timeline:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="316" width="100" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r5v" value="May 1 — Sep 30, 2026" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="316" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r6" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="352" width="840" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r6l" value="Estimated Budget:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="352" width="160" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r6v" value="₱82,000.00       (non-income-generating — Finance Office cleared)" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="352" width="680" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r7" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="388" width="840" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r7l" value="SDG Alignment:" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="388" width="160" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="r7v" value="SDG 9 (Industry &amp; Innovation), SDG 4 (Quality Education)" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="388" width="680" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="ob" value="Project Objectives" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="448" width="840" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="obb" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="476" width="840" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="obbv" value="(1) Train 60 out-of-school youth in basic sewing &amp; tailoring over 5 months. (2) Equip cohort with industry-grade machine operation skills. (3) Connect 80% of graduates to local garment shops or micro-enterprise startup grants." style="text;html=1;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;spacingRight=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="380" y="476" width="840" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="bn" value="Beneficiaries &amp; Expected Output" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="572" width="840" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="bnb" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="600" width="840" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="bnbv" value="60 OSY learners (ages 16-25) from Brgy. Bolacan and adjacent sitios. Expected output: 60 completed training portfolios, 1 community-run sewing co-op, 80%+ placement rate within 6 months of completion." style="text;html=1;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;spacingRight=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="380" y="600" width="840" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="en" value="Endorsements" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="700" width="840" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="380" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e1l" value="Prepared by" style="text;html=1;align=center;verticalAlign=top;spacingTop=10;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="380" y="730" width="270" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="e1s" value="_______________________" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="760" width="270" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e1n" value="R. Mendoza" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=24;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e1t" value="PARAYA Director" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=8;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="380" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="665" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e2l" value="Endorsed by Finance Office" style="text;html=1;align=center;verticalAlign=top;spacingTop=10;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="665" y="730" width="270" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="e2s" value="_______________________" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="665" y="760" width="270" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e2n" value="F. Reyes" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=24;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="665" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e2t" value="Finance Officer" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=8;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="665" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="950" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e3l" value="Approved by" style="text;html=1;align=center;verticalAlign=top;spacingTop=10;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="950" y="730" width="270" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="e3s" value="_______________________" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="950" y="760" width="270" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e3n" value="Dr. C. Yanga" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=24;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e3t" value="Dean / Director, DYCI" style="text;html=1;align=center;verticalAlign=bottom;spacingBottom=8;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="950" y="730" width="270" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ft" value="Document generated by AGAPE on May 14, 2026  ·  Proposal #P-2026-014  ·  Page 1 of 1" style="text;html=1;align=center;verticalAlign=middle;fontSize=9;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="350" y="990" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ftqr" value="[ QR ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="970" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ftqrt" value="Scan to verify" style="text;html=1;align=center;verticalAlign=middle;fontSize=8;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="1030" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="nt" value="STATE: PPF Print View — A4 portrait, auto-generated from approved proposal data; signature blocks for routing" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1070" width="900" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

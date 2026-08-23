@@ -1,0 +1,45 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="04 - Filter Sheet" id="p4">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="sb" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="220" height="900" as="geometry"/></mxCell>
+        <mxCell id="logo" value="AGAPE" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="180" height="34" as="geometry"/></mxCell>
+        <mxCell id="logosub" value="PARAYA Officers" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="20" y="56" width="180" height="20" as="geometry"/></mxCell>
+        <mxCell id="n12" value="[x] Analytics" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontStyle=1;align=left;spacingLeft=12;fontSize=12;" vertex="1" parent="1"><mxGeometry x="10" y="438" width="200" height="34" as="geometry"/></mxCell>
+        <mxCell id="nm" value="(... sub-nav, other items ...)" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=10;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="10" y="476" width="200" height="200" as="geometry"/></mxCell>
+        <mxCell id="ht" value="Analytics &amp; Insights" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=20;fontSize=18;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="220" y="14" width="500" height="40" as="geometry"/></mxCell>
+        <mxCell id="bl" value="[ BELL ]" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1400" y="14" width="60" height="40" as="geometry"/></mxCell>
+        <mxCell id="us" value="[ USER: Officer Name &#9662; ]" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1460" y="14" width="180" height="40" as="geometry"/></mxCell>
+        <mxCell id="hs" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="220" y="60" width="1380" height="1" as="geometry"/></mxCell>
+        <mxCell id="dim" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;opacity=30;" vertex="1" parent="1"><mxGeometry x="220" y="60" width="1000" height="840" as="geometry"/></mxCell>
+        <mxCell id="bgrow1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;opacity=30;" vertex="1" parent="1"><mxGeometry x="240" y="100" width="960" height="90" as="geometry"/></mxCell>
+        <mxCell id="bgrow2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;opacity=30;" vertex="1" parent="1"><mxGeometry x="240" y="200" width="960" height="280" as="geometry"/></mxCell>
+        <mxCell id="sht" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="60" width="380" height="840" as="geometry"/></mxCell>
+        <mxCell id="shth" value="Filter Analytics" style="text;html=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=20;fontSize=15;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1220" y="60" width="380" height="32" as="geometry"/></mxCell>
+        <mxCell id="shthd" value="Narrow the data shown across all charts and metrics." style="text;html=1;align=left;verticalAlign=top;spacingLeft=24;spacingTop=44;fontSize=10;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="1220" y="60" width="360" height="32" as="geometry"/></mxCell>
+        <mxCell id="shthl" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="112" width="380" height="1" as="geometry"/></mxCell>
+        <mxCell id="f1l" value="&#128205; Partner Barangay" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1220" y="128" width="380" height="22" as="geometry"/></mxCell>
+        <mxCell id="f1h" value="Focus all metrics on a single partner barangay" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="148" width="380" height="20" as="geometry"/></mxCell>
+        <mxCell id="f1" value="Lolomboy &#9662;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;strokeWidth=2;align=left;spacingLeft=14;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1244" y="178" width="332" height="40" as="geometry"/></mxCell>
+        <mxCell id="f1opt" value="Showing 19 partner barangays in dropdown" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=9;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="222" width="380" height="20" as="geometry"/></mxCell>
+        <mxCell id="div1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1244" y="254" width="332" height="1" as="geometry"/></mxCell>
+        <mxCell id="f2l" value="&#128197; Calendar Year" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1220" y="268" width="380" height="22" as="geometry"/></mxCell>
+        <mxCell id="f2h" value="Show data from a specific year; leave blank for all-time" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="288" width="380" height="20" as="geometry"/></mxCell>
+        <mxCell id="f2" value="2026 &#9662;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;align=left;spacingLeft=14;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1244" y="318" width="332" height="40" as="geometry"/></mxCell>
+        <mxCell id="f2opt" value="Years available: 2024, 2025, 2026" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=9;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="362" width="380" height="20" as="geometry"/></mxCell>
+        <mxCell id="div2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1244" y="394" width="332" height="1" as="geometry"/></mxCell>
+        <mxCell id="prev" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1244" y="410" width="332" height="100" as="geometry"/></mxCell>
+        <mxCell id="prevt" value="Filter preview" style="text;html=1;align=left;verticalAlign=top;spacingLeft=16;spacingTop=12;fontSize=11;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1244" y="410" width="332" height="22" as="geometry"/></mxCell>
+        <mxCell id="prev1" value="Barangay: Lolomboy" style="text;html=1;align=left;verticalAlign=top;spacingLeft=16;spacingTop=38;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1244" y="410" width="332" height="22" as="geometry"/></mxCell>
+        <mxCell id="prev2" value="Year: 2026" style="text;html=1;align=left;verticalAlign=top;spacingLeft=16;spacingTop=58;fontSize=10;" vertex="1" parent="1"><mxGeometry x="1244" y="410" width="332" height="22" as="geometry"/></mxCell>
+        <mxCell id="prev3" value="Will recompute 4 KPI cards + 6 chart cards" style="text;html=1;align=left;verticalAlign=top;spacingLeft=16;spacingTop=78;fontSize=9;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1244" y="410" width="332" height="22" as="geometry"/></mxCell>
+        <mxCell id="ftd" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1220" y="780" width="380" height="1" as="geometry"/></mxCell>
+        <mxCell id="bapply" value="[ Apply Filters ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1244" y="796" width="332" height="40" as="geometry"/></mxCell>
+        <mxCell id="breset" value="[ Reset All ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1244" y="844" width="332" height="40" as="geometry"/></mxCell>
+        <mxCell id="ft" value="STATE: Right-side filter sheet open &#8212; Barangay (Lolomboy) + Year (2026) selected, preview block, Apply/Reset" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#fff;" vertex="1" parent="1"><mxGeometry x="240" y="822" width="900" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

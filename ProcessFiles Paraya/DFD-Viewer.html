@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AGAPE DFD Viewer (editable)</title>
+<style>
+  :root {
+    --shape-fill: #f2e89a;
+    --shape-stroke: #000;
+    --db-tab: #cecece;
+    --line: #000;
+    --line-hover: #4a7c59;
+    --line-selected: #1e88e5;
+    --handle: #1e88e5;
+    --handle-add: #4a7c59;
+    --bg: #fafaf7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: #2c2416;
+    user-select: none;
+  }
+  header {
+    padding: 14px 24px 0;
+    border-bottom: 1px solid #e5ddd0;
+    background: #fff;
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    margin: 0 0 10px;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button {
+    appearance: none;
+    background: transparent;
+    border: 1px solid #e5ddd0;
+    border-bottom: none;
+    padding: 7px 13px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    color: #6b6356;
+  }
+  .tabs button:hover { background: #f5f0e8; }
+  .tabs button.active {
+    background: var(--shape-fill);
+    color: #000;
+    border-color: #000;
+    font-weight: 700;
+  }
+  .toolbar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding-bottom: 8px;
+  }
+  .toolbar button {
+    appearance: none;
+    background: #fff;
+    border: 1px solid #6b5b3e;
+    color: #2c2416;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .toolbar button:hover { background: #f5f0e8; }
+  .toolbar button.danger { color: #9b3b3b; border-color: #9b3b3b; }
+  .toolbar .sep { width: 1px; height: 16px; background: #e5ddd0; margin: 0 4px; }
+  .instructions {
+    padding: 8px 24px;
+    background: #f5f0e8;
+    border-bottom: 1px solid #e5ddd0;
+    font-size: 11px;
+    color: #6b6356;
+    line-height: 1.5;
+  }
+  .instructions kbd {
+    background: #fff;
+    border: 1px solid #d0c8b8;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: monospace;
+    font-size: 10px;
+  }
+  .figure-title {
+    padding: 12px 24px 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #2c2416;
+  }
+  .canvas-wrap {
+    overflow: auto;
+    padding: 12px 24px 40px;
+  }
+  .canvas {
+    position: relative;
+    width: 1500px;
+    background: #fff;
+    border: 1px solid #e5ddd0;
+    border-radius: 6px;
+  }
+
+  /* ENTITY */
+  .entity {
+    position: absolute;
+    background: var(--shape-fill);
+    border: 1px solid var(--shape-stroke);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .entity.italic { font-style: italic; }
+  .entity.dashed { border-style: dashed; }
+
+  /* PROCESS */
+  .process {
+    position: absolute;
+    width: 140px;
+    height: 100px;
+  }
+  .process .outer {
+    background: var(--shape-fill);
+    border: 1px solid var(--shape-stroke);
+    border-radius: 6px;
+    position: absolute;
+    inset: 0;
+  }
+  .process .inner {
+    background: #fff;
+    border: 1px solid var(--shape-stroke);
+    position: absolute;
+    left: 0; right: 0;
+    top: 19.61%; bottom: 19.61%;
+  }
+  .process .num {
+    position: absolute;
+    top: 4px; left: 4px;
+    font-size: 7px;
+    font-weight: 500;
+    z-index: 2;
+  }
+  .process .label {
+    position: absolute;
+    inset: 19.61% 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    z-index: 2;
+  }
+
+  /* DATABASE */
+  .db {
+    position: absolute;
+    width: 200px;
+    height: 44px;
+    display: flex;
+    border: 1px solid var(--shape-stroke);
+  }
+  .db .tab {
+    background: var(--db-tab);
+    border-right: 1px solid var(--shape-stroke);
+    width: 26px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .db .name {
+    background: var(--shape-fill);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 4px 6px;
+    line-height: 1.2;
+  }
+  .db.read-only .name {
+    font-style: italic;
+    color: #6b6356;
+  }
+
+  /* ARROWS SVG */
+  .arrows {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .arrows .hitbox {
+    stroke: transparent;
+    stroke-width: 12;
+    fill: none;
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+  .arrows .stroke {
+    stroke: var(--line);
+    stroke-width: 1;
+    fill: none;
+    pointer-events: none;
+  }
+  .arrows g.flow:hover .stroke { stroke: var(--line-hover); stroke-width: 1.5; }
+  .arrows g.flow.selected .stroke { stroke: var(--line-selected); stroke-width: 1.5; }
+  .arrows .stroke.dashed { stroke-dasharray: 4 2; }
+  /* Focus mode: when one arrow is selected, dim and disable all others so
+     you can't accidentally grab them while editing. */
+  .arrows g.flow.muted { opacity: 0.25; }
+  .arrows g.flow.muted * { pointer-events: none !important; }
+
+  .handle {
+    fill: var(--handle);
+    stroke: #fff;
+    stroke-width: 1.5;
+    cursor: grab;
+    pointer-events: all;
+  }
+  .handle:active { cursor: grabbing; }
+  .handle.add {
+    fill: var(--handle-add);
+    cursor: copy;
+    opacity: 0.7;
+  }
+  .handle.add:hover { opacity: 1; }
+
+  /* LABELS (HTML overlay for editability) */
+  .label-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .flow-label {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 2px 5px;
+    font-size: 11px;
+    line-height: 1.25;
+    border-radius: 2px;
+    transform: translate(-50%, -50%);
+    pointer-events: all;
+    cursor: grab;
+    max-width: 240px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .flow-label:hover { background: #fff; outline: 1px dotted #6b5b3e; }
+  .flow-label.editing {
+    background: #fff;
+    outline: 2px solid var(--line-selected);
+    cursor: text;
+    white-space: pre-wrap;
+    overflow: visible;
+  }
+  .flow-label.dragging { cursor: grabbing; }
+  .flow-label.muted { opacity: 0.4; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div>
+      <h1>AGAPE — Exploded Data Flow Diagram</h1>
+      <div class="tabs" id="tabs">
+        <button data-fig="0" class="active">Context (Level 0)</button>
+        <button data-fig="1">Fig 1 — Access &amp; Identity</button>
+        <button data-fig="2">Fig 2 — Admin &amp; Setup</button>
+        <button data-fig="3">Fig 3 — Community Engagement</button>
+        <button data-fig="4">Fig 4 — Program Execution</button>
+        <button data-fig="5">Fig 5 — Analytics &amp; Comms</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button id="btn-reset-selected">Reset selected arrow</button>
+      <button id="btn-delete-arrow" class="danger">Delete arrow</button>
+      <button id="btn-reset-figure" class="danger">Reset this figure</button>
+      <span class="sep"></span>
+      <button id="btn-export">Export layout</button>
+      <button id="btn-import">Import layout</button>
+    </div>
+  </div>
+</header>
+
+<div class="instructions">
+  <strong>Edit arrows:</strong>
+  Click an arrow to <em>focus</em> on it (other arrows dim and become inert) &middot;
+  Drag the <span style="color:#1e88e5">blue dots</span>, the <span style="color:#4a7c59">green +</span>, or
+  <em>anywhere along the line</em> to bend it &middot;
+  Drag a label to move it &middot;
+  Double-click a label to edit text &middot;
+  <kbd>Delete</kbd> removes the last bend &middot;
+  <kbd>Shift</kbd>+<kbd>Delete</kbd> (or the <em>Delete arrow</em> button) hides the whole arrow &middot;
+  Click anywhere with no arrow (or press <kbd>Esc</kbd>) to deselect.
+  Changes persist in your browser (localStorage).
+</div>
+
+<div class="figure-title" id="figTitle"></div>
+<div class="canvas-wrap">
+  <div class="canvas" id="canvas"></div>
+</div>
+
+<script>
+// ============================================================================
+// DIAGRAM DATA
+// ============================================================================
+const FIGURES = [
+  {
+    title: "Context Diagram (Level 0) — AGAPE System",
+    height: 750,
+    entities: [
+      // Left column — PARAYA staff + Partner accounts
+      { id: "E1",  label: "PARAYA Director",      x: 30, y: 60,  w: 180, h: 40 },
+      { id: "E2",  label: "PARAYA Associate",     x: 30, y: 150, w: 180, h: 40 },
+      { id: "E3",  label: "PARAYA Researcher",    x: 30, y: 240, w: 180, h: 40 },
+      { id: "EF",  label: "Finance Officer",      x: 30, y: 330, w: 180, h: 40 },
+      { id: "EPO", label: "Office",               x: 30, y: 420, w: 180, h: 40 },
+      { id: "ESO", label: "Student Organization", x: 30, y: 510, w: 180, h: 40 },
+      { id: "ED",  label: "Department",           x: 30, y: 600, w: 180, h: 40 },
+      // Right column — Barangay + Admin + Scheduler
+      { id: "E4",  label: "Barangay Captain",     x: 1290, y: 60,  w: 180, h: 40 },
+      { id: "E5",  label: "Barangay Secretary",   x: 1290, y: 150, w: 180, h: 40 },
+      { id: "E6",  label: "Mother Leader",        x: 1290, y: 240, w: 180, h: 40 },
+      { id: "E7",  label: "DYCI Volunteer",       x: 1290, y: 330, w: 180, h: 40 },
+      { id: "E8",  label: "System Administrator", x: 1290, y: 420, w: 180, h: 40 },
+      { id: "ES",  label: "System Scheduler<br><small>(Cron)</small>", x: 1290, y: 530, w: 180, h: 50, italic: true, dashed: true },
+    ],
+    processes: [
+      { id: "P0", num: "0", label: "AGAPE System", x: 600, y: 280, w: 300, h: 180 },
+    ],
+    databases: [],
+    flows: [
+      // PARAYA Director
+      { from: "E1", to: "P0", label: "manage programs, partnerships, reports, AI requests" },
+      { from: "P0", to: "E1", label: "dashboards, reports, AI narratives" },
+      // PARAYA Associate
+      { from: "E2", to: "P0", label: "draft proposals, coordinate activities, log donations" },
+      { from: "P0", to: "E2", label: "approval status, queue, notifications" },
+      // PARAYA Researcher
+      { from: "E3", to: "P0", label: "field observations, build surveys, case studies" },
+      { from: "P0", to: "E3", label: "drafts, chatbot, notifications" },
+      // Finance Officer
+      { from: "EF", to: "P0", label: "finance clearance / send back" },
+      { from: "P0", to: "EF", label: "finance queue, decision history" },
+      // Office
+      { from: "EPO", to: "P0", label: "submit proposals, program items" },
+      { from: "P0", to: "EPO", label: "approval status, validation result" },
+      // Student Organization
+      { from: "ESO", to: "P0", label: "submit proposals, program items" },
+      { from: "P0", to: "ESO", label: "approval status, validation result" },
+      // Department
+      { from: "ED", to: "P0", label: "submit proposals, program items" },
+      { from: "P0", to: "ED", label: "approval status, validation, dept volunteers" },
+      // Barangay Captain
+      { from: "E4", to: "P0", label: "approve / reject community needs" },
+      { from: "P0", to: "E4", label: "approval queue, barangay reports, notifications" },
+      // Barangay Secretary
+      { from: "E5", to: "P0", label: "submit needs, barangay profile, survey answers" },
+      { from: "P0", to: "E5", label: "status, partnership view, notifications" },
+      // Mother Leader
+      { from: "E6", to: "P0", label: "sitio needs, household profiles, skills/assets" },
+      { from: "P0", to: "E6", label: "status, partnership view" },
+      // DYCI Volunteer
+      { from: "E7", to: "P0", label: "signup, attendance, activity logs, surveys, chatbot" },
+      { from: "P0", to: "E7", label: "schedules, notifications, chatbot response" },
+      // System Administrator
+      { from: "E8", to: "P0", label: "manage users, backup, audit query" },
+      { from: "P0", to: "E8", label: "user data, audit logs, backup files" },
+      // System Scheduler (cron — trigger only, no return)
+      { from: "ES", to: "P0", label: "scheduled triggers (snapshots, reminders)", dashed: true },
+    ],
+  },
+  {
+    title: "Figure 1 of 5 — Access & Identity  (Processes 1.0, 2.0, 3.0)",
+    height: 950,
+    entities: [
+      { id: "E1",  label: "PARAYA Director",      x: 30, y: 30,  w: 180, h: 40 },
+      { id: "E2",  label: "PARAYA Associate",     x: 30, y: 100, w: 180, h: 40 },
+      { id: "E3",  label: "PARAYA Researcher",    x: 30, y: 170, w: 180, h: 40 },
+      { id: "EF",  label: "Finance Officer",      x: 30, y: 240, w: 180, h: 40 },
+      { id: "EPO", label: "Office",               x: 30, y: 310, w: 180, h: 40 },
+      { id: "ESO", label: "Student Organization", x: 30, y: 380, w: 180, h: 40 },
+      { id: "ED",  label: "Department",           x: 30, y: 450, w: 180, h: 40 },
+      { id: "E4",  label: "Barangay Captain",     x: 30, y: 540, w: 180, h: 40 },
+      { id: "E5",  label: "Barangay Secretary",   x: 30, y: 610, w: 180, h: 40 },
+      { id: "E6",  label: "Mother Leader",        x: 30, y: 680, w: 180, h: 40 },
+      { id: "E7",  label: "DYCI Volunteer",       x: 30, y: 770, w: 180, h: 40 },
+      { id: "E8",  label: "System Administrator", x: 30, y: 860, w: 180, h: 40 },
+    ],
+    processes: [
+      { id: "P1", num: "1.0", label: "Log In &amp; Authentication", x: 600, y: 80  },
+      { id: "P2", num: "2.0", label: "Dashboard",                   x: 600, y: 400 },
+      { id: "P3", num: "3.0", label: "User Management",             x: 600, y: 720 },
+    ],
+    databases: [
+      { id: "D1", num: "D1", label: "User Database", x: 1260, y: 240 },
+      { id: "D2", num: "D2", label: "Audit Logs",    x: 1260, y: 580 },
+    ],
+    flows: [
+      // 1.0 Authentication — every role logs in
+      { from: "E1",  to: "P1", label: "login credentials" },
+      { from: "E2",  to: "P1", label: "login credentials" },
+      { from: "E3",  to: "P1", label: "login credentials" },
+      { from: "EF",  to: "P1", label: "login credentials" },
+      { from: "EPO", to: "P1", label: "login credentials" },
+      { from: "ESO", to: "P1", label: "login credentials" },
+      { from: "ED",  to: "P1", label: "login credentials" },
+      { from: "E4",  to: "P1", label: "login credentials" },
+      { from: "E5",  to: "P1", label: "login credentials" },
+      { from: "E6",  to: "P1", label: "login credentials" },
+      { from: "E7",  to: "P1", label: "login credentials" },
+      { from: "E8",  to: "P1", label: "login credentials" },
+      { from: "P1", to: "E1",  label: "session" },
+      { from: "P1", to: "E2",  label: "session" },
+      { from: "P1", to: "E3",  label: "session" },
+      { from: "P1", to: "EF",  label: "session" },
+      { from: "P1", to: "EPO", label: "session" },
+      { from: "P1", to: "ESO", label: "session" },
+      { from: "P1", to: "ED",  label: "session" },
+      { from: "P1", to: "E4",  label: "session" },
+      { from: "P1", to: "E5",  label: "session" },
+      { from: "P1", to: "E6",  label: "session" },
+      { from: "P1", to: "E7",  label: "session" },
+      { from: "P1", to: "E8",  label: "session" },
+      { from: "D1", to: "P1", label: "verify credentials" },
+      { from: "P1", to: "D2", label: "auth event" },
+      // 2.0 Dashboard — role-aware summary
+      { from: "E1",  to: "P2", label: "request landing" },
+      { from: "E2",  to: "P2", label: "request landing" },
+      { from: "E3",  to: "P2", label: "request landing" },
+      { from: "EF",  to: "P2", label: "request landing" },
+      { from: "EPO", to: "P2", label: "request landing" },
+      { from: "ESO", to: "P2", label: "request landing" },
+      { from: "ED",  to: "P2", label: "request landing" },
+      { from: "E4",  to: "P2", label: "request landing" },
+      { from: "E5",  to: "P2", label: "request landing" },
+      { from: "E6",  to: "P2", label: "request landing" },
+      { from: "E7",  to: "P2", label: "request landing" },
+      { from: "E8",  to: "P2", label: "request landing" },
+      { from: "D1", to: "P2", label: "role + permissions" },
+      { from: "P2", to: "E1",  label: "role-aware summary" },
+      { from: "P2", to: "E2",  label: "role-aware summary" },
+      { from: "P2", to: "E3",  label: "role-aware summary" },
+      { from: "P2", to: "EF",  label: "role-aware summary" },
+      { from: "P2", to: "EPO", label: "role-aware summary" },
+      { from: "P2", to: "ESO", label: "role-aware summary" },
+      { from: "P2", to: "ED",  label: "role-aware summary" },
+      { from: "P2", to: "E4",  label: "role-aware summary" },
+      { from: "P2", to: "E5",  label: "role-aware summary" },
+      { from: "P2", to: "E6",  label: "role-aware summary" },
+      { from: "P2", to: "E7",  label: "role-aware summary" },
+      { from: "P2", to: "E8",  label: "role-aware summary" },
+      // 3.0 User Management — admin only
+      { from: "E8", to: "P3", label: "invite, edit, status, reset" },
+      { from: "P3", to: "D1", label: "user record + permissions + org_name" },
+      { from: "D1", to: "P3", label: "existing user" },
+      { from: "P3", to: "E8", label: "confirmation" },
+      { from: "P3", to: "D2", label: "admin action event" },
+    ],
+  },
+  {
+    title: "Figure 2 of 5 — Administration & Setup  (Processes 4.0, 5.0, 9.0)",
+    height: 700,
+    entities: [
+      { id: "E1", label: "PARAYA Director",      x: 30, y: 40,  w: 180, h: 40 },
+      { id: "E2", label: "PARAYA Associate",     x: 30, y: 110, w: 180, h: 40 },
+      { id: "E3", label: "PARAYA Researcher",    x: 30, y: 180, w: 180, h: 40 },
+      { id: "E4", label: "Barangay Captain",     x: 30, y: 270, w: 180, h: 40 },
+      { id: "E5", label: "Barangay Secretary",   x: 30, y: 340, w: 180, h: 40 },
+      { id: "E6", label: "Mother Leader",        x: 30, y: 410, w: 180, h: 40 },
+      { id: "E7", label: "DYCI Volunteer",       x: 30, y: 480, w: 180, h: 40 },
+      { id: "E8", label: "System Administrator", x: 30, y: 570, w: 180, h: 40 },
+    ],
+    processes: [
+      { id: "P4", num: "4.0", label: "System Administration &amp; Backup", x: 600, y: 60  },
+      { id: "P5", num: "5.0", label: "Partnership Management",             x: 600, y: 280 },
+      { id: "P9", num: "9.0", label: "Skill &amp; Asset Documentation",    x: 600, y: 500 },
+    ],
+    databases: [
+      { id: "D2",  num: "D2",  label: "Audit Logs (read-only — Fig 1)",    x: 1260, y: 60,  readonly: true },
+      { id: "D3",  num: "D3",  label: "Partnership Records + History",     x: 1260, y: 220 },
+      { id: "D8",  num: "D8",  label: "Skill &amp; Asset Records",         x: 1260, y: 380 },
+      { id: "D14", num: "D14", label: "Backup Files",                      x: 1260, y: 540 },
+    ],
+    flows: [
+      // 4.0 System Administration & Backup
+      { from: "E8",  to: "P4",  label: "audit query, backup export/restore" },
+      { from: "D2",  to: "P4",  label: "audit trail" },
+      { from: "P4",  to: "D14", label: "JSON snapshot" },
+      { from: "D14", to: "P4",  label: "restore preview" },
+      { from: "P4",  to: "E8",  label: "audit view, backup file, result" },
+      // 5.0 Partnership Management
+      { from: "E1", to: "P5", label: "partnership review, oversight" },
+      { from: "E2", to: "P5", label: "barangay profile, contacts, coords" },
+      { from: "P5", to: "D3", label: "partnership + timeline event" },
+      { from: "D3", to: "P5", label: "existing partnerships + history" },
+      { from: "P5", to: "E1", label: "partner map + timeline" },
+      { from: "P5", to: "E4", label: "own-partnership view" },
+      { from: "P5", to: "E5", label: "own-partnership view" },
+      { from: "P5", to: "E6", label: "own-partnership view" },
+      { from: "P5", to: "E7", label: "barangay assignment" },
+      // 9.0 Skill & Asset Documentation
+      { from: "E3", to: "P9", label: "maintain barangay inventory" },
+      { from: "E6", to: "P9", label: "sitio-level skills/assets" },
+      { from: "P9", to: "D8", label: "skills + assets (anonymized)" },
+      { from: "D8", to: "P9", label: "existing inventory" },
+    ],
+  },
+  {
+    title: "Figure 3 of 5 — Community Engagement  (Processes 6.0, 7.0, 8.0)",
+    height: 920,
+    entities: [
+      { id: "E1",  label: "PARAYA Director",      x: 30, y: 30,  w: 180, h: 40 },
+      { id: "E2",  label: "PARAYA Associate",     x: 30, y: 100, w: 180, h: 40 },
+      { id: "E3",  label: "PARAYA Researcher",    x: 30, y: 170, w: 180, h: 40 },
+      { id: "EF",  label: "Finance Officer",      x: 30, y: 240, w: 180, h: 40 },
+      { id: "EPO", label: "Office",               x: 30, y: 310, w: 180, h: 40 },
+      { id: "ESO", label: "Student Organization", x: 30, y: 380, w: 180, h: 40 },
+      { id: "ED",  label: "Department",           x: 30, y: 450, w: 180, h: 40 },
+      { id: "E4",  label: "Barangay Captain",     x: 30, y: 540, w: 180, h: 40 },
+      { id: "E5",  label: "Barangay Secretary",   x: 30, y: 610, w: 180, h: 40 },
+      { id: "E6",  label: "Mother Leader",        x: 30, y: 680, w: 180, h: 40 },
+      { id: "E7",  label: "DYCI Volunteer",       x: 30, y: 770, w: 180, h: 40 },
+    ],
+    processes: [
+      { id: "P6", num: "6.0", label: "Project Proposal &amp; Approval Workflow", x: 600, y: 80  },
+      { id: "P7", num: "7.0", label: "Community Needs Assessment",               x: 600, y: 380 },
+      { id: "P8", num: "8.0", label: "Volunteer Management",                     x: 600, y: 680 },
+    ],
+    databases: [
+      { id: "D4", num: "D4", label: "Project Proposals + Reviews/Revisions",         x: 1260, y: 80  },
+      { id: "D5", num: "D5", label: "Community Needs + Households + Field Obs",      x: 1260, y: 280 },
+      { id: "D6", num: "D6", label: "Survey Data + Codebook",                        x: 1260, y: 480 },
+      { id: "D7", num: "D7", label: "Volunteer Records + Classes + Attendance",      x: 1260, y: 680 },
+    ],
+    flows: [
+      // 6.0 Project Proposal & Approval Workflow
+      { from: "E2",  to: "P6", label: "draft, SDG, community validation" },
+      { from: "EPO", to: "P6", label: "submit proposal" },
+      { from: "ESO", to: "P6", label: "submit proposal" },
+      { from: "ED",  to: "P6", label: "submit proposal" },
+      { from: "E1",  to: "P6", label: "endorse / advance / revise" },
+      { from: "EF",  to: "P6", label: "finance clearance / send back" },
+      { from: "D5",  to: "P6", label: "needs context (gatekeeping)" },
+      { from: "P6", to: "D4",  label: "submitted + approved + finance + community + revisions" },
+      { from: "D4", to: "P6",  label: "existing + informed-by" },
+      { from: "P6", to: "E2",  label: "approval status, PPF" },
+      { from: "P6", to: "EPO", label: "approval status, PPF" },
+      { from: "P6", to: "ESO", label: "approval status, PPF" },
+      { from: "P6", to: "ED",  label: "approval status, PPF" },
+      { from: "P6", to: "EF",  label: "finance queue, decisions" },
+      // 7.0 Community Needs Assessment
+      { from: "E5", to: "P7", label: "submit needs (sitio)" },
+      { from: "E6", to: "P7", label: "sitio needs + households" },
+      { from: "E3", to: "P7", label: "field obs, build surveys, codes, scrub" },
+      { from: "E4", to: "P7", label: "approve / reject / revise" },
+      { from: "E1", to: "P7", label: "publish / archive surveys" },
+      { from: "E7", to: "P7", label: "interview responses" },
+      { from: "P7", to: "D5", label: "needs + households + observations" },
+      { from: "D5", to: "P7", label: "existing needs + status" },
+      { from: "P7", to: "D6", label: "surveys + responses + codes" },
+      { from: "D6", to: "P7", label: "templates + answers + codebook" },
+      { from: "P7", to: "E5", label: "status, Captain notes" },
+      { from: "P7", to: "E4", label: "approval queue" },
+      // 8.0 Volunteer Management
+      { from: "E1", to: "P8", label: "task assignments" },
+      { from: "E7", to: "P8", label: "signup, PPF, QR/OTP, schedule, log" },
+      { from: "P8", to: "D7", label: "volunteer + signups + classes + attendance" },
+      { from: "D7", to: "P8", label: "volunteer records + schedules" },
+      { from: "P8", to: "E7", label: "schedule, assignments" },
+      { from: "P8", to: "ED", label: "dept-matched volunteers" },
+    ],
+  },
+  {
+    title: "Figure 4 of 5 — Program Execution  (Processes 10.0, 11.0, 14.0)",
+    height: 750,
+    entities: [
+      { id: "E1",  label: "PARAYA Director",      x: 30, y: 30,  w: 180, h: 40 },
+      { id: "E2",  label: "PARAYA Associate",     x: 30, y: 100, w: 180, h: 40 },
+      { id: "E3",  label: "PARAYA Researcher",    x: 30, y: 170, w: 180, h: 40 },
+      { id: "E7",  label: "DYCI Volunteer",       x: 30, y: 270, w: 180, h: 40 },
+      { id: "EPO", label: "Office",               x: 30, y: 340, w: 180, h: 40 },
+      { id: "ESO", label: "Student Organization", x: 30, y: 410, w: 180, h: 40 },
+      { id: "ED",  label: "Department",           x: 30, y: 480, w: 180, h: 40 },
+    ],
+    processes: [
+      { id: "P10", num: "10.0", label: "Program Tracking &amp; Monitoring",  x: 600, y: 60  },
+      { id: "P11", num: "11.0", label: "Donation &amp; Resource Management", x: 600, y: 300 },
+      { id: "P14", num: "14.0", label: "Impact Measurement",                 x: 600, y: 540 },
+    ],
+    databases: [
+      { id: "D4",  num: "D4",  label: "Project Proposals (read-only — Fig 3)",  x: 1260, y: 40,  readonly: true },
+      { id: "D6",  num: "D6",  label: "Survey Data (read-only — Fig 3)",        x: 1260, y: 110, readonly: true },
+      { id: "D9",  num: "D9",  label: "Program Records + Photos + Attendance",  x: 1260, y: 200 },
+      { id: "D10", num: "D10", label: "Donation Log",                           x: 1260, y: 340 },
+      { id: "D11", num: "D11", label: "Analytics &amp; AI Reports + Snapshots", x: 1260, y: 480 },
+      { id: "D12", num: "D12", label: "Impact Records",                         x: 1260, y: 600 },
+    ],
+    flows: [
+      // 10.0 Program Tracking & Monitoring
+      { from: "E2",  to: "P10", label: "activities, OTP, reports, photos, validate" },
+      { from: "E7",  to: "P10", label: "check-in confirmation, activity log" },
+      { from: "EPO", to: "P10", label: "submit activity/budget/signup (pending)" },
+      { from: "ESO", to: "P10", label: "submit activity/budget/signup (pending)" },
+      { from: "ED",  to: "P10", label: "submit activity/budget/signup (pending)" },
+      { from: "D4",  to: "P10", label: "approved proposals" },
+      { from: "P10", to: "D9",  label: "activities + reports + photos + approval" },
+      { from: "D9",  to: "P10", label: "program state, roster, validation queue" },
+      { from: "P10", to: "E1",  label: "program status" },
+      { from: "P10", to: "EPO", label: "validation result" },
+      { from: "P10", to: "ESO", label: "validation result" },
+      { from: "P10", to: "ED",  label: "validation result" },
+      // 11.0 Donation & Resource Management
+      { from: "E2",  to: "P11", label: "donation entries, distributions" },
+      { from: "E1",  to: "P11", label: "oversight" },
+      { from: "P11", to: "D10", label: "donation + distribution" },
+      { from: "D10", to: "P11", label: "donation log" },
+      { from: "P11", to: "E1",  label: "donation summary" },
+      // 14.0 Impact Measurement
+      { from: "E3",  to: "P14", label: "case studies, qualitative, 6mo/12mo follow-ups" },
+      { from: "E2",  to: "P14", label: "quantitative indicators" },
+      { from: "D9",  to: "P14", label: "program data" },
+      { from: "D6",  to: "P14", label: "pre/post survey data" },
+      { from: "P14", to: "D12", label: "impact + qual + follow-ups" },
+      { from: "P14", to: "D11", label: "impact summary" },
+      { from: "P14", to: "E1",  label: "impact report" },
+    ],
+  },
+  {
+    title: "Figure 5 of 5 — Analytics, Reporting & Communication  (Processes 12.0, 13.0, 15.0)",
+    height: 850,
+    entities: [
+      { id: "E1", label: "PARAYA Director",                            x: 30, y: 40,  w: 180, h: 40 },
+      { id: "E2", label: "PARAYA Associate",                           x: 30, y: 110, w: 180, h: 40 },
+      { id: "E3", label: "PARAYA Researcher",                          x: 30, y: 180, w: 180, h: 40 },
+      { id: "E4", label: "Barangay Captain",                           x: 30, y: 250, w: 180, h: 40 },
+      { id: "E5", label: "Barangay Secretary",                         x: 30, y: 320, w: 180, h: 40 },
+      { id: "E7", label: "DYCI Volunteer",                             x: 30, y: 390, w: 180, h: 40 },
+      { id: "ES", label: "System Scheduler<br><small>(Cron)</small>",  x: 30, y: 490, w: 180, h: 50, italic: true, dashed: true },
+    ],
+    processes: [
+      { id: "P12", num: "12.0", label: "Analytics",                            x: 600, y: 60  },
+      { id: "P13", num: "13.0", label: "Reporting (incl. AI Narrative)",       x: 600, y: 340 },
+      { id: "P15", num: "15.0", label: "Communication (incl. AI Chatbot)",     x: 600, y: 620 },
+    ],
+    databases: [
+      { id: "D1",  num: "D1",  label: "User Database (read-only — Fig 1)",                      x: 1260, y: 30,  readonly: true },
+      { id: "D5",  num: "D5",  label: "Needs + Households + Observations (read-only — Fig 3)",  x: 1260, y: 100, readonly: true },
+      { id: "D6",  num: "D6",  label: "Survey Data + Codebook (read-only — Fig 3)",             x: 1260, y: 170, readonly: true },
+      { id: "D7",  num: "D7",  label: "Volunteers + Classes + Attendance (read-only — Fig 3)",  x: 1260, y: 240, readonly: true },
+      { id: "D9",  num: "D9",  label: "Programs + Photos (read-only — Fig 4)",                  x: 1260, y: 310, readonly: true },
+      { id: "D10", num: "D10", label: "Donation Log (read-only — Fig 4)",                       x: 1260, y: 380, readonly: true },
+      { id: "D11", num: "D11", label: "Analytics &amp; AI Reports + Snapshots",                 x: 1260, y: 470 },
+      { id: "D12", num: "D12", label: "Impact Records (read-only — Fig 4)",                     x: 1260, y: 570, readonly: true },
+      { id: "D13", num: "D13", label: "Notifications &amp; Forum",                              x: 1260, y: 650 },
+    ],
+    flows: [
+      // 12.0 Analytics
+      { from: "E1",  to: "P12", label: "exec dashboard / cross-tab" },
+      { from: "E2",  to: "P12", label: "analytics query" },
+      { from: "ES",  to: "P12", label: "scheduled snapshot", dashed: true },
+      { from: "D1",  to: "P12", label: "user/role" },
+      { from: "D5",  to: "P12", label: "needs + obs" },
+      { from: "D6",  to: "P12", label: "survey + methodology + codes" },
+      { from: "D7",  to: "P12", label: "volunteer participation" },
+      { from: "D9",  to: "P12", label: "program + attendance" },
+      { from: "D10", to: "P12", label: "donations" },
+      { from: "P12", to: "D11", label: "freq + % + cross-tabs + SDG + snapshots" },
+      { from: "D11", to: "P12", label: "stored snapshots" },
+      { from: "P12", to: "E1",  label: "dashboards, SDG tracker, cross-tabs" },
+      // 13.0 Reporting (incl. AI Narrative)
+      { from: "E1",  to: "P13", label: "report / AI narrative request" },
+      { from: "E3",  to: "P13", label: "compile community profiling report" },
+      { from: "E4",  to: "P13", label: "barangay-scoped request" },
+      { from: "E5",  to: "P13", label: "barangay-scoped request" },
+      { from: "D11", to: "P13", label: "aggregated metrics" },
+      { from: "D5",  to: "P13", label: "profiling data" },
+      { from: "D9",  to: "P13", label: "program performance" },
+      { from: "P13", to: "D11", label: "AI report" },
+      { from: "P13", to: "E1",  label: "PDF / Excel + AI narrative" },
+      { from: "P13", to: "E3",  label: "draft for review" },
+      { from: "P13", to: "E4",  label: "barangay-scoped report" },
+      { from: "P13", to: "E5",  label: "barangay-scoped report" },
+      // 15.0 Communication (incl. AI Chatbot)
+      { from: "E1",  to: "P15", label: "announcements, chatbot query" },
+      { from: "E2",  to: "P15", label: "forum threads, chatbot query" },
+      { from: "E3",  to: "P15", label: "chatbot query" },
+      { from: "E7",  to: "P15", label: "forum reply, prefs, chatbot query" },
+      { from: "E4",  to: "P15", label: "chatbot query" },
+      { from: "E5",  to: "P15", label: "chatbot query" },
+      { from: "ES",  to: "P15", label: "twice-yearly profiling reminder", dashed: true },
+      { from: "D13", to: "P15", label: "prefs, threads" },
+      { from: "P15", to: "D13", label: "notifications + threads + posts + prefs" },
+      { from: "P15", to: "E1",  label: "chatbot response" },
+      { from: "P15", to: "E2",  label: "chatbot response" },
+      { from: "P15", to: "E3",  label: "chatbot response" },
+      { from: "P15", to: "E7",  label: "email / SMS / in-app, chatbot response" },
+      { from: "P15", to: "E4",  label: "email / SMS / in-app, chatbot response" },
+      { from: "P15", to: "E5",  label: "email / SMS / in-app, chatbot response" },
+    ],
+  },
+];
+
+const PROCESS_W = 140, PROCESS_H = 100;
+const DB_W = 200, DB_H = 44;
+const STORAGE_KEY = "agape-dfd-edits";
+
+// ============================================================================
+// EDIT STATE (persisted in localStorage)
+// edits[figIdx][flowIdx] = { waypoints?: [{x,y}], labelPos?: {x,y}, labelText?: string }
+// ============================================================================
+let edits = {};
+try { edits = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (e) { edits = {}; }
+function saveEdits() { localStorage.setItem(STORAGE_KEY, JSON.stringify(edits)); }
+function getFlowEdit(figIdx, flowIdx) {
+  return (edits[figIdx] || {})[flowIdx] || {};
+}
+function setFlowEdit(figIdx, flowIdx, patch) {
+  edits[figIdx] = edits[figIdx] || {};
+  edits[figIdx][flowIdx] = { ...(edits[figIdx][flowIdx] || {}), ...patch };
+  saveEdits();
+}
+function clearFlowEdit(figIdx, flowIdx) {
+  if (edits[figIdx]) delete edits[figIdx][flowIdx];
+  saveEdits();
+}
+
+let currentFig = 0;
+let selectedFlow = null; // index into FIGURES[currentFig].flows
+
+// ============================================================================
+// GEOMETRY
+// ============================================================================
+function buildShapeMap(fig) {
+  const map = {};
+  fig.entities.forEach(e => { map[e.id] = { x: e.x, y: e.y, w: e.w, h: e.h }; });
+  fig.processes.forEach(p => { map[p.id] = { x: p.x, y: p.y, w: p.w || PROCESS_W, h: p.h || PROCESS_H }; });
+  fig.databases.forEach(d => { map[d.id] = { x: d.x, y: d.y, w: DB_W, h: DB_H }; });
+  return map;
+}
+
+function pickSide(shape, target) {
+  const cx = shape.x + shape.w / 2, cy = shape.y + shape.h / 2;
+  const dx = target.x - cx, dy = target.y - cy;
+  if (Math.abs(dx) * shape.h > Math.abs(dy) * shape.w) {
+    return dx > 0 ? "right" : "left";
+  }
+  return dy > 0 ? "bottom" : "top";
+}
+
+// Module-level: precomputed per-flow anchor points so arrow tips don't collide.
+let currentAnchors = {}; // flowIdx → { src: {x,y}, tgt: {x,y} }
+
+/** Compute distributed anchor points so multiple arrows on the same shape side
+ *  spread evenly instead of all converging on the side's centre. */
+function computeFlowAnchors(fig, shapes) {
+  // Step 1 — decide which side of each shape each flow attaches to, using the
+  // adjacent waypoint (or the other shape's centre) as a direction hint.
+  const flowSides = fig.flows.map((flow, idx) => {
+    const src = shapes[flow.from], tgt = shapes[flow.to];
+    if (!src || !tgt) return null;
+    const edit = getFlowEdit(currentFig, idx);
+    if (edit.deleted) return null;
+    const wps = edit.waypoints || [];
+    const firstRef = wps[0] || { x: tgt.x + tgt.w / 2, y: tgt.y + tgt.h / 2 };
+    const lastRef = wps[wps.length - 1] || { x: src.x + src.w / 2, y: src.y + src.h / 2 };
+    return {
+      srcSide: pickSide(src, firstRef),
+      tgtSide: pickSide(tgt, lastRef),
+      srcRef: firstRef,
+      tgtRef: lastRef,
+    };
+  });
+  // Step 2 — group attachments by (shape, side).
+  const groups = {};
+  fig.flows.forEach((flow, idx) => {
+    const sides = flowSides[idx];
+    if (!sides) return;
+    groups[flow.from] = groups[flow.from] || {};
+    (groups[flow.from][sides.srcSide] = groups[flow.from][sides.srcSide] || [])
+      .push({ flowIdx: idx, role: "src", ref: sides.srcRef });
+    groups[flow.to] = groups[flow.to] || {};
+    (groups[flow.to][sides.tgtSide] = groups[flow.to][sides.tgtSide] || [])
+      .push({ flowIdx: idx, role: "tgt", ref: sides.tgtRef });
+  });
+  // Step 3 — sort along the perpendicular axis (so arrows don't cross each
+  // other where they meet the side) and spread evenly across the side.
+  const anchors = {};
+  for (const shapeId in groups) {
+    const shape = shapes[shapeId];
+    for (const side in groups[shapeId]) {
+      const list = groups[shapeId][side];
+      list.sort((a, b) => {
+        if (side === "left" || side === "right") return a.ref.y - b.ref.y;
+        return a.ref.x - b.ref.x;
+      });
+      const n = list.length;
+      list.forEach((entry, i) => {
+        const t = (i + 1) / (n + 1);
+        let point;
+        if (side === "left")        point = { x: shape.x,               y: shape.y + shape.h * t };
+        else if (side === "right")  point = { x: shape.x + shape.w,     y: shape.y + shape.h * t };
+        else if (side === "top")    point = { x: shape.x + shape.w * t, y: shape.y };
+        else                        point = { x: shape.x + shape.w * t, y: shape.y + shape.h };
+        anchors[entry.flowIdx] = anchors[entry.flowIdx] || {};
+        anchors[entry.flowIdx][entry.role] = point;
+      });
+    }
+  }
+  return anchors;
+}
+
+/** Build the full point list using the per-flow anchors (collision-free). */
+function computePointsFor(flowIdx, waypoints) {
+  const a = currentAnchors[flowIdx];
+  if (!a) return [];
+  return [a.src, ...(waypoints || []), a.tgt];
+}
+
+/** Default orthogonal path: H-V-H midpoint bend.
+ *  Each arrow starts with two pre-placed bend handles so you can drag them
+ *  immediately to route the arrow wherever you want. */
+function defaultWaypointsFor(flowIdx) {
+  const a = currentAnchors[flowIdx];
+  if (!a) return [];
+  const midX = (a.src.x + a.tgt.x) / 2;
+  return [{ x: midX, y: a.src.y }, { x: midX, y: a.tgt.y }];
+}
+
+function pointsToPath(points) {
+  return points.map((p, i) => (i === 0 ? "M" : "L") + ` ${p.x} ${p.y}`).join(" ");
+}
+
+function midpoint(p1, p2) {
+  return { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+}
+
+/** Snap a dragged waypoint's X or Y to align with the adjacent waypoint /
+ *  endpoint, so segments come out exactly horizontal or vertical. Pulls the
+ *  axis closest to a neighbour within `threshold` px; the other axis stays
+ *  free, so you only get the snap you actually aimed for. */
+function snapWaypoint(x, y, flowIdx, wpIdx, wps) {
+  const a = currentAnchors[flowIdx];
+  if (!a) return { x, y };
+  const prev = wpIdx > 0 ? wps[wpIdx - 1] : a.src;
+  const next = wpIdx < wps.length - 1 ? wps[wpIdx + 1] : a.tgt;
+  if (!prev || !next) return { x, y };
+  const TH = 6;
+  let sx = x, sy = y;
+  const dyPrev = Math.abs(y - prev.y), dyNext = Math.abs(y - next.y);
+  if (dyPrev < TH && dyPrev <= dyNext) sy = prev.y;
+  else if (dyNext < TH) sy = next.y;
+  const dxPrev = Math.abs(x - prev.x), dxNext = Math.abs(x - next.x);
+  if (dxPrev < TH && dxPrev <= dxNext) sx = prev.x;
+  else if (dxNext < TH) sx = next.x;
+  return { x: sx, y: sy };
+}
+
+/** Shortest distance from point (px,py) to the segment p1-p2 (for finding
+ *  which segment of a multi-bend path was clicked). */
+function pointToSegmentDistance(px, py, p1, p2) {
+  const dx = p2.x - p1.x, dy = p2.y - p1.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - p1.x, py - p1.y);
+  let t = ((px - p1.x) * dx + (py - p1.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (p1.x + t * dx), py - (p1.y + t * dy));
+}
+
+/** Best label position: midpoint of the longest segment. */
+function autoLabelPos(points) {
+  let bestLen = 0, bestMid = midpoint(points[0], points[points.length - 1]);
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > bestLen) { bestLen = len; bestMid = midpoint(points[i], points[i + 1]); }
+  }
+  return bestMid;
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+const canvas = document.getElementById("canvas");
+const figTitle = document.getElementById("figTitle");
+const svgNS = "http://www.w3.org/2000/svg";
+
+function render() {
+  const fig = FIGURES[currentFig];
+  figTitle.textContent = fig.title;
+  canvas.style.height = fig.height + "px";
+  canvas.innerHTML = "";
+
+  // Shapes
+  fig.entities.forEach(e => {
+    const div = document.createElement("div");
+    div.className = "entity" + (e.italic ? " italic" : "") + (e.dashed ? " dashed" : "");
+    div.style.left = e.x + "px";
+    div.style.top = e.y + "px";
+    div.style.width = e.w + "px";
+    div.style.height = e.h + "px";
+    div.innerHTML = e.label;
+    canvas.appendChild(div);
+  });
+  fig.processes.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "process";
+    div.style.left = p.x + "px";
+    div.style.top = p.y + "px";
+    if (p.w) div.style.width = p.w + "px";
+    if (p.h) div.style.height = p.h + "px";
+    div.innerHTML = `<div class="outer"></div><div class="inner"></div>
+      <div class="num">${p.num}</div><div class="label">${p.label}</div>`;
+    canvas.appendChild(div);
+  });
+  fig.databases.forEach(d => {
+    const div = document.createElement("div");
+    div.className = "db" + (d.readonly ? " read-only" : "");
+    div.style.left = d.x + "px";
+    div.style.top = d.y + "px";
+    div.innerHTML = `<div class="tab">${d.num}</div><div class="name">${d.label}</div>`;
+    canvas.appendChild(div);
+  });
+
+  // SVG arrow layer
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.classList.add("arrows");
+  svg.setAttribute("width", 1500);
+  svg.setAttribute("height", fig.height);
+
+  const defs = document.createElementNS(svgNS, "defs");
+  defs.innerHTML = `
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000"/>
+    </marker>
+    <marker id="arrow-sel" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e88e5"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  const shapes = buildShapeMap(fig);
+  // Precompute distributed anchors so arrow tips don't collide on shape edges.
+  currentAnchors = computeFlowAnchors(fig, shapes);
+  fig.flows.forEach((f, i) => renderFlow(svg, fig, shapes, f, i));
+  canvas.appendChild(svg);
+
+  // Label layer (HTML — for easy editing)
+  const labelLayer = document.createElement("div");
+  labelLayer.className = "label-layer";
+  fig.flows.forEach((f, i) => renderLabel(labelLayer, fig, shapes, f, i));
+  canvas.appendChild(labelLayer);
+}
+
+function renderFlow(svg, fig, shapes, flow, flowIdx) {
+  const src = shapes[flow.from], tgt = shapes[flow.to];
+  if (!src || !tgt) return;
+  const edit = getFlowEdit(currentFig, flowIdx);
+  if (edit.deleted) return;
+  const waypoints = edit.waypoints || defaultWaypointsFor(flowIdx);
+  const points = computePointsFor(flowIdx, waypoints);
+  const d = pointsToPath(points);
+
+  const g = document.createElementNS(svgNS, "g");
+  g.classList.add("flow");
+  g.dataset.flowIdx = flowIdx;
+  if (selectedFlow === flowIdx) g.classList.add("selected");
+  else if (selectedFlow !== null) g.classList.add("muted");
+
+  // invisible thick hitbox for easy clicking
+  const hit = document.createElementNS(svgNS, "path");
+  hit.setAttribute("d", d);
+  hit.setAttribute("class", "hitbox");
+  g.appendChild(hit);
+
+  // visible stroke
+  const path = document.createElementNS(svgNS, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("class", "stroke" + (flow.dashed ? " dashed" : ""));
+  path.setAttribute("marker-end", selectedFlow === flowIdx ? "url(#arrow-sel)" : "url(#arrow)");
+  g.appendChild(path);
+
+  // selection handles
+  if (selectedFlow === flowIdx) {
+    // bend handles (skip start/end which are anchored to shapes)
+    for (let wi = 0; wi < waypoints.length; wi++) {
+      const wp = waypoints[wi];
+      const h = document.createElementNS(svgNS, "circle");
+      h.setAttribute("cx", wp.x);
+      h.setAttribute("cy", wp.y);
+      h.setAttribute("r", 5);
+      h.setAttribute("class", "handle");
+      h.dataset.waypointIdx = wi;
+      h.addEventListener("pointerdown", (ev) => startDragWaypoint(ev, flowIdx, wi));
+      g.appendChild(h);
+    }
+    // "+" inserters between every consecutive pair of points
+    for (let i = 0; i < points.length - 1; i++) {
+      const mp = midpoint(points[i], points[i + 1]);
+      const add = document.createElementNS(svgNS, "circle");
+      add.setAttribute("cx", mp.x);
+      add.setAttribute("cy", mp.y);
+      add.setAttribute("r", 4);
+      add.setAttribute("class", "handle add");
+      add.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        insertWaypoint(flowIdx, i, mp);
+      });
+      g.appendChild(add);
+    }
+  }
+
+  // Click selects; click-then-drag inserts a new bend at the drag-start and
+  // immediately drags it. Handles (circles) keep their own pointerdown.
+  g.addEventListener("pointerdown", (ev) => {
+    if (ev.target.tagName === "circle") return; // handle drag — let it run
+    ev.preventDefault();
+    ev.stopPropagation();
+    selectFlow(flowIdx);
+    startDragOrInsertOnPath(ev, flowIdx);
+  });
+  g.addEventListener("click", (ev) => ev.stopPropagation());
+
+  svg.appendChild(g);
+}
+
+/** Called when the user pointerdowns on the arrow line (not a handle).
+ *  If they move more than a few pixels, insert a new waypoint at the click
+ *  location and continue tracking it as a normal waypoint drag. */
+function startDragOrInsertOnPath(ev, flowIdx) {
+  const rect = canvas.getBoundingClientRect();
+  const startX = ev.clientX - rect.left;
+  const startY = ev.clientY - rect.top;
+  let dragging = false;
+  let newWpIdx = null;
+
+  const move = (e) => {
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (!dragging) {
+      if (Math.hypot(x - startX, y - startY) < 4) return; // still a click
+      dragging = true;
+      // Figure out which segment of the path the user grabbed and insert
+      // a new waypoint at the grab location.
+      const a = currentAnchors[flowIdx];
+      if (!a) return;
+      const edit = getFlowEdit(currentFig, flowIdx);
+      const wps = (edit.waypoints || defaultWaypointsFor(flowIdx)).slice();
+      const points = [a.src, ...wps, a.tgt];
+      let bestSeg = 0, bestDist = Infinity;
+      for (let i = 0; i < points.length - 1; i++) {
+        const d = pointToSegmentDistance(startX, startY, points[i], points[i + 1]);
+        if (d < bestDist) { bestDist = d; bestSeg = i; }
+      }
+      wps.splice(bestSeg, 0, { x: Math.round(startX), y: Math.round(startY) });
+      newWpIdx = bestSeg;
+      setFlowEdit(currentFig, flowIdx, { waypoints: wps });
+      render();
+    }
+    if (dragging && newWpIdx !== null) {
+      const edit = getFlowEdit(currentFig, flowIdx);
+      const wps = (edit.waypoints || []).slice();
+      ({ x, y } = snapWaypoint(x, y, flowIdx, newWpIdx, wps));
+      wps[newWpIdx] = { x: Math.round(x), y: Math.round(y) };
+      setFlowEdit(currentFig, flowIdx, { waypoints: wps });
+      render();
+    }
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function renderLabel(layer, fig, shapes, flow, flowIdx) {
+  if (!flow.label) return;
+  const src = shapes[flow.from], tgt = shapes[flow.to];
+  if (!src || !tgt) return;
+  const edit = getFlowEdit(currentFig, flowIdx);
+  if (edit.deleted) return;
+  const waypoints = edit.waypoints || defaultWaypointsFor(flowIdx);
+  const points = computePointsFor(flowIdx, waypoints);
+  const pos = edit.labelPos || autoLabelPos(points);
+  const text = edit.labelText ?? flow.label;
+
+  const div = document.createElement("div");
+  div.className = "flow-label";
+  if (selectedFlow !== null && selectedFlow !== flowIdx) div.classList.add("muted");
+  div.style.left = pos.x + "px";
+  div.style.top = pos.y + "px";
+  div.textContent = text;
+  div.dataset.flowIdx = flowIdx;
+  // Stop label clicks from bubbling to the canvas (which would deselect).
+  div.addEventListener("click", (ev) => ev.stopPropagation());
+
+  // Drag handler (single click + move) — but allow double-click to edit
+  let clickTimer = null;
+  div.addEventListener("pointerdown", (ev) => {
+    if (div.classList.contains("editing")) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    selectFlow(flowIdx);
+    startDragLabel(ev, flowIdx, div);
+  });
+  div.addEventListener("dblclick", (ev) => {
+    ev.stopPropagation();
+    startEditLabel(flowIdx, div, flow);
+  });
+
+  layer.appendChild(div);
+}
+
+// ============================================================================
+// INTERACTIONS
+// ============================================================================
+function selectFlow(idx) {
+  if (selectedFlow === idx) return;
+  selectedFlow = idx;
+  render();
+}
+
+function deselect() {
+  if (selectedFlow === null) return;
+  selectedFlow = null;
+  render();
+}
+
+function startDragWaypoint(ev, flowIdx, wpIdx) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  selectFlow(flowIdx);
+  const rect = canvas.getBoundingClientRect();
+  const move = (e) => {
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    const edit = getFlowEdit(currentFig, flowIdx);
+    const wps = (edit.waypoints || defaultWaypointsFor(flowIdx)).slice();
+    ({ x, y } = snapWaypoint(x, y, flowIdx, wpIdx, wps));
+    wps[wpIdx] = { x: Math.round(x), y: Math.round(y) };
+    setFlowEdit(currentFig, flowIdx, { waypoints: wps });
+    render();
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function insertWaypoint(flowIdx, segmentIdx, pos) {
+  const edit = getFlowEdit(currentFig, flowIdx);
+  const wps = (edit.waypoints || defaultWaypointsFor(flowIdx)).slice();
+  // segmentIdx is in the full point list (src + wps + tgt); insertion index in wps is segmentIdx.
+  wps.splice(segmentIdx, 0, { x: Math.round(pos.x), y: Math.round(pos.y) });
+  setFlowEdit(currentFig, flowIdx, { waypoints: wps });
+  render();
+}
+
+function startDragLabel(ev, flowIdx, div) {
+  const rect = canvas.getBoundingClientRect();
+  div.classList.add("dragging");
+  const move = (e) => {
+    const x = Math.round(e.clientX - rect.left);
+    const y = Math.round(e.clientY - rect.top);
+    setFlowEdit(currentFig, flowIdx, { labelPos: { x, y } });
+    div.style.left = x + "px";
+    div.style.top = y + "px";
+  };
+  const up = () => {
+    div.classList.remove("dragging");
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function startEditLabel(flowIdx, div, flow) {
+  div.classList.add("editing");
+  div.contentEditable = "true";
+  div.focus();
+  // place cursor at end
+  const range = document.createRange();
+  range.selectNodeContents(div);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  const finish = () => {
+    div.contentEditable = "false";
+    div.classList.remove("editing");
+    const newText = div.textContent.trim();
+    if (newText === flow.label) {
+      // revert to default
+      const edit = getFlowEdit(currentFig, flowIdx);
+      if (edit.labelText !== undefined) {
+        delete edit.labelText;
+        setFlowEdit(currentFig, flowIdx, {});
+      }
+    } else {
+      setFlowEdit(currentFig, flowIdx, { labelText: newText });
+    }
+    div.removeEventListener("blur", finish);
+    div.removeEventListener("keydown", keyHandler);
+  };
+  const keyHandler = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); finish(); }
+    if (e.key === "Escape") { e.preventDefault(); div.textContent = flow.label; finish(); }
+  };
+  div.addEventListener("blur", finish);
+  div.addEventListener("keydown", keyHandler);
+}
+
+// Click anywhere that isn't part of the selected arrow → deselect.
+// Selected arrow's g and its label both stopPropagation on click, so any
+// click that reaches the canvas is by definition off the selected arrow.
+// Muted (non-selected) arrows have pointer-events: none, so clicks fall
+// through to whatever's behind (canvas or a shape) and bubble here.
+canvas.addEventListener("click", () => {
+  if (selectedFlow !== null) deselect();
+});
+
+// Keyboard
+document.addEventListener("keydown", (ev) => {
+  if (ev.target.isContentEditable) return;
+  if (ev.key === "Escape") deselect();
+  // Shift+Delete: hide the entire arrow
+  if (ev.shiftKey && (ev.key === "Delete" || ev.key === "Backspace") && selectedFlow !== null) {
+    ev.preventDefault();
+    if (confirm("Hide this arrow? Use 'Reset selected arrow' to bring it back.")) {
+      setFlowEdit(currentFig, selectedFlow, { deleted: true });
+      selectedFlow = null;
+      render();
+    }
+    return;
+  }
+  if ((ev.key === "Delete" || ev.key === "Backspace") && selectedFlow !== null) {
+    // delete last waypoint of selected flow (cycles through them)
+    const edit = getFlowEdit(currentFig, selectedFlow);
+    const wps = (edit.waypoints || defaultWaypointsFor(selectedFlow)).slice();
+    if (wps.length > 0) {
+      wps.pop();
+      if (wps.length === 0) {
+        // back to auto-routing — clear waypoints entirely
+        const e = edits[currentFig]?.[selectedFlow];
+        if (e) { delete e.waypoints; if (Object.keys(e).length === 0) delete edits[currentFig][selectedFlow]; }
+      } else {
+        setFlowEdit(currentFig, selectedFlow, { waypoints: wps });
+      }
+      saveEdits();
+      render();
+    }
+  }
+});
+
+// ============================================================================
+// TABS & TOOLBAR
+// ============================================================================
+const tabs = document.querySelectorAll("#tabs button");
+tabs.forEach(btn => {
+  btn.addEventListener("click", () => {
+    tabs.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFig = +btn.dataset.fig;
+    selectedFlow = null;
+    render();
+  });
+});
+
+document.getElementById("btn-reset-selected").addEventListener("click", () => {
+  if (selectedFlow === null) { alert("Select an arrow first."); return; }
+  clearFlowEdit(currentFig, selectedFlow);
+  render();
+});
+
+document.getElementById("btn-delete-arrow").addEventListener("click", () => {
+  if (selectedFlow === null) { alert("Select an arrow first."); return; }
+  if (!confirm("Hide this arrow? Use 'Reset selected arrow' on the same flow to bring it back.")) return;
+  setFlowEdit(currentFig, selectedFlow, { deleted: true });
+  selectedFlow = null;
+  render();
+});
+
+document.getElementById("btn-reset-figure").addEventListener("click", () => {
+  if (!confirm("Reset every arrow on this figure to its default routing and label?")) return;
+  delete edits[currentFig];
+  saveEdits();
+  render();
+});
+
+document.getElementById("btn-export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(edits, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "agape-dfd-layout.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("btn-import").addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+  input.addEventListener("change", async () => {
+    if (!input.files[0]) return;
+    try {
+      const text = await input.files[0].text();
+      edits = JSON.parse(text);
+      saveEdits();
+      render();
+    } catch (e) { alert("Invalid JSON: " + e.message); }
+  });
+  input.click();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+%% AGAPE Exploded DFD — Figure 2 of 3
+%% Operations & Community
+%% Processes: 6.0 Project Proposal & Approval, 7.0 Community Needs Assessment,
+%%            8.0 Volunteer Management, 9.0 Skill & Asset Documentation,
+%%            10.0 Program Tracking & Monitoring
+
+flowchart LR
+    %% External Entities
+    E1["PARAYA Director"]:::entity
+    E2["PARAYA Associate"]:::entity
+    E3["PARAYA Researcher"]:::entity
+    EF["Finance Officer"]:::entity
+    EPa["Partner Account<br/>(Office / Student Org / Department)"]:::entity
+    E4["Barangay Captain"]:::entity
+    E5["Barangay Secretary"]:::entity
+    E6["Mother Leader"]:::entity
+    E7["DYCI Volunteer"]:::entity
+
+    %% Processes
+    P6(("6.0 Project Proposal & Approval Workflow")):::process
+    P7(("7.0 Community Needs Assessment")):::process
+    P8(("8.0 Volunteer Management")):::process
+    P9(("9.0 Skill & Asset Documentation")):::process
+    P10(("10.0 Program Tracking & Monitoring")):::process
+
+    %% Data Stores
+    D4[("D4 Project Proposals + Reviews/Revisions")]:::store
+    D5[("D5 Community Needs + Households + Field Observations")]:::store
+    D6[("D6 Survey Data + Codebook")]:::store
+    D7[("D7 Volunteer Records + Classes")]:::store
+    D8[("D8 Skill & Asset Records")]:::store
+    D9[("D9 Program Records + Attendance + Photos")]:::store
+
+    %% 6.0 Project Proposal & Approval Workflow
+    E2 -- "draft, SDG alignment, community validation attestation" --> P6
+    EPa -- "submit proposal (partner)" --> P6
+    E1 -- "endorsement / advance / request revisions" --> P6
+    EF -- "finance clearance / send back" --> P6
+    D5 -- "needs context (gatekeeping)" --> P6
+    P6 -- "submitted + approved + prescreening + finance + community-validated + revisions" --> D4
+    D4 -- "existing proposals + informed-by prior proposals" --> P6
+    P6 -- "approval status, PPF" --> E2
+    P6 -- "approval status, PPF" --> EPa
+    P6 -- "finance queue, decisions" --> EF
+
+    %% 7.0 Community Needs Assessment (incl. household profiling, surveys, field observations)
+    E5 -- "submit needs (sitio-tagged), respondent answers" --> P7
+    E6 -- "sitio needs + household profiles" --> P7
+    E3 -- "field observations, build surveys, methodology, code answers, flag outliers" --> P7
+    E4 -- "approve / reject / request revision" --> P7
+    E1 -- "publish / archive surveys" --> P7
+    E7 -- "interview responses" --> P7
+    P7 -- "needs + households + field observations + approval" --> D5
+    D5 -- "existing needs + status" --> P7
+    P7 -- "surveys + methodology + responses + parent + codes + exclusions" --> D6
+    D6 -- "templates + answers + codebook" --> P7
+    P7 -- "Captain notes, status badge" --> E5
+    P7 -- "approval queue" --> E4
+
+    %% 8.0 Volunteer Management (signup, classes, QR/OTP attendance)
+    E1 -- "task assignments" --> P8
+    E7 -- "signup, PPF, class schedule, QR/OTP check-in, activity log" --> P8
+    P8 -- "volunteer + signups + classes + attendance" --> D7
+    D7 -- "volunteer records + schedules" --> P8
+    P8 -- "schedule, assignments" --> E7
+    P8 -- "dept-matched volunteers (read)" --> EPa
+
+    %% 9.0 Skill & Asset Documentation (anonymized, barangay-level)
+    E3 -- "maintain barangay inventory" --> P9
+    E6 -- "sitio-level skills/assets contributions" --> P9
+    P9 -- "skills + assets (barangay-level, anonymized)" --> D8
+    D8 -- "existing inventory" --> P9
+
+    %% 10.0 Program Tracking & Monitoring (activities, reports, photos, partner item validation)
+    E2 -- "activities, OTP rotation, Activity + Financial Reports, photos, validate partner items" --> P10
+    E7 -- "check-in confirmation, activity log" --> P10
+    EPa -- "submit activity / budget / signup (pending validation)" --> P10
+    D4 -- "approved proposals" --> P10
+    P10 -- "activities + reports + photos + approval state" --> D9
+    D9 -- "program state, roster, validation queue" --> P10
+    P10 -- "program status" --> E1
+    P10 -- "validation result, status" --> EPa
+
+    classDef entity fill:#F5F0E8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef process fill:#E8D5A8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef store fill:#FFFFFF,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;

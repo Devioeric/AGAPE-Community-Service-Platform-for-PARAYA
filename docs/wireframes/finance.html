@@ -1,0 +1,3004 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — Finance Officer Wireframes</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --side-bg: #f3f3f3;
+    --side-active: #dadada;
+    --red: #d32f2f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  .board-wrap { padding: 24px; background: var(--board-bg); min-height: calc(100vh - 40px); }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  /* Click any arrow to bring it to the front layer. .arrow-hit is an
+     invisible wide path that catches clicks near the visible stroke. */
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-hit:hover ~ .arrow-line,
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  .slot { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 660px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 13px;
+  }
+  .slot-index {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; z-index: 4;
+  }
+
+  /* Tile shell */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-meta {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-meta .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-meta .id { font-size: 10px; color: var(--ink-mute); }
+
+  /* The page shell: sidebar + (header + body) */
+  .page {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 620px;
+  }
+  .page-side {
+    background: var(--side-bg);
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column;
+    font-size: 10.5px;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .side-logo {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--ink-mute);
+  }
+  .side-brand-title { font-weight: 700; font-size: 12px; }
+  .side-brand-sub { font-size: 8px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .side-nav { flex: 1; overflow: hidden; padding: 8px 6px; }
+  .side-nav ul { list-style: none; margin: 0; padding: 0; }
+  .side-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    line-height: 1.2;
+  }
+  .side-item:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-item.active { background: rgba(0,0,0,0.06); color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+  .side-item .ico {
+    width: 12px; height: 12px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .side-item.group { font-weight: 500; }
+  .side-item.group::after { content: "▾"; margin-left: auto; font-size: 9px; color: var(--ink-mute); }
+  .side-item.group.collapsed::after { content: "▸"; }
+  .side-children {
+    list-style: none; margin: 1px 0 4px 0; padding: 0 0 0 18px;
+    border-left: 1px solid var(--line-soft);
+    margin-left: 13px;
+  }
+  .side-child {
+    padding: 4px 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-child::before { content: "•"; color: var(--ink-mute); font-size: 9px; }
+  .side-child:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-child.active { color: var(--ink); font-weight: 600; background: rgba(0,0,0,0.05); }
+  .side-divider { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+  .side-user {
+    padding: 8px 10px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .side-user .row { display: flex; align-items: center; gap: 6px; }
+  .side-user .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-soft);
+  }
+  .side-user .name { font-size: 10px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .side-user .email { font-size: 9px; color: var(--ink-mute); line-height: 1.1; }
+  .side-user .signout {
+    margin-top: 2px; padding: 4px 6px; font-size: 9px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    color: var(--ink-soft); cursor: pointer; background: #fff;
+    text-align: left;
+  }
+  .side-user .signout:hover { background: #f6f6f6; }
+
+  .page-main { display: flex; flex-direction: column; min-width: 0; }
+  .page-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page-title .crumb { font-weight: 400; color: var(--ink-mute); font-size: 11px; margin-right: 4px; }
+  .page-header .spacer { flex: 1; }
+  .page-header .iconbtn {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    position: relative;
+  }
+  .page-header .iconbtn.avatar {
+    border-radius: 50%;
+    font-size: 9px; font-weight: 700;
+    background: var(--box);
+  }
+  .page-header .iconbtn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 13px; height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Header dropdowns (notifications + profile) */
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 20;
+    font-size: 10px;
+  }
+  .notif-dropdown { right: 38px; width: 240px; }
+  .profile-dropdown { right: 8px; width: 168px; }
+
+  .dropdown-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafafa;
+  }
+  .dropdown-title { font-weight: 700; font-size: 11px; }
+  .dropdown-action {
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 9.5px;
+    text-decoration: underline;
+  }
+  .dropdown-action:hover { color: var(--ink); }
+
+  .dropdown-body { max-height: 200px; overflow-y: auto; }
+  .notif-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    display: flex; gap: 6px;
+    cursor: pointer;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafafa; }
+  .notif-item.unread { background: #ececec; border-left: 3px solid #1a1a1a; }
+  .notif-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: #fff;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-size: 10px; font-weight: 700; line-height: 1.2; }
+  .notif-item:not(.unread) .notif-title { font-weight: 500; color: var(--ink-soft); }
+  .notif-msg { font-size: 9px; color: var(--ink-mute); margin-top: 2px; line-height: 1.3; }
+  .notif-time { font-size: 8px; color: var(--ink-mute); margin-top: 3px; }
+  .notif-dot {
+    width: 6px; height: 6px;
+    background: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  .dropdown-foot {
+    padding: 7px 10px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+  }
+  .dropdown-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .dropdown-link:hover { color: var(--ink); }
+
+  .dropdown-user { padding: 8px 10px; }
+  .dropdown-user-name { font-size: 11px; font-weight: 700; }
+  .dropdown-user-email { font-size: 9px; color: var(--ink-mute); margin-top: 1px; }
+  .dropdown-sep { height: 1px; background: var(--line-soft); }
+  .dropdown-item {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .dropdown-item:hover { background: #fafafa; color: var(--ink); }
+  .dropdown-item.danger { color: #2a2a2a; font-style: italic; }
+  .dropdown-item.danger:hover { background: #f0f0f0; }
+
+  .page-body {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 13px; color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Wireframe primitives inside the page body */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .kpi .kpi-label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .kpi-value { font-size: 18px; font-weight: 700; }
+  .kpi .kpi-sub { font-size: 9px; color: var(--ink-mute); }
+
+  .panel-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .panel-row.r-2-1 { grid-template-columns: 2fr 1fr; }
+  .panel-row.r-1-2 { grid-template-columns: 1fr 2fr; }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fafafa;
+  }
+  .panel-head .ttl { font-size: 11px; font-weight: 700; }
+  .panel-head .lnk { font-size: 10px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .panel-body { padding: 10px; }
+  .panel-body.dense { padding: 8px 10px; }
+
+  /* Bar chart placeholder */
+  .barchart {
+    height: 150px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 8px 12px;
+  }
+  .barchart .bar {
+    flex: 1;
+    background: #6e6e6e;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+  }
+  .barchart .axis {
+    position: absolute;
+    bottom: -16px;
+    left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--ink-mute);
+  }
+
+  .sdg-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sdg-row .label { font-size: 10px; color: var(--ink-soft); }
+  .sdg-row .val { font-size: 11px; font-weight: 700; }
+  .sdg-row .bar {
+    grid-column: 1 / -1;
+    height: 5px; background: var(--box-soft); border-radius: 3px;
+    overflow: hidden;
+  }
+  .sdg-row .bar > div { height: 100%; background: var(--ink-soft); }
+
+  .brgy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+  .brgy-row .rank { width: 14px; color: var(--ink-mute); }
+  .brgy-row .name { flex: 1; }
+  .brgy-row .pct { width: 60px; height: 4px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .brgy-row .pct > div { height: 100%; background: var(--ink-soft); }
+  .brgy-row .count { color: var(--ink); font-weight: 600; min-width: 18px; text-align: right; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl th, .tbl td { padding: 5px 6px; text-align: left; border-bottom: 1px solid var(--box-soft); }
+  .tbl th { color: var(--ink-mute); font-weight: 500; background: #fafafa; }
+  .tbl td { color: var(--ink-soft); }
+  .tbl .pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-soft); font-size: 9px; color: var(--ink-soft);
+    background: #fff;
+  }
+
+  /* Stub page body (used by placeholder screens) */
+  .stub {
+    height: 100%;
+    min-height: 480px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 12px;
+    padding: 30px 24px;
+    border: 1px dashed var(--line-soft);
+    border-radius: 6px;
+    background: #fafafa;
+    color: var(--ink-soft);
+  }
+  .stub .stub-route { font-family: ui-monospace, "Courier New", monospace; font-size: 12px; color: var(--ink-mute); }
+  .stub .stub-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .stub .stub-desc { font-size: 12px; max-width: 360px; line-height: 1.5; color: var(--ink-soft); }
+  .stub .stub-tag {
+    margin-top: 6px;
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-size: 10px; color: var(--ink-mute); background: #fff;
+  }
+
+  /* Login / "public" pages: no sidebar, no top header. Centered content. */
+  .page.chromeless { grid-template-columns: 1fr; background: #ffffff; }
+  .page.chromeless .page-main { display: flex; align-items: center; justify-content: center; }
+  .page.chromeless .page-body { width: 100%; display: flex; align-items: center; justify-content: center; padding: 30px 24px; min-height: 540px; }
+
+  /* Login wireframe primitives (copied from auth.html). */
+  .wf { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+  .wf-card {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer; user-select: none;
+    min-height: 32px; display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-btn {
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    padding: 9px 12px; text-align: center;
+    background: #f0f0f0; font-size: 12px; font-weight: 600;
+    cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft); text-decoration: underline;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+
+  /* ── Partnership management primitives ─────────────────────────── */
+  .partner-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .map-area {
+    height: 180px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, var(--box-soft) 30px 31px),
+      repeating-linear-gradient(90deg, transparent 0 40px, var(--box-soft) 40px 41px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 4px;
+    position: relative;
+  }
+  .map-marker {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker.active   { background: #2a2a2a; }
+  .map-marker.inactive { background: #ffffff; border-color: #2a2a2a; }
+  .map-toggle {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  .map-toggle .opt {
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .map-toggle .opt.active {
+    background: var(--ink); color: #fff; font-weight: 600;
+  }
+
+  .partner-tools {
+    display: flex; gap: 6px;
+    margin: 8px 0 4px 0;
+  }
+  .partner-search {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px; color: var(--ink-mute);
+    background: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .partner-filter, .partner-add-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .partner-filter-wrap { position: relative; }
+  .status-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 108px;
+    font-size: 10px;
+  }
+  .status-filter-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .status-filter-item:hover { background: #fafafa; color: var(--ink); }
+  .status-filter-item.active { font-weight: 700; color: var(--ink); background: #f4f4f4; }
+  .partner-add-btn { background: #2a2a2a; color: #fff; border-color: #2a2a2a; font-weight: 600; }
+  .partner-add-btn:hover { background: #1a1a1a; }
+
+  .tbl-actions { width: 18px; text-align: center; cursor: pointer; color: var(--ink-mute); }
+  .tbl-actions:hover { color: var(--ink); }
+  .status-pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; border: 1px solid; }
+  .status-pill.active { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .status-pill.inactive { background: #f5f5f5; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+
+  /* Row action menu (the "⋯" dropdown) */
+  .row-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 138px;
+    font-size: 10px;
+  }
+  .row-menu-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .row-menu-item:hover { background: #fafafa; color: var(--ink); }
+  .row-menu-item.danger { color: #2a2a2a; font-style: italic; }
+  .row-menu-item.danger:hover { background: #f0f0f0; }
+  .row-menu-sep { height: 1px; background: var(--line-soft); }
+
+  /* Sheet overlay (slide-in side panel) */
+  .sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.30);
+    z-index: 14;
+  }
+  .sheet-panel {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 62%;
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    display: flex; flex-direction: column;
+  }
+  .sheet-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 13px; font-weight: 700; }
+  .sheet-close {
+    width: 20px; height: 20px;
+    border: 1px solid var(--line-soft); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 11px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+  }
+  .sheet-foot {
+    padding: 9px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: flex-end; gap: 6px;
+    background: #fafafa;
+  }
+  .sheet-section { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-section-title {
+    font-size: 9px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .sheet-field { display: flex; flex-direction: column; gap: 2px; }
+  .sheet-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-label { font-size: 10px; color: var(--ink-soft); }
+  .sheet-label .req { color: #1a1a1a; font-weight: 700; }
+  .sheet-input, .sheet-select {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    color: var(--ink-mute);
+    background: #fff;
+    min-height: 26px;
+    display: flex; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .sheet-input.filled, .sheet-select.filled { color: var(--ink); background: #f6f6f6; }
+  .sheet-select::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  .sheet-hint { font-size: 9px; color: var(--ink-mute); line-height: 1.4; }
+  .sheet-hint .auto {
+    color: #1a1a1a; font-weight: 700;
+  }
+
+  /* ── Project Proposals primitives ─────────────────────────────── */
+  .proposal-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .phase-rollup-card { margin-bottom: 10px; }
+  .phase-bar {
+    display: flex; height: 7px;
+    background: var(--box-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .phase-seg { height: 100%; }
+  .phase-seg.diagnostic { background: #8a8a8a; }
+  .phase-seg.research   { background: #6a6a6a; }
+  .phase-seg.filing     { background: #4a4a4a; }
+  .phase-seg.execution  { background: #2a2a2a; }
+  .phase-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .phase-card {
+    display: flex; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .phase-card .label-row {
+    font-size: 9px; color: var(--ink-mute);
+  }
+  .phase-card .count {
+    font-size: 14px; font-weight: 700; line-height: 1.1;
+  }
+
+  /* Pipeline stepper (inside row, also detail) */
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .stepper-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 600;
+  }
+  .stepper-chip.done { background: #2a2a2a; color: #fff; }
+  .stepper-chip.current { background: #fff; color: #1a1a1a; border: 1px solid #1a1a1a; }
+  .stepper-chip.upcoming { background: var(--box-soft); color: var(--ink-mute); }
+  .stepper-arrow { color: var(--ink-mute); font-size: 7px; }
+  .stepper-rejected, .stepper-revising {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    color: #2a2a2a;
+  }
+  .stepper-rejected { text-decoration: line-through; }
+  .stepper-revising { font-style: italic; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 600;
+    border: 1px solid;
+    text-transform: capitalize;
+  }
+  .status-badge.draft           { background: #ececec; color: #6a6a6a; border-color: #c0c0c0; }
+  .status-badge.submitted       { background: #e2e2e2; color: #1a1a1a; border-color: #8a8a8a; }
+  .status-badge.pre_screening,
+  .status-badge.sdg_review,
+  .status-badge.finance_review  { background: #d4d4d4; color: #1a1a1a; border-color: #6a6a6a; }
+  .status-badge.approved        { background: #2a2a2a; color: #ffffff; border-color: #1a1a1a; }
+  .status-badge.rejected        { background: #f5f5f5; color: #6a6a6a; border-color: #6a6a6a; border-style: dashed; }
+  .status-badge.revisions_requested { background: #ececec; color: #1a1a1a; border-color: #4a4a4a; border-style: dashed; }
+
+  /* SDG chips */
+  .sdg-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 2px;
+  }
+  .sdg-chip.sdg-4  { background: #2a2a2a; }
+  .sdg-chip.sdg-9  { background: #4a4a4a; }
+  .sdg-chip.sdg-11 { background: #6a6a6a; }
+  .sdg-chip.sdg-17 { background: #1a1a1a; }
+
+  /* SDG selector buttons in Create sheet */
+  .sdg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sdg-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sdg-btn.selected { box-shadow: 0 0 0 2px currentColor inset; }
+  .sdg-btn .head { display: flex; align-items: center; gap: 4px; }
+  .sdg-btn .lbl  { font-size: 9.5px; color: var(--ink); font-weight: 500; margin-top: 3px; }
+
+  /* Income-generating gate */
+  .income-gate {
+    border: 1px solid var(--line);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .income-gate .gate-check {
+    width: 13px; height: 13px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .income-gate .gate-text {
+    font-size: 9.5px; color: var(--ink); line-height: 1.4;
+  }
+  .income-gate .gate-text strong { font-weight: 700; }
+  .income-gate .gate-text .sub { color: var(--ink-mute); display: block; margin-top: 2px; font-size: 9px; }
+
+  /* Detail-sheet specific blocks */
+  .detail-field { font-size: 11px; }
+  .detail-field .lbl {
+    font-size: 9px; font-weight: 700;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-field .val { margin-top: 2px; color: var(--ink); line-height: 1.4; }
+  .detail-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
+
+  .review-item {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .review-item-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+  }
+  .review-item-stage { font-weight: 700; text-transform: capitalize; font-size: 10px; }
+  .review-item-notes { color: var(--ink-mute); font-size: 9.5px; line-height: 1.4; }
+  .review-item-meta  { color: var(--ink-mute); font-size: 9px; margin-top: 3px; }
+
+  /* Inline notice blocks (validation, finance, revisions) */
+  .notice {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .notice.warning { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.success { background: #ececec; border-color: #4a4a4a; color: #1a1a1a; }
+  .notice.info    { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.accent  { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; border-style: dashed; }
+  .notice-row { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+  /* Action button group in detail sheet */
+  .detail-actions-row { display: flex; gap: 5px; }
+  .detail-actions-row .icon-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    width: 28px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .detail-actions-row .icon-btn.danger { border-color: var(--line); color: var(--ink-soft); border-style: dashed; }
+  .detail-actions-row .icon-btn.accent { border-color: var(--line); color: var(--ink-soft); }
+
+  .ppf-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 9px;
+    color: var(--ink-soft);
+    background: #f5f5f5;
+    cursor: pointer;
+  }
+
+  /* ── Community Needs Assessment primitives ─────────────────────── */
+
+  /* Donut chart placeholder for distributions (income, etc.) */
+  .donut-chart {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#1a1a1a 0% 40%, #4a4a4a 40% 65%, #8a8a8a 65% 85%, #c0c0c0 85% 100%);
+    position: relative;
+    margin: 4px auto;
+  }
+  .donut-chart::after {
+    content: ""; position: absolute;
+    inset: 30%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .donut-legend { font-size: 9px; color: var(--ink-soft); margin-top: 6px; text-align: center; }
+  .donut-legend-item { display: inline-flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Key indicator tiles (extended profile) */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ind-tile {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 7px 10px;
+  }
+  .ind-tile .lbl { font-size: 9px; color: var(--ink-mute); }
+  .ind-tile .val { font-size: 16px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .ind-tile .val .pct { font-size: 9px; color: var(--ink-mute); font-weight: 400; margin-left: 3px; }
+
+  /* Need pills (health/economic/environmental/social) */
+  .need-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink);
+    margin-right: 3px;
+  }
+
+  /* Builder tab strip */
+  .builder-tabs {
+    display: flex; gap: 1px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    padding: 2px;
+    font-size: 10px;
+    width: fit-content;
+  }
+  .builder-tab {
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .builder-tab.active {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Builder section + question blocks */
+  .builder-section {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .builder-section-head {
+    padding: 6px 10px;
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .builder-question {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .builder-question:last-child { border-bottom: none; }
+  .builder-q-handle { color: var(--ink-mute); font-size: 11px; cursor: grab; }
+  .builder-q-body { flex: 1; min-width: 0; }
+  .builder-q-text { font-weight: 600; color: var(--ink); }
+  .builder-q-type {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--box-soft);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .builder-q-required {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+  .builder-q-options { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Create-survey choice modal cards */
+  .choice-modal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.30);
+    z-index: 15;
+    padding: 20px;
+  }
+  .choice-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .choice-card .ttl { font-size: 14px; font-weight: 700; }
+  .choice-card .sub { font-size: 10px; color: var(--ink-mute); margin-top: 3px; }
+  .choice-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .choice-option {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+  }
+  .choice-option:hover { background: #f5f5f5; }
+  .choice-option .ic { font-size: 18px; margin-bottom: 4px; }
+  .choice-option .nm { font-size: 11px; font-weight: 700; }
+  .choice-option .ds { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Compare grid (Pre/Post) */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+  .compare-cell {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+  .compare-cell .lbl { color: var(--ink-mute); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .compare-cell .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .compare-cell .delta { font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Survey-selector card list */
+  .selector-list {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+  .selector-row {
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .selector-row:hover { background: #f5f5f5; }
+  .selector-row.selected { background: #1a1a1a; color: #fff; }
+
+  /* Theme/code chips for qualitative analysis */
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: #fff;
+    margin: 2px 2px 0 0;
+    cursor: pointer;
+  }
+  .theme-chip:hover { background: #f5f5f5; }
+  .theme-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  /* Bar chart (horizontal) for "Primary Needs Frequency" */
+  .h-barchart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 24px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .h-barchart-row .lbl { color: var(--ink-soft); }
+  .h-barchart-row .bar { height: 8px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .h-barchart-row .bar > div { height: 100%; background: #2a2a2a; }
+  .h-barchart-row .num { text-align: right; font-weight: 700; }
+
+  /* ── Volunteer Management primitives ───────────────────────────── */
+
+  /* Avatar circle */
+  .vol-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--box);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .vol-avatar.lg { width: 36px; height: 36px; font-size: 12px; }
+
+  /* Pending logs warning card */
+  .pending-banner {
+    border: 1px solid #4a4a4a;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .pending-banner .head {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .pending-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .pending-log-row .body { flex: 1; min-width: 0; }
+  .pending-log-row .name { font-weight: 700; color: var(--ink); font-size: 10px; }
+  .pending-log-row .desc { color: var(--ink-mute); line-height: 1.3; margin-top: 1px; }
+  .pending-log-row .meta { color: var(--ink-mute); font-size: 8.5px; margin-top: 2px; }
+  .pending-log-row .actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .pending-log-row .btn-ico {
+    width: 24px; height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .pending-log-row .btn-ico.accept { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .pending-log-row .btn-ico.reject { background: #fff; color: #2a2a2a; border-style: dashed; }
+
+  /* Activity selector (attendance left pane) */
+  .activity-list {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .activity-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: #fafafa; }
+  .activity-item.active {
+    background: #f4f4f4;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 7px;
+  }
+  .activity-item .title-row { display: flex; align-items: center; justify-content: space-between; }
+  .activity-item .title { font-weight: 700; color: var(--ink); }
+  .activity-item .prog { color: var(--ink-mute); font-size: 9px; margin-top: 1px; }
+  .activity-item .meta {
+    display: flex; justify-content: space-between;
+    font-size: 8.5px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* OTP block */
+  .otp-display {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-align: center;
+    padding: 12px 8px;
+    background: #f4f4f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .otp-empty {
+    padding: 16px 8px;
+    text-align: center;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink-mute);
+  }
+  .otp-meta {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* QR placeholder */
+  .qr-block {
+    width: 130px; height: 130px;
+    background:
+      conic-gradient(from 0deg at 50% 50%, #1a1a1a 0% 8%, #fff 8% 16%, #1a1a1a 16% 24%, #fff 24% 32%, #1a1a1a 32% 40%, #fff 40% 48%, #1a1a1a 48% 56%, #fff 56% 64%, #1a1a1a 64% 72%, #fff 72% 80%, #1a1a1a 80% 88%, #fff 88% 100%),
+      #fff;
+    background-blend-mode: normal;
+    border: 4px solid #fff;
+    outline: 1px solid var(--line);
+    margin: 0 auto;
+    position: relative;
+  }
+  /* Cheap QR-ish look via tiled radial gradients */
+  .qr-block {
+    background:
+      radial-gradient(circle, #1a1a1a 25%, transparent 26%) 0 0 / 10px 10px,
+      radial-gradient(circle, #1a1a1a 22%, transparent 23%) 5px 5px / 10px 10px,
+      #fff;
+  }
+  .qr-block::before, .qr-block::after {
+    content: ""; position: absolute;
+    width: 28px; height: 28px;
+    border: 5px solid #1a1a1a;
+    background: #fff;
+  }
+  .qr-block::before { top: 4px; left: 4px; }
+  .qr-block::after { top: 4px; right: 4px; }
+
+  .qr-empty {
+    width: 130px; height: 130px;
+    background: #fafafa;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--ink-mute);
+  }
+
+  /* Roster list */
+  .roster-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+  }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-row .body { flex: 1; min-width: 0; }
+  .roster-row .name { font-weight: 600; color: var(--ink); }
+  .roster-row .email { color: var(--ink-mute); font-size: 9px; }
+  .roster-row .method {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 8.5px;
+    font-weight: 600;
+  }
+  .roster-row .method.qr     { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .roster-row .method.otp    { background: #f4f4f4; color: var(--ink); border-color: var(--line); }
+  .roster-row .method.manual { background: #fff; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+  .roster-row .time { font-size: 9px; color: var(--ink-mute); white-space: nowrap; }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role:</label>
+    <select id="rolePicker" disabled style="opacity: 0.7;">
+      <option value="finance_officer">Finance Officer (independent budget gatekeeper)</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE INFO (for sidebar user block)
+   ============================================================ */
+const ROLE_INFO = {
+  finance_officer: { label: "Finance Officer", name: "Ms. R. Domingo", email: "rdomingo@dyci.edu.ph", org: "DYCI Finance" },
+};
+let currentRole = "finance_officer";
+
+/* ============================================================
+   FINANCE OFFICER SIDEBAR NAV (mirrors financeNav in Sidebar.tsx)
+   Stripped-down — Finance is an independent gatekeeper, not a
+   general operator. Sidebar surfaces only Finance Clearance + a
+   read-only view of all proposals for context.
+   ============================================================ */
+const PARTNER_NAV = [
+  { key: "dashboard",  label: "Dashboard",            screen: "dashboard" },
+  {
+    key: "proposals_grp", label: "Project Proposals", group: true,
+    children: [
+      { key: "finance",   label: "Finance Clearance", screen: "finance" },
+      { key: "proposals", label: "All Proposals",     screen: "proposals" },
+    ],
+  },
+];
+
+// Pinned at the bottom of the sidebar.
+const SIDEBAR_PINNED = [
+  { key: "chatbot",       label: "AI Assistant",  screen: "chatbot"       },
+  { key: "notifications", label: "Notifications", screen: "notifications" },
+];
+
+// (Finance Officer is a single role. RBAC on /api/proposals/[id]/advance scopes
+//  Finance Officers to the 'mark_finance_cleared' + 'request_revisions' actions
+//  only — they can't approve or reject outright.)
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   route   — path string for tile header
+   title   — page title shown in the in-tile header
+   navKey  — which sidebar item should be highlighted
+   caption — 1-2 sentence description shown below the tile
+   render  — returns HTML for the page body
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN (entry point) ---------- */
+  login: {
+    route:     "/login",
+    title:     "Sign In",
+    navKey:    "login",
+    chromeless: true,
+    caption:   "Entry point. Email/password sign-in via Supabase Auth. On success, middleware reads the user's role from the users table and forwards to the matching dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input ${s.email ? "filled" : ""}" data-action="fill" data-field="email">${s.email ? "officer@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input ${s.password ? "filled" : ""}" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>
+    `,
+  },
+
+  /* ---------- FINANCE OFFICER DASHBOARD ---------- */
+  dashboard: {
+    route:   "/officer",
+    title:   "Finance Dashboard",
+    navKey:  "dashboard",
+    caption: "Finance Officer landing page. 4 KPIs (Awaiting Clearance, Cleared This Month, Sent Back, Total ₱ Cleared YTD) then the active clearance queue + recently cleared. The queue is the primary call-to-action — Finance Officers exist to act on it.",
+    render:  () => `
+      <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="kpi" data-action="go:finance"><span class="kpi-label">⏳ Awaiting Clearance</span><span class="kpi-value">5</span><span class="kpi-sub">3 income-generating</span></div>
+        <div class="kpi" data-action="go:finance"><span class="kpi-label">✓ Cleared This Month</span><span class="kpi-value">12</span><span class="kpi-sub">Up from 9 last month</span></div>
+        <div class="kpi" data-action="go:finance"><span class="kpi-label">↩ Sent Back</span><span class="kpi-value">3</span><span class="kpi-sub">Awaiting proponent revision</span></div>
+        <div class="kpi" data-action="go:proposals"><span class="kpi-label">₱ Total Cleared (YTD)</span><span class="kpi-value">₱2.4M</span><span class="kpi-sub">Across 38 proposals</span></div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Top Priority — Awaiting You</span><span class="wf-link" data-action="go:finance">Open queue →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Health Caravan — Lolomboy",            brgy: "Brgy. Lolomboy", budget: 120000, ig: true,  waiting: "4 days" },
+              { title: "Sari-sari Livelihood Mentoring",       brgy: "Brgy. Bunducan", budget: 85000,  ig: true,  waiting: "2 days" },
+              { title: "Backyard Gardening for Households",    brgy: "Brgy. Sulucan",  budget: 38000,  ig: false, waiting: "1 day"  },
+              { title: "ICT Training for Barangay Youth",      brgy: "Brgy. Antipona", budget: 45000,  ig: false, waiting: "1 day"  },
+              { title: "Mental Health First-Aid Training",     brgy: "Brgy. Bambang",  budget: 25000,  ig: false, waiting: "5h"     },
+            ].map((p) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;" data-action="go:finance">
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; font-size: 10.5px; display: flex; align-items: center; gap: 4px;">
+                    ${p.title}
+                    ${p.ig ? `<span class="status-badge revisions_requested" style="font-size: 8px;">IG</span>` : ""}
+                  </div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.brgy} · ₱${p.budget.toLocaleString()} · waiting ${p.waiting}</div>
+                </div>
+                <span class="status-badge finance_review" style="font-size: 8.5px;">Finance Review</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Recently Cleared (This Week)</span><span class="wf-link" data-action="go:finance">View all →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Literacy Drive for Brgy. Sta. Ana",   budget: 75000,  cleared: "May 16, 2025", status: "approved"  },
+              { title: "Bayanihan Clean-up — Bunducan",      budget: 42000,  cleared: "May 15, 2025", status: "approved"  },
+              { title: "Q2 DRR Workshop Series",              budget: 60000,  cleared: "May 14, 2025", status: "approved"  },
+              { title: "Reading Caravan — Antipona",          budget: 38000,  cleared: "May 13, 2025", status: "approved"  },
+            ].map((p) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; font-size: 10.5px;">${p.title}</div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">₱${p.budget.toLocaleString()} · cleared ${p.cleared}</div>
+                </div>
+                <span class="status-badge approved" style="font-size: 8.5px;">✓ Cleared</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    `,
+  },
+
+};
+
+
+/* ---------- FINANCE CLEARANCE QUEUE (primary workspace) ---------- */
+
+const SAMPLE_FINANCE_PENDING = [
+  { id: 0, title: "Health Caravan — Lolomboy",            brgy: "Brgy. Lolomboy", budget: 120000, ig: true,  start: "Jun 03, 2025", end: "Jul 28, 2025", submitter: "OSAS Coordinator",   submitter_role: "office",       sdgs: [3, 11],   waiting: "4 days",  rationale: "Mobile clinic in partnership with the DYCI College of Nursing. Targets households in Sitios Mabini, Bagumbayan, and Looban with BP screenings, vaccinations, and nutrition counseling. Income-generating component: token contribution per family for sustainability." },
+  { id: 1, title: "Sari-sari Livelihood Mentoring",       brgy: "Brgy. Bunducan", budget: 85000,  ig: true,  start: "Jun 10, 2025", end: "Sep 10, 2025", submitter: "OUR Director",       submitter_role: "office",       sdgs: [1, 8],    waiting: "2 days",  rationale: "12-week mentoring on inventory + bookkeeping for sari-sari operators. Income-generating: 5% revolving fund kept by the cooperative for replenishment cycles." },
+  { id: 2, title: "Backyard Gardening for Households",    brgy: "Brgy. Sulucan",  budget: 38000,  ig: false, start: "Jun 01, 2025", end: "Aug 30, 2025", submitter: "M. Cruz (Researcher)",submitter_role: "paraya_researcher", sdgs: [2, 12],   waiting: "1 day",   rationale: "Seeds + workshop kits distributed to 80 participating households. No income-generating component; purely subsistence + nutrition uplift." },
+  { id: 3, title: "ICT Training for Barangay Youth",      brgy: "Brgy. Antipona", budget: 45000,  ig: false, start: "Jun 15, 2025", end: "Aug 15, 2025", submitter: "CICS Chair",         submitter_role: "department",   sdgs: [4, 9],    waiting: "1 day",   rationale: "8-week basic computing curriculum for SHS-level youth. CICS provides instructors; budget covers transportation, snacks, and printable workbooks." },
+  { id: 4, title: "Mental Health First-Aid Training",     brgy: "Brgy. Bambang",  budget: 25000,  ig: false, start: "Jun 21, 2025", end: "Jun 22, 2025", submitter: "CSG President",      submitter_role: "student_org",  sdgs: [3],       waiting: "5h",      rationale: "Two-day workshop facilitated by Guidance counselors for 40 barangay leaders. Budget: facilitator stipend + venue + materials." },
+];
+
+const SAMPLE_FINANCE_RECENT = [
+  { id: 100, title: "Literacy Drive for Brgy. Sta. Ana", brgy: "Brgy. Sta. Ana",  budget: 75000, cleared: "May 16, 2025", status: "approved",        notes: "" },
+  { id: 101, title: "Bayanihan Clean-up — Bunducan",    brgy: "Brgy. Bunducan",  budget: 42000, cleared: "May 15, 2025", status: "approved",        notes: "Confirmed canteen + supplies receipts match itemized breakdown." },
+  { id: 102, title: "Q2 DRR Workshop Series",            brgy: "Brgy. Wakas",     budget: 60000, cleared: "May 14, 2025", status: "approved",        notes: "" },
+  { id: 103, title: "Reading Caravan — Antipona",        brgy: "Brgy. Antipona",  budget: 38000, cleared: "May 13, 2025", status: "approved",        notes: "" },
+  { id: 104, title: "Soup Kitchen — May Run",            brgy: "Brgy. Lolomboy",  budget: 18000, cleared: "May 12, 2025", status: "active",          notes: "Approved with caveat: receipts due within 7 days post-event." },
+];
+
+function renderFinanceQueuePage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">💰 Finance Clearance</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 560px;">
+        Proposals waiting on budget clearance. Approving here marks <code>finance_clearance=true</code> and unblocks PARAYA to advance the proposal to approved status.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <span class="ttl">💵 ${SAMPLE_FINANCE_PENDING.length} awaiting clearance</span>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        ${SAMPLE_FINANCE_PENDING.map((p) => `
+          <div style="padding: 12px 14px; border-bottom: 1px solid var(--line-soft);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-weight: 700; font-size: 11px;">${p.title}</span>
+                  ${p.ig ? `<span class="status-badge revisions_requested" style="font-size: 8.5px;">⚡ Income-generating</span>` : ""}
+                  <span class="status-badge submitted" style="font-size: 8.5px;">${p.brgy}</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 4px;">
+                  💰 ₱${p.budget.toLocaleString()} · 📅 ${p.start} → ${p.end} · 📤 ${p.submitter} <span style="text-transform: capitalize;">(${p.submitter_role.replace(/_/g, " ")})</span>
+                </div>
+                <div style="font-size: 10px; color: var(--ink); margin-top: 5px; line-height: 1.5;">${p.rationale.slice(0, 180)}${p.rationale.length > 180 ? "…" : ""}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 4px;">⏱ Waiting ${p.waiting}</div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px; align-items: stretch; flex-shrink: 0; min-width: 130px;">
+                <span class="wf-btn" data-action="fin-detail" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px;">↗ Details</span>
+                <span class="wf-btn" data-action="fin-sendback" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px; color: #c33;">↩ Send back</span>
+                <span class="wf-btn primary" data-action="fin-clear" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px;">✓ Clear budget</span>
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="ttl">⏱ Recently cleared</span>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Proposal</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Barangay</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Budget</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Cleared</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Current Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${SAMPLE_FINANCE_RECENT.map((r) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);" data-action="fin-recent-row" data-row="${r.id}">
+                <td style="padding: 9px 10px;">
+                  <div style="font-weight: 600;">${r.title}</div>
+                  ${r.notes ? `<div style="font-size: 9px; color: var(--ink-mute); margin-top: 2px;">📝 ${r.notes}</div>` : ""}
+                </td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${r.brgy}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">₱${r.budget.toLocaleString()}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${r.cleared}</td>
+                <td style="padding: 9px 10px;"><span class="status-badge ${r.status}" style="font-size: 8.5px; text-transform: capitalize;">${r.status}</span></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderFinanceDetailDialog(state) {
+  const p = SAMPLE_FINANCE_PENDING.find((x) => x.id === state.fin_row) ?? SAMPLE_FINANCE_PENDING[0];
+  return `
+    <div class="sheet-backdrop" data-action="fin-dlg-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">${p.title}</span>
+        <span class="sheet-close" data-action="fin-dlg-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Budget</div>
+            <div style="font-weight: 700; font-size: 13px; margin-top: 2px;">₱${p.budget.toLocaleString()}</div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Income-generating</div>
+            <div style="font-weight: 700; font-size: 13px; margin-top: 2px;">${p.ig ? "Yes" : "No"}</div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Timeline</div>
+            <div style="font-weight: 600; font-size: 10.5px; margin-top: 2px;">${p.start} → ${p.end}</div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Barangay</div>
+            <div style="font-weight: 600; font-size: 10.5px; margin-top: 2px;">${p.brgy}</div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Submitter</div>
+            <div style="font-weight: 600; font-size: 10.5px; margin-top: 2px;">${p.submitter}</div>
+          </div>
+          <div>
+            <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Role</div>
+            <div style="font-weight: 600; font-size: 10.5px; margin-top: 2px; text-transform: capitalize;">${p.submitter_role.replace(/_/g, " ")}</div>
+          </div>
+        </div>
+
+        <div class="sheet-section" style="margin-bottom: 12px;">
+          <div class="sheet-section-title">SDG Alignment</div>
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            ${p.sdgs.map((n) => `<span style="display: inline-block; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 9.5px; background: #fafafa;">SDG ${n}</span>`).join("")}
+          </div>
+        </div>
+
+        <div class="sheet-section" style="margin-bottom: 12px;">
+          <div class="sheet-section-title">Rationale</div>
+          <div style="font-size: 10.5px; line-height: 1.6; color: var(--ink);">${p.rationale}</div>
+        </div>
+
+        <div class="sheet-section">
+          <div class="sheet-section-title">Pipeline status</div>
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            ${[
+              { stage: "Submitted",       done: true,  current: false },
+              { stage: "Pre-screening",   done: true,  current: false },
+              { stage: "SDG Review",      done: true,  current: false },
+              { stage: "Finance Review",  done: false, current: true  },
+              { stage: "Approved",        done: false, current: false },
+            ].map((s) => `
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 0;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: ${s.done ? "#1a1a1a" : "#fff"}; border: 1.5px solid ${s.done || s.current ? "#1a1a1a" : "#cdcdcd"}; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">${s.done ? `<span style="color: #fff; font-size: 8px;">✓</span>` : ""}</div>
+                <div style="font-size: 10px; font-weight: ${s.current ? "700" : "500"};">${s.stage}${s.current ? " (you are here)" : ""}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="fin-dlg-cancel">Close</span>
+        <span class="wf-btn" data-action="fin-sendback" data-row="${p.id}" style="color: #c33;">↩ Send back</span>
+        <span class="wf-btn primary" data-action="fin-clear" data-row="${p.id}">✓ Clear budget</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderFinanceClearDialog(state) {
+  const p = SAMPLE_FINANCE_PENDING.find((x) => x.id === state.fin_row) ?? SAMPLE_FINANCE_PENDING[0];
+  return `
+    <div class="sheet-backdrop" data-action="fin-clear-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 700; font-size: 13px;">Clear budget for this proposal?</span>
+        <span class="sheet-close" data-action="fin-clear-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">${p.title}</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 14px;">Total budget: <strong style="color: var(--ink);">₱${p.budget.toLocaleString()}</strong>${p.ig ? " · ⚡ Income-generating" : ""}</div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">Notes <span style="color: var(--ink-mute);">(optional)</span></span>
+          <div class="sheet-input" style="min-height: 70px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Any caveats or conditions to record on the proposal…</div>
+        </div>
+
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 10px; padding: 8px 10px; background: #fafafa; border: 1px solid var(--line-soft); border-radius: 4px;">
+          ℹ POSTs <code>/api/proposals/[id]/advance</code> with <code>action: 'mark_finance_cleared'</code>. The proposal's <code>finance_clearance</code> flips to <strong>true</strong> and PARAYA Director can now advance to <strong>approved</strong>.
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="fin-clear-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="fin-clear-confirm">✓ Clear budget</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderFinanceSendBackDialog(state) {
+  const p = SAMPLE_FINANCE_PENDING.find((x) => x.id === state.fin_row) ?? SAMPLE_FINANCE_PENDING[0];
+  return `
+    <div class="sheet-backdrop" data-action="fin-sendback-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 700; font-size: 13px;">Send back for revisions?</span>
+        <span class="sheet-close" data-action="fin-sendback-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-weight: 600; font-size: 11px; margin-bottom: 4px;">${p.title}</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 14px; line-height: 1.5;">The proposal returns to the proponent (${p.submitter}) with your notes. They can revise the budget and resubmit.</div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">Notes <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">What needs to change in the budget? (required)</div>
+          <div class="sheet-hint">Sent verbatim to the submitter via notification + their proposal page.</div>
+        </div>
+
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 10px; padding: 8px 10px; background: #fafafa; border: 1px solid var(--line-soft); border-radius: 4px;">
+          ℹ POSTs <code>/api/proposals/[id]/advance</code> with <code>action: 'request_revisions'</code>. Status flips to <strong>revisions_requested</strong>; the proposal exits your queue until resubmitted.
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="fin-sendback-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="fin-sendback-confirm" style="background: #c33;">↩ Send back</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderFinanceCleared() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Budget cleared</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        The proposal is now ready for PARAYA Director's final approval. The proponent has been notified.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn primary" data-action="fin-back-to-queue">← Back to queue</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.finance = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Finance Officer's main workspace. Top panel: queue of proposals in status='finance_review' with finance_clearance=false. Bottom panel: recently cleared proposals + current pipeline status. Per-row actions: ↗ Details, ↩ Send back, ✓ Clear budget.",
+  render:  () => renderFinanceQueuePage(),
+};
+
+SCREENS.finance_detail = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Proposal detail sheet — full rationale, budget breakdown summary, SDG alignment, submitter + role, pipeline status timeline. Bottom-of-sheet actions mirror the inline row actions so you can decide without going back.",
+  render:  (s) => `${renderFinanceQueuePage()}${renderFinanceDetailDialog(s)}`,
+};
+
+SCREENS.finance_clear_dialog = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Clear-budget confirmation dialog. Optional notes captured on finance_notes column. Submit POSTs /api/proposals/[id]/advance with action='mark_finance_cleared'.",
+  render:  (s) => `${renderFinanceQueuePage()}${renderFinanceClearDialog(s)}`,
+};
+
+SCREENS.finance_sendback_dialog = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Send-back dialog. Notes are required. Submit POSTs /api/proposals/[id]/advance with action='request_revisions'. The proposal flips to status='revisions_requested' and exits the Finance queue until the proponent resubmits.",
+  render:  (s) => `${renderFinanceQueuePage()}${renderFinanceSendBackDialog(s)}`,
+};
+
+SCREENS.finance_cleared = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Clearance success state. Confirms the proposal's finance_clearance flipped true. The queue refreshes; this proposal moves to the 'Recently cleared' table below.",
+  render:  () => renderFinanceCleared(),
+};
+
+SCREENS.finance_sent_back = {
+  route:   "/officer/finance",
+  title:   "Finance Clearance",
+  navKey:  "finance",
+  caption: "Send-back success state. The proposal returns to the proponent with status='revisions_requested'. They get a notification with your notes embedded and can edit + resubmit at any time.",
+  render:  () => `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">↩</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Sent back</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        Your notes have been forwarded to the proponent. The proposal will reappear in your queue once they resubmit.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn primary" data-action="fin-back-to-queue">← Back to queue</span>
+      </div>
+    </div>
+  `,
+};
+
+/* ---------- ALL PROPOSALS (read-only, for context) ---------- */
+
+const SAMPLE_FINANCE_ALL_PROPOSALS = [
+  { id: 0, title: "Health Caravan — Lolomboy",            brgy: "Brgy. Lolomboy",  status: "finance_review",      budget: 120000, submitter: "OSAS Coordinator" },
+  { id: 1, title: "Sari-sari Livelihood Mentoring",       brgy: "Brgy. Bunducan",  status: "finance_review",      budget: 85000,  submitter: "OUR Director"      },
+  { id: 2, title: "Backyard Gardening for Households",    brgy: "Brgy. Sulucan",   status: "finance_review",      budget: 38000,  submitter: "M. Cruz"           },
+  { id: 3, title: "ICT Training for Barangay Youth",      brgy: "Brgy. Antipona",  status: "finance_review",      budget: 45000,  submitter: "CICS Chair"        },
+  { id: 4, title: "Mental Health First-Aid Training",     brgy: "Brgy. Bambang",   status: "finance_review",      budget: 25000,  submitter: "CSG President"     },
+  { id: 5, title: "Literacy Drive for Brgy. Sta. Ana",   brgy: "Brgy. Sta. Ana",  status: "approved",            budget: 75000,  submitter: "OSAS Coordinator"  },
+  { id: 6, title: "Bayanihan Clean-up — Bunducan",        brgy: "Brgy. Bunducan",  status: "approved",            budget: 42000,  submitter: "CSG President"     },
+  { id: 7, title: "DRR Workshop Series Q2",               brgy: "Brgy. Wakas",     status: "approved",            budget: 60000,  submitter: "M. Cruz"           },
+  { id: 8, title: "Reading Caravan — Antipona",           brgy: "Brgy. Antipona",  status: "approved",            budget: 38000,  submitter: "CICS Chair"        },
+  { id: 9, title: "Youth Sports League",                  brgy: "Brgy. Wakas",     status: "sdg_review",          budget: 55000,  submitter: "CSG President"     },
+  { id: 10, title: "Senior Citizen Wellness Caravan",     brgy: "Brgy. Sulucan",   status: "pre_screening",       budget: 32000,  submitter: "OSAS Coordinator"  },
+  { id: 11, title: "Cooperative Bookkeeping Training",    brgy: "Brgy. Antipona",  status: "submitted",           budget: 28000,  submitter: "OUR Director"      },
+  { id: 12, title: "Tutoring Program — Q2 Wave",          brgy: "Brgy. Bambang",   status: "revisions_requested", budget: 22000,  submitter: "M. Cruz"           },
+];
+
+const FINANCE_PROP_STATUSES = [
+  { key: "all",                 label: "All statuses"        },
+  { key: "submitted",           label: "Submitted"           },
+  { key: "pre_screening",       label: "Pre-screening"       },
+  { key: "sdg_review",          label: "SDG Review"          },
+  { key: "finance_review",      label: "Finance Review"      },
+  { key: "approved",            label: "Approved"            },
+  { key: "revisions_requested", label: "Revisions Requested" },
+  { key: "rejected",            label: "Rejected"            },
+];
+
+function renderAllProposalsReadOnly(state) {
+  const statusFilter = state.prop_status_filter ?? "all";
+  const rows = statusFilter === "all"
+    ? SAMPLE_FINANCE_ALL_PROPOSALS
+    : SAMPLE_FINANCE_ALL_PROPOSALS.filter((p) => p.status === statusFilter);
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">📄 All Proposals <span style="font-size: 10px; font-weight: 400; color: var(--ink-mute);">(read-only)</span></div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 560px;">
+        Full pipeline view across all proposals. Finance Officers see this read-only — only PARAYA Director can advance / approve / reject at non-finance stages. Use this view for context when deciding on items in your queue.
+      </div>
+    </div>
+
+    <div style="background: #fafafa; border: 1px solid var(--line-soft); padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 9.5px; line-height: 1.5;">
+      ℹ The only action you can take from here is opening a proposal in <strong>Finance Review</strong> via the queue. Other rows are informational.
+    </div>
+
+    <div class="panel">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">All proposals <span style="color: var(--ink-mute); font-weight: 400;">(${rows.length})</span></span>
+        <div class="sheet-input" data-action="prop-open-status-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 160px;">
+          Status: ${FINANCE_PROP_STATUSES.find((s) => s.key === statusFilter)?.label ?? "All"} ▾
+        </div>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Title</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Barangay</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Status</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Budget</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Submitter</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((p) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);" data-action="prop-open-readonly" data-row="${p.id}">
+                <td style="padding: 9px 10px; font-weight: 600;">${p.title}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${p.brgy}</td>
+                <td style="padding: 9px 10px;"><span class="status-badge ${p.status}" style="font-size: 8.5px; text-transform: capitalize;">${p.status.replace(/_/g, " ")}</span></td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">₱${p.budget.toLocaleString()}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${p.submitter}</td>
+              </tr>
+            `).join("")}
+            ${rows.length === 0 ? `
+              <tr><td colspan="5" style="padding: 24px 10px; text-align: center; color: var(--ink-mute);">No proposals match this filter.</td></tr>
+            ` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderProposalStatusFilterMenu() {
+  return `
+    <div style="position: absolute; top: 60px; right: 22px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 200px; z-index: 14; overflow: hidden;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by status</div>
+      ${FINANCE_PROP_STATUSES.map((s) => `
+        <div data-action="prop-set-status:${s.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${s.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderProposalReadOnlyDetail(state) {
+  const p = SAMPLE_FINANCE_ALL_PROPOSALS.find((x) => x.id === state.prop_row) ?? SAMPLE_FINANCE_ALL_PROPOSALS[0];
+  const isInFinanceReview = p.status === "finance_review";
+  return `
+    <div class="sheet-backdrop" data-action="prop-detail-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">${p.title}</span>
+        <span class="sheet-close" data-action="prop-detail-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span class="status-badge ${p.status}" style="font-size: 9px; text-transform: capitalize;">${p.status.replace(/_/g, " ")}</span>
+          <span style="font-size: 9.5px; color: var(--ink-mute);">${p.brgy} · Submitted by ${p.submitter}</span>
+        </div>
+
+        <div class="panel" style="margin-bottom: 8px;">
+          <div class="panel-head"><span class="ttl">Budget</span></div>
+          <div class="panel-body dense"><div style="font-weight: 700; font-size: 14px;">₱${p.budget.toLocaleString()}</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 8px;">
+          <div class="panel-head"><span class="ttl">Rationale</span></div>
+          <div class="panel-body dense"><div style="font-size: 10.5px; line-height: 1.6; color: var(--ink);">Rationale paragraph describing the community-needs match, budget breakdown, target beneficiaries, and SDG alignment context…</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Pipeline status</span></div>
+          <div class="panel-body dense">
+            ${[
+              { stage: "Submitted",       done: !["draft"].includes(p.status) },
+              { stage: "Pre-screening",   done: !["submitted","draft"].includes(p.status) },
+              { stage: "SDG Review",      done: ["approved","finance_review","rejected"].includes(p.status) },
+              { stage: "Finance Review",  done: p.status === "approved",                          current: p.status === "finance_review" },
+              { stage: "Approved",        done: p.status === "approved" },
+            ].map((s) => `
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 0;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: ${s.done ? "#1a1a1a" : "#fff"}; border: 1.5px solid ${s.done || s.current ? "#1a1a1a" : "#cdcdcd"}; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">${s.done ? `<span style="color: #fff; font-size: 8px;">✓</span>` : ""}</div>
+                <div style="font-size: 10px; font-weight: ${s.current ? "700" : "500"};">${s.stage}${s.current ? " (in progress)" : ""}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="prop-detail-cancel">Close</span>
+        ${isInFinanceReview ? `<span class="wf-btn primary" data-action="prop-jump-to-queue">→ Open in Finance Queue</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.proposals = {
+  route:   "/officer/proposals",
+  title:   "All Proposals",
+  navKey:  "proposals",
+  caption: "Read-only view of the entire proposal pipeline. Finance Officers can browse but not act on non-finance stages — the only actionable proposals are those in 'Finance Review', which open in the Finance Clearance queue.",
+  render:  (s) => renderAllProposalsReadOnly(s),
+};
+
+SCREENS.proposals_status_filter = {
+  route:   "/officer/proposals",
+  title:   "All Proposals",
+  navKey:  "proposals",
+  caption: "Status filter dropdown (8 pipeline states + ‘All’). Picking one re-filters the table.",
+  render:  (s) => `${renderAllProposalsReadOnly(s)}${renderProposalStatusFilterMenu()}`,
+};
+
+SCREENS.proposals_filtered = {
+  route:   "/officer/proposals",
+  title:   "All Proposals",
+  navKey:  "proposals",
+  caption: "Table filtered by a single pipeline status — useful to look at, e.g., all Approved proposals to compare budget patterns against what's currently in your queue.",
+  render:  (s) => renderAllProposalsReadOnly(s),
+};
+
+SCREENS.proposals_detail = {
+  route:   "/officer/proposals",
+  title:   "All Proposals",
+  navKey:  "proposals",
+  caption: "Read-only proposal detail. Pipeline timeline + budget + rationale summary. For proposals in 'Finance Review' the sheet adds a ‘Open in Finance Queue’ shortcut; otherwise it's view-only.",
+  render:  (s) => `${renderAllProposalsReadOnly(s)}${renderProposalReadOnlyDetail(s)}`,
+};
+
+
+/* ---------- CHATBOT, NOTIFICATIONS, PROFILE (shared semantics) ---------- */
+
+const SUGGESTED_PROMPTS_B = [
+  "How many proposals are awaiting my clearance?",
+  "Show me total ₱ cleared this quarter, broken down by barangay",
+  "What's the difference between Clear budget and Send back?",
+  "Can I clear a proposal that isn't income-generating?",
+  "How do I export the recently-cleared table to Excel?",
+];
+
+function renderChatbot(state) {
+  const active = state.chat_active;
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100%;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center;">✨</div>
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">AGAPE Assistant</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">AI-powered platform guide · Claude</div>
+          </div>
+        </div>
+        ${active ? `<span class="wf-btn" data-action="chat-new" style="padding: 3px 8px; font-size: 9.5px;">↻ New chat</span>` : ""}
+      </div>
+      <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel-body" style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; ${active ? "" : "justify-content: center; align-items: center; text-align: center;"}">
+          ${!active ? `
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">Hi! I'm AGAPE Assistant.</div>
+              <div style="font-size: 10px; color: var(--ink-mute); margin-top: 4px; max-width: 280px;">
+                Ask me anything about needs, surveys, programs, or how to use the platform.
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; margin-top: 6px;">
+              ${SUGGESTED_PROMPTS_B.map((p, i) => `
+                <span class="wf-btn" data-action="chat-prompt:${i}" style="text-align: left; padding: 7px 12px; font-size: 10px; font-weight: 400;">${p}</span>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="background: #1a1a1a; color: #fff; max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; font-size: 10.5px; line-height: 1.5;">
+                What's the difference between Clear budget and Send back?
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-start;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 12px;">🤖</div>
+              <div style="background: #fafafa; border: 1px solid var(--line-soft); max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; font-size: 10.5px; line-height: 1.55;">
+Both actions write to the same endpoint (<code>/api/proposals/[id]/advance</code>), but with different intent:
+
+<strong>✓ Clear budget</strong> — sets <code>finance_clearance=true</code>. The proposal remains in status <em>finance_review</em>, but PARAYA Director can now flip it to <em>approved</em>. Notes are optional. Use this when the budget looks sound.
+
+<strong>↩ Send back</strong> — flips status to <em>revisions_requested</em>. The proposal leaves your queue until the proponent edits + resubmits. Notes are <strong>required</strong> — they're shown verbatim to the proponent. Use this when the budget is unclear, misaligned, or needs receipts that aren't attached.
+
+You can only take these two actions; the SDG stage and final approval are the Director's.
+              </div>
+            </div>
+          `}
+        </div>
+        <div style="border-top: 1px solid var(--line-soft); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end;">
+          <div class="sheet-input" style="flex: 1; min-height: 36px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Ask me anything…</div>
+          <span class="wf-btn primary" data-action="chat-send" style="padding: 7px 12px;">▶</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 8.5px; color: var(--ink-mute); margin-top: 6px;">
+        AGAPE Assistant is AI-powered and may make mistakes. Do not rely on it for official decisions.
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.chatbot = {
+  route:   "/officer/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Empty-state chatbot with 5 finance-scoped suggested prompts (clearance counts, send-back vs clear semantics, exports). Click a prompt or type a question → routes to the active conversation view.",
+  render:  (s) => renderChatbot(s),
+};
+
+SCREENS.chatbot_active = {
+  route:   "/officer/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Active conversation. AI is given finance-officer context — clearance counts, recent decisions, current queue depth — and can fall back to tool-use to query /api/proposals/finance-queue for live numbers.",
+  render:  (s) => renderChatbot({ chat_active: true }),
+};
+
+const NOTIF_FILTER_LABEL = { all: "All notifications", unread: "Unread only", read: "Read only" };
+const SAMPLE_BARANGAY_NOTIFS = [
+  { id: 0, type: "warning", icon: "⚠", title: "New proposal in Finance Review queue",     message: "Health Caravan — Lolomboy (₱120,000, income-generating) is awaiting your budget clearance.",                          time: "20m ago", read: false },
+  { id: 1, type: "warning", icon: "⚠", title: "Income-generating proposal needs review",   message: "Sari-sari Livelihood Mentoring (₱85,000) flagged income-generating — finance gate required before approval.",         time: "1h ago",  read: false },
+  { id: 2, type: "info",    icon: "ℹ", title: "Proponent resubmitted after revision",     message: "Tutoring Program — Q2 Wave resubmitted with the revised budget breakdown you requested last week.",                   time: "5h ago",  read: false },
+  { id: 3, type: "success", icon: "✓", title: "Proposal approved by Director",            message: "Literacy Drive for Brgy. Sta. Ana — your clearance was followed by Director approval. Project now active.",         time: "2d ago",  read: true  },
+  { id: 4, type: "info",    icon: "ℹ", title: "Quarterly finance report due",             message: "Q2 finance report due 2026-06-30. Aggregates ‘Total ₱ Cleared’ + ‘Send-back rate’ per Director's monthly review.",  time: "3d ago",  read: true  },
+];
+const NOTIF_TYPE_BADGE = { info: "submitted", success: "approved", warning: "revisions_requested", error: "rejected" };
+
+function renderNotificationsPage(state) {
+  const filter         = state.notif_filter ?? "all";
+  const filterMenuOpen = state.notif_filter_open;
+  let rows = SAMPLE_BARANGAY_NOTIFS;
+  if (filter === "unread") rows = rows.filter((n) => !n.read);
+  if (filter === "read")   rows = rows.filter((n) =>  n.read);
+  const unread = SAMPLE_BARANGAY_NOTIFS.filter((n) => !n.read).length;
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          🔔 Notifications
+          ${unread > 0 ? `<span class="status-badge approved" style="font-size: 8.5px;">${unread} unread</span>` : ""}
+        </div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+          In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <div class="partner-filter-wrap">
+          <div class="partner-filter" data-action="notif-open-filter">${NOTIF_FILTER_LABEL[filter]} ▾</div>
+          ${filterMenuOpen ? `
+            <div class="status-filter-menu" style="min-width: 140px;">
+              ${Object.entries(NOTIF_FILTER_LABEL).map(([k, lbl]) => `
+                <div class="status-filter-item ${filter === k ? "active" : ""}" data-action="notif-set-filter:${k}">${lbl}</div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <span class="wf-btn" data-action="notif-mark-all" style="padding: 4px 10px; font-size: 9.5px;">✓ Mark all read</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${rows.map((n, i) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); background: ${!n.read ? "#fafafa" : "#fff"};">
+            <div style="width: 30px; height: 30px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${n.icon}</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 10.5px;">${n.title}</span>
+                <span class="status-badge ${NOTIF_TYPE_BADGE[n.type]}" style="font-size: 8px;">${n.type}</span>
+                ${!n.read ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a;"></span>' : ""}
+                <span style="margin-left: auto; font-size: 9px; color: var(--ink-mute);">${n.time}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; line-height: 1.4;">${n.message}</div>
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <span class="wf-link" data-action="notif-open" data-row="${i}" style="font-size: 9.5px;">View ↗</span>
+                ${!n.read ? `<span class="wf-link" data-action="notif-mark-one" data-row="${i}" style="font-size: 9.5px;">Mark read</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.notifications = {
+  route:   "/officer/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Finance Officer notifications. Triggered by: new items entering finance_review, resubmissions after sent-back, post-clearance approvals, and periodic reporting reminders.",
+  render:  (s) => renderNotificationsPage(s),
+};
+
+SCREENS.notifications_filter = {
+  route:   "/officer/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Filter dropdown — All / Unread / Read. Scopes the list; the unread badge in the header always shows the full unread count.",
+  render:  (s) => renderNotificationsPage({ ...s, notif_filter_open: true }),
+};
+
+function renderProfile() {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("");
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">👤 Profile Information</span></div>
+        <div class="panel-body dense">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div class="vol-avatar lg" style="width: 56px; height: 56px; font-size: 18px;">${initials}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 13px;">${info.name}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute);">${info.email}</div>
+              <span class="status-badge approved" style="font-size: 8.5px; margin-top: 4px; display: inline-block;">${info.label}</span>
+            </div>
+            <span class="wf-btn" data-action="profile-change-photo" style="padding: 4px 10px; font-size: 9.5px;">📷 Change photo</span>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${info.name}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.email}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Organization <span style="color: var(--ink-mute);">(read-only — managed by Admin)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.org} — ${info.label}</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <span class="wf-btn primary" data-action="profile-save" style="padding: 5px 14px;">💾 Save Profile</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔔 Notification Preferences</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field" style="margin-bottom: 10px;">
+            <span class="sheet-label">📞 Phone (for SMS)</span>
+            <div class="sheet-input">+63 9XX XXX XXXX</div>
+            <div class="sheet-hint">Required if you turn SMS on. SMS is dispatched via Semaphore.</div>
+          </div>
+          ${[
+            { key: "in_app", icon: "💬", label: "In-app notifications", desc: "Show in the bell dropdown and on the Notifications page", on: true },
+            { key: "email",  icon: "📧", label: "Email notifications",  desc: "Forward important messages to your email address",       on: true },
+            { key: "sms",    icon: "📱", label: "SMS notifications",    desc: "Send urgent items as SMS (e.g. captain approvals)",       on: false },
+          ].map((p) => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;" data-action="profile-toggle:${p.key}">
+              <span style="font-size: 16px;">${p.icon}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 10.5px;">${p.label}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.desc}</div>
+              </div>
+              <div style="width: 32px; height: 18px; background: ${p.on ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative; flex-shrink: 0;">
+                <div style="position: absolute; top: 2px; ${p.on ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-notifs" style="padding: 5px 14px;">💾 Save Preferences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔐 Change Password</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Current Password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div class="sheet-field"><span class="sheet-label">New Password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm New Password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-password" style="padding: 5px 14px;">🔐 Update Password</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.profile = {
+  route:   "/officer/profile",
+  title:   "My Profile",
+  navKey:  "profile",
+  caption: "Profile settings. Shows the Finance Officer's Organization row as ‘DYCI Finance’ (read-only — managed by Admin). Otherwise identical to other profile pages: name + email + phone + 3 channel toggles + password change.",
+  render:  () => renderProfile(),
+};
+
+
+/* ============================================================
+   Auto-generate placeholder stub screens for every finance nav
+   destination that doesn't already have a custom render above.
+   ============================================================ */
+const ROUTE_FOR_SCREEN = {
+  finance:        ["/officer/finance",        "Finance Clearance"],
+  proposals:      ["/officer/proposals",      "All Proposals"],
+  chatbot:        ["/officer/chatbot",        "AI Assistant"],
+  notifications:  ["/officer/notifications",  "Notifications"],
+  profile:        ["/officer/profile",        "My Profile"],
+};
+
+const STUB_CAPTIONS = {
+  finance:       "Finance Officer's primary workspace — pending budget clearance queue + recently cleared table. Per-row inline actions: Details / Send back / Clear budget.",
+  proposals:     "Read-only view of the full proposal pipeline. Finance Officers can browse for context but only act on items in 'Finance Review' (those open in the Finance Clearance queue).",
+  chatbot:       "Role-aware AI assistant. Same chatbot as the officer view but with finance-officer prompt context (clearance counts, recent decisions, queue depth).",
+  notifications: "In-app notifications feed. Triggered by new items entering finance_review, resubmissions after sent-back, post-clearance approvals, periodic reporting reminders.",
+  profile:       "Profile settings: full name, email (read-only), organization (read-only — DYCI Finance), phone, password change, and per-channel notification preferences (in-app / email / SMS).",
+};
+
+for (const [screenId, [route, title]] of Object.entries(ROUTE_FOR_SCREEN)) {
+  if (SCREENS[screenId]) continue;
+  SCREENS[screenId] = {
+    route, title,
+    navKey: screenId,
+    caption: STUB_CAPTIONS[screenId] ?? "Placeholder wireframe — full content to be designed.",
+    render: () => `
+      <div class="stub">
+        <div class="stub-route">${route}</div>
+        <div class="stub-title">${title}</div>
+        <div class="stub-desc">${STUB_CAPTIONS[screenId] ?? ""}</div>
+        <div class="stub-tag">Placeholder — wireframe pending</div>
+      </div>
+    `,
+  };
+}
+
+/* ============================================================
+   SIDEBAR RENDERING
+   ============================================================ */
+function getActiveNavKey(screenId) {
+  const def = SCREENS[screenId];
+  return def?.navKey ?? screenId;
+}
+
+function isNavItemActive(item, activeKey) {
+  if (item.key === activeKey) return true;
+  if (item.children) return item.children.some((c) => c.key === activeKey);
+  return false;
+}
+
+function renderSidebar(activeKey, state) {
+  const role = currentRole;
+  const nav = PARTNER_NAV;
+  const info = ROLE_INFO[role];
+  const expandedGroup = state?.expandedGroup;
+
+  const items = nav.map((item) => {
+    if (item.group) {
+      const childActive = isNavItemActive(item, activeKey);
+      const manuallyExpanded = expandedGroup === item.key;
+      const expanded = childActive || manuallyExpanded;
+      const collapsed = !expanded;
+      // Filter children by role allowlist
+      const children = item.children.filter((c) => !c.roles || c.roles.includes(role));
+      if (children.length === 0) return "";
+      const groupCls = `side-item group${collapsed ? " collapsed" : ""}${childActive ? " active" : ""}`;
+      return `
+        <li>
+          <div class="${groupCls}" data-action="toggle-group:${item.key}">
+            <span class="ico"></span>${item.label}
+          </div>
+          ${collapsed ? "" : `
+            <ul class="side-children">
+              ${children.map((c) => `
+                <li class="side-child ${c.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${c.screen}">${c.label}</li>
+              `).join("")}
+            </ul>
+          `}
+        </li>`;
+    }
+    const cls = `side-item${item.key === activeKey ? " active" : ""}`;
+    return `<li><div class="${cls}" data-action="nav" data-screen="${item.screen}"><span class="ico"></span>${item.label}</div></li>`;
+  }).join("");
+
+  // AI Assistant + Notifications pinned at the bottom for all roles.
+  const pinned = `
+    <div class="side-divider"></div>
+    ${SIDEBAR_PINNED.map((p) => `
+      <div class="side-item ${p.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${p.screen}"><span class="ico"></span>${p.label}</div>
+    `).join("")}
+  `;
+
+  return `
+    <div class="page-side">
+      <div class="side-brand">
+        <div class="side-logo">LOGO</div>
+        <div>
+          <div class="side-brand-title">AGAPE</div>
+          <div class="side-brand-sub">PARAYA · DYCI</div>
+        </div>
+      </div>
+      <div class="side-nav">
+        <ul>${items}</ul>
+        ${pinned}
+      </div>
+      <div class="side-user">
+        <div class="row">
+          <div class="avatar">${info.name.charAt(0)}</div>
+          <div style="min-width: 0;">
+            <div class="name">${info.name}</div>
+            <div class="email">${info.email}</div>
+          </div>
+        </div>
+        <button class="signout" data-action="signout">↩ Sign out</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader(title, route, state) {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const notifDropdown = state.bellOpen ? `
+    <div class="dropdown notif-dropdown">
+      <div class="dropdown-head">
+        <span class="dropdown-title">Notifications</span>
+        <span class="dropdown-action" data-action="mark-read">✓ Mark all read</span>
+      </div>
+      <div class="dropdown-body">
+        <div class="notif-item unread">
+          <div class="notif-icon">!</div>
+          <div class="notif-content">
+            <div class="notif-title">New proposal awaiting pre-screen</div>
+            <div class="notif-msg">"Reading Caravan — Brgy. Lolomboy" submitted by CSG</div>
+            <div class="notif-time">5m ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon">i</div>
+          <div class="notif-content">
+            <div class="notif-title">3 new survey responses</div>
+            <div class="notif-msg">Health needs assessment — Brgy. Bunducan</div>
+            <div class="notif-time">1h ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon">✓</div>
+          <div class="notif-content">
+            <div class="notif-title">Activity report approved</div>
+            <div class="notif-msg">Literacy Camp — May 14</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-foot">
+        <span class="dropdown-link" data-action="nav" data-screen="notifications">View all notifications →</span>
+      </div>
+    </div>
+  ` : "";
+
+  const profileDropdown = state.profileOpen ? `
+    <div class="dropdown profile-dropdown">
+      <div class="dropdown-user">
+        <div class="dropdown-user-name">${info.name}</div>
+        <div class="dropdown-user-email">${info.email}</div>
+      </div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" data-action="nav" data-screen="profile">Profile Settings</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item danger" data-action="signout">Sign out</div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="page-header">
+      <div class="page-title"><span class="crumb">${route} ·</span> ${title}</div>
+      <div class="spacer"></div>
+      <div class="iconbtn bell" data-action="toggle:bell" title="Notifications">
+        🔔<span class="badge">2</span>
+      </div>
+      <div class="iconbtn avatar" data-action="toggle:profile" title="${info.name}">${initials}</div>
+      ${notifDropdown}
+      ${profileDropdown}
+    </div>
+  `;
+}
+
+/* ============================================================
+   BOARD STATE — same FIFO mechanics as auth.html
+   ============================================================ */
+let nextInstanceId = 1;
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey, initialState) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  let target;
+  if (initialState) {
+    target = makeInstance(screenId);
+    target.state = { ...initialState };
+    board.push(target);
+  } else {
+    const existing = board.find((b) => b.screenId === screenId);
+    if (existing) {
+      target = existing;
+    } else {
+      target = makeInstance(screenId);
+      board.push(target);
+    }
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  // Record what changed so undo can reverse it. We always push an entry when
+  // pushScreen is called from an interactive context, even if no tile was
+  // added (so the user can also undo "click that just re-highlighted").
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   Resolve a stored action-key back to the element that was clicked.
+   "nav" actions are special because the data-action is shared across
+   many sidebar items + the header icons; we disambiguate via data-screen.
+   ============================================================ */
+function findClickedElement(root, key) {
+  if (!key) return null;
+  if (key.startsWith("nav:")) {
+    const screen = key.slice(4);
+    return root.querySelector(`[data-action="nav"][data-screen="${screen}"]`);
+  }
+  // CSS.escape protects against keys containing characters like ":" or "/"
+  return root.querySelector(`[data-action="${CSS.escape(key)}"]`);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const meta = document.createElement("div");
+    meta.className = "tile-meta";
+    meta.innerHTML = `<span class="route">${def.route}</span><span class="id">screen: ${entry.screenId}</span>`;
+
+    const page = document.createElement("div");
+    page.className = "page" + (def.chromeless ? " chromeless" : "");
+    if (def.chromeless) {
+      page.innerHTML = `
+        <div class="page-main">
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    } else {
+      const activeKey = getActiveNavKey(entry.screenId);
+      page.innerHTML = `
+        ${renderSidebar(activeKey, entry.state)}
+        <div class="page-main">
+          ${renderHeader(def.title, def.route, entry.state)}
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    }
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = def.caption;
+
+    tile.appendChild(meta);
+    tile.appendChild(page);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every [data-action] inside this tile
+    tile.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        if (action === "nav") {
+          pushScreen(el.dataset.screen, entry, "nav:" + el.dataset.screen);
+          return;
+        }
+        if (action.startsWith("toggle-group:")) {
+          // Spawn a new tile with this sidebar group expanded so the children
+          // become visible and clickable. Click the same group again to collapse.
+          const key = action.slice("toggle-group:".length);
+          const wasExpanded = entry.state.expandedGroup === key;
+          pushScreen(entry.screenId, entry, action, {
+            ...entry.state,
+            expandedGroup: wasExpanded ? null : key,
+          });
+          return;
+        }
+        if (action === "toggle:bell") {
+          // Spawn a NEW tile showing the same page with the notif dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:bell", { bellOpen: true });
+          return;
+        }
+        if (action === "toggle:profile") {
+          // Spawn a NEW tile showing the same page with the profile dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:profile", { profileOpen: true });
+          return;
+        }
+        if (action === "mark-read") {
+          // Cosmetic — would PATCH /api/notifications in the real app.
+          entry.clickedActionKey = "mark-read";
+          render();
+          return;
+        }
+        if (action === "signout") {
+          // Now that login is in scope, sign-out closes the loop back to it.
+          pushScreen("login", entry, "signout");
+          return;
+        }
+        // Dashboard cards: "go:<screen>"
+        if (action.startsWith("go:")) {
+          const screen = action.slice(3);
+          pushScreen(screen, entry, action);
+          return;
+        }
+        // Login form: input toggle + submit
+        if (action === "fill") {
+          entry.state[el.dataset.field] = !entry.state[el.dataset.field];
+          entry.clickedActionKey = "fill";
+          render();
+          return;
+        }
+        if (action === "signin") {
+          pushScreen("dashboard", entry, "signin");
+          return;
+        }
+        if (action === "forgot" || action === "signup") {
+          // Out of scope for the officer wireframe — auth.html maps these.
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- FINANCE CLEARANCE QUEUE ---------- */
+        if (action === "fin-detail") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("finance_detail", entry, action, { fin_row: row });
+          return;
+        }
+        if (action === "fin-clear") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("finance_clear_dialog", entry, action, { fin_row: row });
+          return;
+        }
+        if (action === "fin-sendback") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("finance_sendback_dialog", entry, action, { fin_row: row });
+          return;
+        }
+        if (action === "fin-recent-row") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "fin-dlg-cancel" ||
+          action === "fin-dlg-cancel-x" ||
+          action === "fin-dlg-cancel-backdrop"
+        ) {
+          pushScreen("finance", entry, action);
+          return;
+        }
+        if (
+          action === "fin-clear-cancel" ||
+          action === "fin-clear-cancel-x" ||
+          action === "fin-clear-cancel-backdrop"
+        ) {
+          pushScreen("finance", entry, action);
+          return;
+        }
+        if (action === "fin-clear-confirm") {
+          pushScreen("finance_cleared", entry, action);
+          return;
+        }
+        if (
+          action === "fin-sendback-cancel" ||
+          action === "fin-sendback-cancel-x" ||
+          action === "fin-sendback-cancel-backdrop"
+        ) {
+          pushScreen("finance", entry, action);
+          return;
+        }
+        if (action === "fin-sendback-confirm") {
+          pushScreen("finance_sent_back", entry, action);
+          return;
+        }
+        if (action === "fin-back-to-queue") {
+          pushScreen("finance", entry, action);
+          return;
+        }
+
+        /* ---------- ALL PROPOSALS (read-only) ---------- */
+        if (action === "prop-open-status-filter") {
+          pushScreen("proposals_status_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("prop-set-status:")) {
+          const s = action.slice("prop-set-status:".length);
+          pushScreen("proposals_filtered", entry, action, { prop_status_filter: s });
+          return;
+        }
+        if (action === "prop-open-readonly") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("proposals_detail", entry, action, { prop_row: row });
+          return;
+        }
+        if (
+          action === "prop-detail-cancel" ||
+          action === "prop-detail-cancel-x" ||
+          action === "prop-detail-cancel-backdrop"
+        ) {
+          pushScreen("proposals", entry, action);
+          return;
+        }
+        if (action === "prop-jump-to-queue") {
+          pushScreen("finance", entry, action);
+          return;
+        }
+
+        /* ---------- CHATBOT ---------- */
+        if (action.startsWith("chat-prompt:")) {
+          const idx = parseInt(action.slice("chat-prompt:".length), 10);
+          pushScreen("chatbot_active", entry, action, { chat_active: true, chat_prompt_idx: idx });
+          return;
+        }
+        if (action === "chat-send") {
+          pushScreen("chatbot_active", entry, action, { chat_active: true });
+          return;
+        }
+        if (action === "chat-new") {
+          pushScreen("chatbot", entry, action);
+          return;
+        }
+
+        /* ---------- NOTIFICATIONS PAGE ---------- */
+        if (action === "notif-open-filter") {
+          pushScreen("notifications_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("notif-set-filter:")) {
+          const f = action.slice("notif-set-filter:".length);
+          pushScreen("notifications", entry, action, { notif_filter: f });
+          return;
+        }
+        if (
+          action === "notif-mark-all" ||
+          action === "notif-mark-one" ||
+          action === "notif-open"
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROFILE ---------- */
+        if (
+          action === "profile-change-photo" ||
+          action === "profile-save" ||
+          action === "profile-save-notifs" ||
+          action === "profile-save-password" ||
+          action.startsWith("profile-toggle:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+      });
+    });
+
+    // Highlight the most-recently-clicked control on this tile
+    if (entry.clickedActionKey) {
+      const clickedEl = findClickedElement(tile, entry.clickedActionKey);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting through
+  // the page content next to the button.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = findClickedElement(fromTile, t.fromActionKey);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    return { t, a, aBox, b };
+  });
+
+  // Pass 2: pick exit + entry side per transition based on the dominant axis
+  // between source tile center and destination tile center.
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const dx = (d.b.left + d.b.width / 2) - (d.aBox.left + d.aBox.width / 2);
+    const dy = (d.b.top  + d.b.height / 2) - (d.aBox.top  + d.aBox.height / 2);
+    const horizontal = Math.abs(dx) * 1.2 >= Math.abs(dy);
+    let exit, entry;
+    if (horizontal) {
+      exit  = dx > 0 ? "R" : "L";
+      entry = dx > 0 ? "L" : "R";
+    } else {
+      exit  = dy > 0 ? "B" : "T";
+      entry = dy > 0 ? "T" : "B";
+    }
+    d.exit = exit; d.entry = entry;
+    const arrKey = `${d.t.toInstanceId}:${entry}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${exit}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw. The arrow exits the clicked element on the chosen side and
+  // enters the destination tile on the opposite-facing side, so it never cuts
+  // across unrelated content.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, b, exit, entry } = d;
+
+    const arrGroup    = arrivals[`${t.toInstanceId}:${entry}`];
+    const arrPos      = arrGroup.indexOf(idx);
+    const arrN        = arrGroup.length;
+    const arrAlongLen = (entry === "L" || entry === "R") ? b.height : b.width;
+    const arrSpread   = Math.min(arrAlongLen * 0.7, 28 * arrN);
+    const arrFrac     = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const arrOffset   = arrSpread * (arrFrac - 0.5);
+
+    const depGroup    = departures[`${t.fromInstanceId}:${t.fromActionKey}:${exit}`];
+    const depPos      = depGroup.indexOf(idx);
+    const depN        = depGroup.length;
+    const depOffset   = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+
+    let sx, sy, tx, ty;
+    if (exit === "R")      { sx = a.right;             sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "L") { sx = a.left;              sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "B") { sx = a.left + a.width/2 + depOffset; sy = a.bottom; }
+    else                   { sx = a.left + a.width/2 + depOffset; sy = a.top;    }
+
+    if (entry === "L")      { tx = b.left;              ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "R") { tx = b.right;             ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "T") { tx = b.left + b.width/2 + arrOffset; ty = b.top;    }
+    else                    { tx = b.left + b.width/2 + arrOffset; ty = b.bottom; }
+
+    // Base positions (auto-computed). User-applied offsets shift the
+    // endpoints; the offsets persist per-transition and survive re-renders.
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    // Cubic bezier whose tangents respect the chosen exit/entry sides.
+    const dist  = Math.hypot(x2 - x1, y2 - y1);
+    const reach = Math.max(40, Math.min(220, dist * 0.45));
+    let cp1x = x1, cp1y = y1, cp2x = x2, cp2y = y2;
+    if (exit === "R")      cp1x = x1 + reach;
+    else if (exit === "L") cp1x = x1 - reach;
+    else if (exit === "B") cp1y = y1 + reach;
+    else                   cp1y = y1 - reach;
+    if (entry === "L")      cp2x = x2 - reach;
+    else if (entry === "R") cp2x = x2 + reach;
+    else if (entry === "T") cp2y = y2 - reach;
+    else                    cp2y = y2 + reach;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+    // Wide invisible hit-area path — makes the arrow easy to click without
+    // forcing the visible stroke to be fat.
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode so they don't clutter
+    // the board for screenshots. Stable transition index identifies each.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — let the user reposition the source/dest endpoint
+   of any arrow. Offsets are stored on the transition object and
+   re-applied on every drawArrows() call.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow (its wide hit-area path) to bring it to the front layer.
+// Move that transition to the end of the array so it draws last on top.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  // Wipe any user-applied endpoint offsets but keep the tiles in place.
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-finance-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+resetBoard("login");
+</script>
+</body>
+</html>

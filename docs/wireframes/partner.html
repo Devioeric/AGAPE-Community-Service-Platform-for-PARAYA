@@ -1,0 +1,3444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — Partner Wireframes (Office / Student Org / Department)</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --side-bg: #f3f3f3;
+    --side-active: #dadada;
+    --red: #d32f2f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  .board-wrap { padding: 24px; background: var(--board-bg); min-height: calc(100vh - 40px); }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  /* Click any arrow to bring it to the front layer. .arrow-hit is an
+     invisible wide path that catches clicks near the visible stroke. */
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-hit:hover ~ .arrow-line,
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  .slot { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 660px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 13px;
+  }
+  .slot-index {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; z-index: 4;
+  }
+
+  /* Tile shell */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-meta {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-meta .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-meta .id { font-size: 10px; color: var(--ink-mute); }
+
+  /* The page shell: sidebar + (header + body) */
+  .page {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 620px;
+  }
+  .page-side {
+    background: var(--side-bg);
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column;
+    font-size: 10.5px;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .side-logo {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--ink-mute);
+  }
+  .side-brand-title { font-weight: 700; font-size: 12px; }
+  .side-brand-sub { font-size: 8px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .side-nav { flex: 1; overflow: hidden; padding: 8px 6px; }
+  .side-nav ul { list-style: none; margin: 0; padding: 0; }
+  .side-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    line-height: 1.2;
+  }
+  .side-item:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-item.active { background: rgba(0,0,0,0.06); color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+  .side-item .ico {
+    width: 12px; height: 12px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .side-item.group { font-weight: 500; }
+  .side-item.group::after { content: "▾"; margin-left: auto; font-size: 9px; color: var(--ink-mute); }
+  .side-item.group.collapsed::after { content: "▸"; }
+  .side-children {
+    list-style: none; margin: 1px 0 4px 0; padding: 0 0 0 18px;
+    border-left: 1px solid var(--line-soft);
+    margin-left: 13px;
+  }
+  .side-child {
+    padding: 4px 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-child::before { content: "•"; color: var(--ink-mute); font-size: 9px; }
+  .side-child:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-child.active { color: var(--ink); font-weight: 600; background: rgba(0,0,0,0.05); }
+  .side-divider { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+  .side-user {
+    padding: 8px 10px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .side-user .row { display: flex; align-items: center; gap: 6px; }
+  .side-user .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-soft);
+  }
+  .side-user .name { font-size: 10px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .side-user .email { font-size: 9px; color: var(--ink-mute); line-height: 1.1; }
+  .side-user .signout {
+    margin-top: 2px; padding: 4px 6px; font-size: 9px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    color: var(--ink-soft); cursor: pointer; background: #fff;
+    text-align: left;
+  }
+  .side-user .signout:hover { background: #f6f6f6; }
+
+  .page-main { display: flex; flex-direction: column; min-width: 0; }
+  .page-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page-title .crumb { font-weight: 400; color: var(--ink-mute); font-size: 11px; margin-right: 4px; }
+  .page-header .spacer { flex: 1; }
+  .page-header .iconbtn {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    position: relative;
+  }
+  .page-header .iconbtn.avatar {
+    border-radius: 50%;
+    font-size: 9px; font-weight: 700;
+    background: var(--box);
+  }
+  .page-header .iconbtn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 13px; height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Header dropdowns (notifications + profile) */
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 20;
+    font-size: 10px;
+  }
+  .notif-dropdown { right: 38px; width: 240px; }
+  .profile-dropdown { right: 8px; width: 168px; }
+
+  .dropdown-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafafa;
+  }
+  .dropdown-title { font-weight: 700; font-size: 11px; }
+  .dropdown-action {
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 9.5px;
+    text-decoration: underline;
+  }
+  .dropdown-action:hover { color: var(--ink); }
+
+  .dropdown-body { max-height: 200px; overflow-y: auto; }
+  .notif-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    display: flex; gap: 6px;
+    cursor: pointer;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafafa; }
+  .notif-item.unread { background: #ececec; border-left: 3px solid #1a1a1a; }
+  .notif-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: #fff;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-size: 10px; font-weight: 700; line-height: 1.2; }
+  .notif-item:not(.unread) .notif-title { font-weight: 500; color: var(--ink-soft); }
+  .notif-msg { font-size: 9px; color: var(--ink-mute); margin-top: 2px; line-height: 1.3; }
+  .notif-time { font-size: 8px; color: var(--ink-mute); margin-top: 3px; }
+  .notif-dot {
+    width: 6px; height: 6px;
+    background: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  .dropdown-foot {
+    padding: 7px 10px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+  }
+  .dropdown-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .dropdown-link:hover { color: var(--ink); }
+
+  .dropdown-user { padding: 8px 10px; }
+  .dropdown-user-name { font-size: 11px; font-weight: 700; }
+  .dropdown-user-email { font-size: 9px; color: var(--ink-mute); margin-top: 1px; }
+  .dropdown-sep { height: 1px; background: var(--line-soft); }
+  .dropdown-item {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .dropdown-item:hover { background: #fafafa; color: var(--ink); }
+  .dropdown-item.danger { color: #2a2a2a; font-style: italic; }
+  .dropdown-item.danger:hover { background: #f0f0f0; }
+
+  .page-body {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 13px; color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Wireframe primitives inside the page body */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .kpi .kpi-label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .kpi-value { font-size: 18px; font-weight: 700; }
+  .kpi .kpi-sub { font-size: 9px; color: var(--ink-mute); }
+
+  .panel-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .panel-row.r-2-1 { grid-template-columns: 2fr 1fr; }
+  .panel-row.r-1-2 { grid-template-columns: 1fr 2fr; }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fafafa;
+  }
+  .panel-head .ttl { font-size: 11px; font-weight: 700; }
+  .panel-head .lnk { font-size: 10px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .panel-body { padding: 10px; }
+  .panel-body.dense { padding: 8px 10px; }
+
+  /* Bar chart placeholder */
+  .barchart {
+    height: 150px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 8px 12px;
+  }
+  .barchart .bar {
+    flex: 1;
+    background: #6e6e6e;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+  }
+  .barchart .axis {
+    position: absolute;
+    bottom: -16px;
+    left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--ink-mute);
+  }
+
+  .sdg-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sdg-row .label { font-size: 10px; color: var(--ink-soft); }
+  .sdg-row .val { font-size: 11px; font-weight: 700; }
+  .sdg-row .bar {
+    grid-column: 1 / -1;
+    height: 5px; background: var(--box-soft); border-radius: 3px;
+    overflow: hidden;
+  }
+  .sdg-row .bar > div { height: 100%; background: var(--ink-soft); }
+
+  .brgy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+  .brgy-row .rank { width: 14px; color: var(--ink-mute); }
+  .brgy-row .name { flex: 1; }
+  .brgy-row .pct { width: 60px; height: 4px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .brgy-row .pct > div { height: 100%; background: var(--ink-soft); }
+  .brgy-row .count { color: var(--ink); font-weight: 600; min-width: 18px; text-align: right; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl th, .tbl td { padding: 5px 6px; text-align: left; border-bottom: 1px solid var(--box-soft); }
+  .tbl th { color: var(--ink-mute); font-weight: 500; background: #fafafa; }
+  .tbl td { color: var(--ink-soft); }
+  .tbl .pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-soft); font-size: 9px; color: var(--ink-soft);
+    background: #fff;
+  }
+
+  /* Stub page body (used by placeholder screens) */
+  .stub {
+    height: 100%;
+    min-height: 480px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 12px;
+    padding: 30px 24px;
+    border: 1px dashed var(--line-soft);
+    border-radius: 6px;
+    background: #fafafa;
+    color: var(--ink-soft);
+  }
+  .stub .stub-route { font-family: ui-monospace, "Courier New", monospace; font-size: 12px; color: var(--ink-mute); }
+  .stub .stub-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .stub .stub-desc { font-size: 12px; max-width: 360px; line-height: 1.5; color: var(--ink-soft); }
+  .stub .stub-tag {
+    margin-top: 6px;
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-size: 10px; color: var(--ink-mute); background: #fff;
+  }
+
+  /* Login / "public" pages: no sidebar, no top header. Centered content. */
+  .page.chromeless { grid-template-columns: 1fr; background: #ffffff; }
+  .page.chromeless .page-main { display: flex; align-items: center; justify-content: center; }
+  .page.chromeless .page-body { width: 100%; display: flex; align-items: center; justify-content: center; padding: 30px 24px; min-height: 540px; }
+
+  /* Login wireframe primitives (copied from auth.html). */
+  .wf { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+  .wf-card {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer; user-select: none;
+    min-height: 32px; display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-btn {
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    padding: 9px 12px; text-align: center;
+    background: #f0f0f0; font-size: 12px; font-weight: 600;
+    cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft); text-decoration: underline;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+
+  /* ── Partnership management primitives ─────────────────────────── */
+  .partner-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .map-area {
+    height: 180px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, var(--box-soft) 30px 31px),
+      repeating-linear-gradient(90deg, transparent 0 40px, var(--box-soft) 40px 41px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 4px;
+    position: relative;
+  }
+  .map-marker {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker.active   { background: #2a2a2a; }
+  .map-marker.inactive { background: #ffffff; border-color: #2a2a2a; }
+  .map-toggle {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  .map-toggle .opt {
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .map-toggle .opt.active {
+    background: var(--ink); color: #fff; font-weight: 600;
+  }
+
+  .partner-tools {
+    display: flex; gap: 6px;
+    margin: 8px 0 4px 0;
+  }
+  .partner-search {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px; color: var(--ink-mute);
+    background: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .partner-filter, .partner-add-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .partner-filter-wrap { position: relative; }
+  .status-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 108px;
+    font-size: 10px;
+  }
+  .status-filter-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .status-filter-item:hover { background: #fafafa; color: var(--ink); }
+  .status-filter-item.active { font-weight: 700; color: var(--ink); background: #f4f4f4; }
+  .partner-add-btn { background: #2a2a2a; color: #fff; border-color: #2a2a2a; font-weight: 600; }
+  .partner-add-btn:hover { background: #1a1a1a; }
+
+  .tbl-actions { width: 18px; text-align: center; cursor: pointer; color: var(--ink-mute); }
+  .tbl-actions:hover { color: var(--ink); }
+  .status-pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; border: 1px solid; }
+  .status-pill.active { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .status-pill.inactive { background: #f5f5f5; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+
+  /* Row action menu (the "⋯" dropdown) */
+  .row-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 138px;
+    font-size: 10px;
+  }
+  .row-menu-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .row-menu-item:hover { background: #fafafa; color: var(--ink); }
+  .row-menu-item.danger { color: #2a2a2a; font-style: italic; }
+  .row-menu-item.danger:hover { background: #f0f0f0; }
+  .row-menu-sep { height: 1px; background: var(--line-soft); }
+
+  /* Sheet overlay (slide-in side panel) */
+  .sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.30);
+    z-index: 14;
+  }
+  .sheet-panel {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 62%;
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    display: flex; flex-direction: column;
+  }
+  .sheet-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 13px; font-weight: 700; }
+  .sheet-close {
+    width: 20px; height: 20px;
+    border: 1px solid var(--line-soft); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 11px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+  }
+  .sheet-foot {
+    padding: 9px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: flex-end; gap: 6px;
+    background: #fafafa;
+  }
+  .sheet-section { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-section-title {
+    font-size: 9px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .sheet-field { display: flex; flex-direction: column; gap: 2px; }
+  .sheet-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-label { font-size: 10px; color: var(--ink-soft); }
+  .sheet-label .req { color: #1a1a1a; font-weight: 700; }
+  .sheet-input, .sheet-select {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    color: var(--ink-mute);
+    background: #fff;
+    min-height: 26px;
+    display: flex; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .sheet-input.filled, .sheet-select.filled { color: var(--ink); background: #f6f6f6; }
+  .sheet-select::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  .sheet-hint { font-size: 9px; color: var(--ink-mute); line-height: 1.4; }
+  .sheet-hint .auto {
+    color: #1a1a1a; font-weight: 700;
+  }
+
+  /* ── Project Proposals primitives ─────────────────────────────── */
+  .proposal-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .phase-rollup-card { margin-bottom: 10px; }
+  .phase-bar {
+    display: flex; height: 7px;
+    background: var(--box-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .phase-seg { height: 100%; }
+  .phase-seg.diagnostic { background: #8a8a8a; }
+  .phase-seg.research   { background: #6a6a6a; }
+  .phase-seg.filing     { background: #4a4a4a; }
+  .phase-seg.execution  { background: #2a2a2a; }
+  .phase-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .phase-card {
+    display: flex; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .phase-card .label-row {
+    font-size: 9px; color: var(--ink-mute);
+  }
+  .phase-card .count {
+    font-size: 14px; font-weight: 700; line-height: 1.1;
+  }
+
+  /* Pipeline stepper (inside row, also detail) */
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .stepper-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 600;
+  }
+  .stepper-chip.done { background: #2a2a2a; color: #fff; }
+  .stepper-chip.current { background: #fff; color: #1a1a1a; border: 1px solid #1a1a1a; }
+  .stepper-chip.upcoming { background: var(--box-soft); color: var(--ink-mute); }
+  .stepper-arrow { color: var(--ink-mute); font-size: 7px; }
+  .stepper-rejected, .stepper-revising {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    color: #2a2a2a;
+  }
+  .stepper-rejected { text-decoration: line-through; }
+  .stepper-revising { font-style: italic; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 600;
+    border: 1px solid;
+    text-transform: capitalize;
+  }
+  .status-badge.draft           { background: #ececec; color: #6a6a6a; border-color: #c0c0c0; }
+  .status-badge.submitted       { background: #e2e2e2; color: #1a1a1a; border-color: #8a8a8a; }
+  .status-badge.pre_screening,
+  .status-badge.sdg_review,
+  .status-badge.finance_review  { background: #d4d4d4; color: #1a1a1a; border-color: #6a6a6a; }
+  .status-badge.approved        { background: #2a2a2a; color: #ffffff; border-color: #1a1a1a; }
+  .status-badge.rejected        { background: #f5f5f5; color: #6a6a6a; border-color: #6a6a6a; border-style: dashed; }
+  .status-badge.revisions_requested { background: #ececec; color: #1a1a1a; border-color: #4a4a4a; border-style: dashed; }
+
+  /* SDG chips */
+  .sdg-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 2px;
+  }
+  .sdg-chip.sdg-4  { background: #2a2a2a; }
+  .sdg-chip.sdg-9  { background: #4a4a4a; }
+  .sdg-chip.sdg-11 { background: #6a6a6a; }
+  .sdg-chip.sdg-17 { background: #1a1a1a; }
+
+  /* SDG selector buttons in Create sheet */
+  .sdg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sdg-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sdg-btn.selected { box-shadow: 0 0 0 2px currentColor inset; }
+  .sdg-btn .head { display: flex; align-items: center; gap: 4px; }
+  .sdg-btn .lbl  { font-size: 9.5px; color: var(--ink); font-weight: 500; margin-top: 3px; }
+
+  /* Income-generating gate */
+  .income-gate {
+    border: 1px solid var(--line);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .income-gate .gate-check {
+    width: 13px; height: 13px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .income-gate .gate-text {
+    font-size: 9.5px; color: var(--ink); line-height: 1.4;
+  }
+  .income-gate .gate-text strong { font-weight: 700; }
+  .income-gate .gate-text .sub { color: var(--ink-mute); display: block; margin-top: 2px; font-size: 9px; }
+
+  /* Detail-sheet specific blocks */
+  .detail-field { font-size: 11px; }
+  .detail-field .lbl {
+    font-size: 9px; font-weight: 700;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-field .val { margin-top: 2px; color: var(--ink); line-height: 1.4; }
+  .detail-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
+
+  .review-item {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .review-item-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+  }
+  .review-item-stage { font-weight: 700; text-transform: capitalize; font-size: 10px; }
+  .review-item-notes { color: var(--ink-mute); font-size: 9.5px; line-height: 1.4; }
+  .review-item-meta  { color: var(--ink-mute); font-size: 9px; margin-top: 3px; }
+
+  /* Inline notice blocks (validation, finance, revisions) */
+  .notice {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .notice.warning { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.success { background: #ececec; border-color: #4a4a4a; color: #1a1a1a; }
+  .notice.info    { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.accent  { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; border-style: dashed; }
+  .notice-row { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+  /* Action button group in detail sheet */
+  .detail-actions-row { display: flex; gap: 5px; }
+  .detail-actions-row .icon-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    width: 28px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .detail-actions-row .icon-btn.danger { border-color: var(--line); color: var(--ink-soft); border-style: dashed; }
+  .detail-actions-row .icon-btn.accent { border-color: var(--line); color: var(--ink-soft); }
+
+  .ppf-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 9px;
+    color: var(--ink-soft);
+    background: #f5f5f5;
+    cursor: pointer;
+  }
+
+  /* ── Community Needs Assessment primitives ─────────────────────── */
+
+  /* Donut chart placeholder for distributions (income, etc.) */
+  .donut-chart {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#1a1a1a 0% 40%, #4a4a4a 40% 65%, #8a8a8a 65% 85%, #c0c0c0 85% 100%);
+    position: relative;
+    margin: 4px auto;
+  }
+  .donut-chart::after {
+    content: ""; position: absolute;
+    inset: 30%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .donut-legend { font-size: 9px; color: var(--ink-soft); margin-top: 6px; text-align: center; }
+  .donut-legend-item { display: inline-flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Key indicator tiles (extended profile) */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ind-tile {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 7px 10px;
+  }
+  .ind-tile .lbl { font-size: 9px; color: var(--ink-mute); }
+  .ind-tile .val { font-size: 16px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .ind-tile .val .pct { font-size: 9px; color: var(--ink-mute); font-weight: 400; margin-left: 3px; }
+
+  /* Need pills (health/economic/environmental/social) */
+  .need-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink);
+    margin-right: 3px;
+  }
+
+  /* Builder tab strip */
+  .builder-tabs {
+    display: flex; gap: 1px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    padding: 2px;
+    font-size: 10px;
+    width: fit-content;
+  }
+  .builder-tab {
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .builder-tab.active {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Builder section + question blocks */
+  .builder-section {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .builder-section-head {
+    padding: 6px 10px;
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .builder-question {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .builder-question:last-child { border-bottom: none; }
+  .builder-q-handle { color: var(--ink-mute); font-size: 11px; cursor: grab; }
+  .builder-q-body { flex: 1; min-width: 0; }
+  .builder-q-text { font-weight: 600; color: var(--ink); }
+  .builder-q-type {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--box-soft);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .builder-q-required {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+  .builder-q-options { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Create-survey choice modal cards */
+  .choice-modal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.30);
+    z-index: 15;
+    padding: 20px;
+  }
+  .choice-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .choice-card .ttl { font-size: 14px; font-weight: 700; }
+  .choice-card .sub { font-size: 10px; color: var(--ink-mute); margin-top: 3px; }
+  .choice-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .choice-option {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+  }
+  .choice-option:hover { background: #f5f5f5; }
+  .choice-option .ic { font-size: 18px; margin-bottom: 4px; }
+  .choice-option .nm { font-size: 11px; font-weight: 700; }
+  .choice-option .ds { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Compare grid (Pre/Post) */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+  .compare-cell {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+  .compare-cell .lbl { color: var(--ink-mute); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .compare-cell .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .compare-cell .delta { font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Survey-selector card list */
+  .selector-list {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+  .selector-row {
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .selector-row:hover { background: #f5f5f5; }
+  .selector-row.selected { background: #1a1a1a; color: #fff; }
+
+  /* Theme/code chips for qualitative analysis */
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: #fff;
+    margin: 2px 2px 0 0;
+    cursor: pointer;
+  }
+  .theme-chip:hover { background: #f5f5f5; }
+  .theme-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  /* Bar chart (horizontal) for "Primary Needs Frequency" */
+  .h-barchart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 24px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .h-barchart-row .lbl { color: var(--ink-soft); }
+  .h-barchart-row .bar { height: 8px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .h-barchart-row .bar > div { height: 100%; background: #2a2a2a; }
+  .h-barchart-row .num { text-align: right; font-weight: 700; }
+
+  /* ── Volunteer Management primitives ───────────────────────────── */
+
+  /* Avatar circle */
+  .vol-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--box);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .vol-avatar.lg { width: 36px; height: 36px; font-size: 12px; }
+
+  /* Pending logs warning card */
+  .pending-banner {
+    border: 1px solid #4a4a4a;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .pending-banner .head {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .pending-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .pending-log-row .body { flex: 1; min-width: 0; }
+  .pending-log-row .name { font-weight: 700; color: var(--ink); font-size: 10px; }
+  .pending-log-row .desc { color: var(--ink-mute); line-height: 1.3; margin-top: 1px; }
+  .pending-log-row .meta { color: var(--ink-mute); font-size: 8.5px; margin-top: 2px; }
+  .pending-log-row .actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .pending-log-row .btn-ico {
+    width: 24px; height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .pending-log-row .btn-ico.accept { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .pending-log-row .btn-ico.reject { background: #fff; color: #2a2a2a; border-style: dashed; }
+
+  /* Activity selector (attendance left pane) */
+  .activity-list {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .activity-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: #fafafa; }
+  .activity-item.active {
+    background: #f4f4f4;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 7px;
+  }
+  .activity-item .title-row { display: flex; align-items: center; justify-content: space-between; }
+  .activity-item .title { font-weight: 700; color: var(--ink); }
+  .activity-item .prog { color: var(--ink-mute); font-size: 9px; margin-top: 1px; }
+  .activity-item .meta {
+    display: flex; justify-content: space-between;
+    font-size: 8.5px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* OTP block */
+  .otp-display {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-align: center;
+    padding: 12px 8px;
+    background: #f4f4f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .otp-empty {
+    padding: 16px 8px;
+    text-align: center;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink-mute);
+  }
+  .otp-meta {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* QR placeholder */
+  .qr-block {
+    width: 130px; height: 130px;
+    background:
+      conic-gradient(from 0deg at 50% 50%, #1a1a1a 0% 8%, #fff 8% 16%, #1a1a1a 16% 24%, #fff 24% 32%, #1a1a1a 32% 40%, #fff 40% 48%, #1a1a1a 48% 56%, #fff 56% 64%, #1a1a1a 64% 72%, #fff 72% 80%, #1a1a1a 80% 88%, #fff 88% 100%),
+      #fff;
+    background-blend-mode: normal;
+    border: 4px solid #fff;
+    outline: 1px solid var(--line);
+    margin: 0 auto;
+    position: relative;
+  }
+  /* Cheap QR-ish look via tiled radial gradients */
+  .qr-block {
+    background:
+      radial-gradient(circle, #1a1a1a 25%, transparent 26%) 0 0 / 10px 10px,
+      radial-gradient(circle, #1a1a1a 22%, transparent 23%) 5px 5px / 10px 10px,
+      #fff;
+  }
+  .qr-block::before, .qr-block::after {
+    content: ""; position: absolute;
+    width: 28px; height: 28px;
+    border: 5px solid #1a1a1a;
+    background: #fff;
+  }
+  .qr-block::before { top: 4px; left: 4px; }
+  .qr-block::after { top: 4px; right: 4px; }
+
+  .qr-empty {
+    width: 130px; height: 130px;
+    background: #fafafa;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--ink-mute);
+  }
+
+  /* Roster list */
+  .roster-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+  }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-row .body { flex: 1; min-width: 0; }
+  .roster-row .name { font-weight: 600; color: var(--ink); }
+  .roster-row .email { color: var(--ink-mute); font-size: 9px; }
+  .roster-row .method {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 8.5px;
+    font-weight: 600;
+  }
+  .roster-row .method.qr     { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .roster-row .method.otp    { background: #f4f4f4; color: var(--ink); border-color: var(--line); }
+  .roster-row .method.manual { background: #fff; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+  .roster-row .time { font-size: 9px; color: var(--ink-mute); white-space: nowrap; }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+<style>
+  body > *:not(.agape-scope-notice) { display: none !important; }
+  .agape-scope-notice { max-width: 760px; margin: 64px auto; padding: 28px; border: 2px solid #b45309; border-radius: 12px; background: #fffbeb; color: #451a03; font: 16px/1.55 system-ui, sans-serif; }
+  .agape-scope-notice h1 { margin-top: 0; }
+</style>
+<main class="agape-scope-notice">
+  <h1>Historical partner-account wireframe retired</h1>
+  <p>Office, Student Organization, and Department identities are temporary historical-read-only accounts. They cannot create or edit proposals or programs, browse volunteers, use the forum, or send operational AI queries.</p>
+  <p>Organizations are maintained as non-login Partner/Proponent records. Authorized PARAYA staff encode work on their behalf. This file retains its former markup only as migration history; it is intentionally hidden and must not be used as an implementation specification.</p>
+</main>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role:</label>
+    <select id="rolePicker">
+      <option value="office">Office (e.g. OSAS, OUR, Registrar)</option>
+      <option value="student_org">Student Organization (e.g. CSG, JPIA)</option>
+      <option value="department">Department (e.g. CICS, COE, CBA)</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE INFO (for sidebar user block)
+   ============================================================ */
+const ROLE_INFO = {
+  office:      { label: "Office",               name: "OSAS Coordinator",  email: "osas@dyci.edu.ph",  org: "OSAS" },
+  student_org: { label: "Student Organization", name: "CSG President",     email: "csg@dyci.edu.ph",   org: "CSG"  },
+  department: { label: "Department",           name: "CICS Chair",         email: "cics@dyci.edu.ph",  org: "CICS" },
+};
+let currentRole = "office";
+
+/* ============================================================
+   PARTNER SIDEBAR NAV (mirrors partnerNav in Sidebar.tsx)
+   Each leaf has a screenId pointing at SCREENS.
+   ============================================================ */
+const PARTNER_NAV = [
+  { key: "dashboard",  label: "Dashboard",            screen: "dashboard" },
+  { key: "proposals",  label: "Project Proposals",    screen: "proposals" },
+  { key: "programs",   label: "Program Tracking",     screen: "programs" },
+  { key: "volunteers", label: "Volunteer Management", screen: "volunteers" },
+  {
+    key: "comm_grp", label: "Communication", group: true,
+    children: [
+      { key: "forum", label: "Discussion Forum", screen: "forum" },
+    ],
+  },
+];
+
+// Pinned at the bottom of the sidebar.
+const SIDEBAR_PINNED = [
+  { key: "chatbot",       label: "AI Assistant",  screen: "chatbot"       },
+  { key: "notifications", label: "Notifications", screen: "notifications" },
+];
+
+// (All 3 partner roles share the same nav — they only differ in label, org, and the
+//  scope of /partner/volunteers: Department matches by org_name; Office + Student Org
+//  see volunteers signed up to their programs.)
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   route   — path string for tile header
+   title   — page title shown in the in-tile header
+   navKey  — which sidebar item should be highlighted
+   caption — 1-2 sentence description shown below the tile
+   render  — returns HTML for the page body
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN (entry point) ---------- */
+  login: {
+    route:     "/login",
+    title:     "Sign In",
+    navKey:    "login",
+    chromeless: true,
+    caption:   "Entry point. Email/password sign-in via Supabase Auth. On success, middleware reads the user's role from the users table and forwards to the matching dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input ${s.email ? "filled" : ""}" data-action="fill" data-field="email">${s.email ? "officer@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input ${s.password ? "filled" : ""}" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>
+    `,
+  },
+
+  /* ---------- PARTNER DASHBOARD ---------- */
+  dashboard: {
+    route:   "/partner",
+    title:   "Partner Dashboard",
+    navKey:  "dashboard",
+    caption: "Partner landing page. 4 KPIs (Proposals Submitted, Active Programs, Pending Validations, Volunteers in scope) then Recent Proposals + My Programs panels. Data comes from /api/proposals + /api/programs scoped to the partner account's own submissions.",
+    render:  () => `
+      <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="kpi" data-action="go:proposals"><span class="kpi-label">📄 Proposals Submitted</span><span class="kpi-value">7</span><span class="kpi-sub">3 approved</span></div>
+        <div class="kpi" data-action="go:programs"><span class="kpi-label">⚡ Active Programs</span><span class="kpi-value">3</span><span class="kpi-sub">5 total</span></div>
+        <div class="kpi" data-action="go:programs"><span class="kpi-label">⏳ Pending Validations</span><span class="kpi-value">4</span><span class="kpi-sub">Awaiting officer review</span></div>
+        <div class="kpi" data-action="go:volunteers"><span class="kpi-label">👤 Volunteers</span><span class="kpi-value">28</span><span class="kpi-sub">Scoped to your programs</span></div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Recent Proposals</span><span class="wf-link" data-action="go:proposals">View all →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Literacy Drive for Brgy. Sta. Ana",       status: "approved"       },
+              { title: "Health Caravan — Lolomboy",               status: "finance_review" },
+              { title: "ICT Training for Barangay Youth Council", status: "sdg_review"     },
+              { title: "DRR Workshop Series Q2",                  status: "submitted"      },
+              { title: "Sari-sari Livelihood Mentoring",          status: "draft"          },
+            ].map((p) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;">
+                <div style="font-weight: 600; font-size: 10.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.title}</div>
+                <span class="status-badge ${p.status}" style="font-size: 8.5px; text-transform: capitalize;">${p.status.replace(/_/g, " ")}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">My Programs</span><span class="wf-link" data-action="go:programs">View all →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Literacy Drive — Lolomboy",       brgy: "Brgy. Lolomboy",   vols: 12, status: "active" },
+              { title: "Health Caravan — Antipona",      brgy: "Brgy. Antipona",   vols: 9,  status: "active" },
+              { title: "ICT Training — Sulucan",         brgy: "Brgy. Sulucan",    vols: 6,  status: "planning" },
+              { title: "Bayanihan Clean-up — Bunducan",  brgy: "Brgy. Bunducan",   vols: 22, status: "completed" },
+              { title: "DRR Workshop — Wakas",           brgy: "Brgy. Wakas",      vols: 0,  status: "planning" },
+            ].map((p) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;" data-action="go:programs">
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; font-size: 10.5px;">${p.title}</div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.brgy} · ${p.vols} volunteer${p.vols === 1 ? "" : "s"}</div>
+                </div>
+                <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize;">${p.status}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    `,
+  },
+
+};
+
+
+/* ---------- PROJECT PROPOSALS (submission + pipeline tracking) ---------- */
+
+const SAMPLE_PARTNER_PROPOSALS = [
+  { id: 0, title: "Literacy Drive for Brgy. Sta. Ana",       brgy: "Brgy. Sta. Ana",  status: "approved",            budget: 75000,  submitted: "Apr 12, 2025" },
+  { id: 1, title: "Health Caravan — Lolomboy",               brgy: "Brgy. Lolomboy",  status: "finance_review",      budget: 120000, submitted: "Apr 28, 2025" },
+  { id: 2, title: "ICT Training for Barangay Youth Council", brgy: "Brgy. Antipona",  status: "sdg_review",          budget: 45000,  submitted: "May 04, 2025" },
+  { id: 3, title: "DRR Workshop Series Q2",                  brgy: "Brgy. Wakas",     status: "submitted",           budget: 60000,  submitted: "May 11, 2025" },
+  { id: 4, title: "Sari-sari Livelihood Mentoring",          brgy: "Brgy. Bunducan",  status: "draft",               budget: null,   submitted: "—"           },
+  { id: 5, title: "Backyard Gardening for Households",       brgy: "Brgy. Sulucan",   status: "revisions_requested", budget: 38000,  submitted: "Apr 02, 2025" },
+  { id: 6, title: "Mental Health First-Aid Training",        brgy: "Brgy. Bambang",   status: "rejected",            budget: 25000,  submitted: "Mar 20, 2025" },
+];
+
+const PROPOSAL_STATUSES = [
+  { key: "all",                 label: "All statuses"     },
+  { key: "draft",               label: "Draft"            },
+  { key: "submitted",           label: "Submitted"        },
+  { key: "pre_screening",       label: "Pre-screening"    },
+  { key: "sdg_review",          label: "SDG Review"       },
+  { key: "finance_review",      label: "Finance Review"   },
+  { key: "approved",            label: "Approved"         },
+  { key: "revisions_requested", label: "Revisions Requested" },
+  { key: "rejected",            label: "Rejected"         },
+];
+
+function renderProposalsPage(state) {
+  const statusFilter = state.prop_status_filter ?? "all";
+  const rows = statusFilter === "all"
+    ? SAMPLE_PARTNER_PROPOSALS
+    : SAMPLE_PARTNER_PROPOSALS.filter((p) => p.status === statusFilter);
+  return `
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">My Proposals</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 460px;">
+          Submit proposals for community programs. PARAYA reviews each one through pre-screening, SDG, and finance gates before approval.
+        </div>
+      </div>
+      <span class="wf-btn primary" data-action="prop-new" style="padding: 5px 12px;">+ New Proposal</span>
+    </div>
+
+    <div class="panel" style="margin-bottom: 8px;">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">Submissions <span style="color: var(--ink-mute); font-weight: 400;">(${rows.length})</span></span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div class="sheet-input" data-action="prop-open-status-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 130px;">
+            Status: ${PROPOSAL_STATUSES.find((s) => s.key === statusFilter)?.label ?? "All"}  ▾
+          </div>
+        </div>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Title</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Barangay</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Status</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Budget</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Submitted</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((p) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);" data-action="prop-open" data-row="${p.id}">
+                <td style="padding: 9px 10px; font-weight: 600;">${p.title}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${p.brgy}</td>
+                <td style="padding: 9px 10px;"><span class="status-badge ${p.status}" style="font-size: 8.5px; text-transform: capitalize;">${p.status.replace(/_/g, " ")}</span></td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${p.budget != null ? "₱" + p.budget.toLocaleString() : "—"}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${p.submitted}</td>
+              </tr>
+            `).join("")}
+            ${rows.length === 0 ? `
+              <tr><td colspan="5" style="padding: 24px 10px; text-align: center; color: var(--ink-mute);">No proposals match this filter.</td></tr>
+            ` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderProposalStatusFilter() {
+  return `
+    <div style="position: absolute; top: 60px; right: 22px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 200px; z-index: 14; overflow: hidden;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by status</div>
+      ${PROPOSAL_STATUSES.map((s) => `
+        <div data-action="prop-set-status:${s.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${s.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderProposalNewSheet(state) {
+  const cat = state?.prop_cat ?? null;
+  return `
+    <div class="sheet-backdrop" data-action="prop-new-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">New Proposal</span>
+        <span class="sheet-close" data-action="prop-new-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field">
+          <span class="sheet-label">Title <span class="req">*</span></span>
+          <div class="sheet-input">e.g. Literacy Drive for Brgy. Sta. Ana</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Rationale <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 56px; align-items: flex-start; padding: 8px 10px;">Why is this program needed?</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Objectives</span>
+          <div class="sheet-input" style="min-height: 44px; align-items: flex-start; padding: 8px 10px;">List 2–4 measurable objectives</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Target Beneficiaries</span>
+          <div class="sheet-input" style="min-height: 36px; align-items: flex-start; padding: 8px 10px;">Who will benefit?</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Barangay <span class="req">*</span></span>
+          <div class="sheet-input" data-action="prop-pick-brgy" style="cursor: pointer;">— Select a barangay — ▾</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="sheet-field">
+            <span class="sheet-label">Start Date</span>
+            <div class="sheet-input">📅 yyyy-mm-dd</div>
+          </div>
+          <div class="sheet-field">
+            <span class="sheet-label">End Date</span>
+            <div class="sheet-input">📅 yyyy-mm-dd</div>
+          </div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Budget (₱)</span>
+          <div class="sheet-input">0.00</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Income-generating?</span>
+          <div style="display: flex; gap: 12px;">
+            <label style="font-size: 10px; display: flex; align-items: center; gap: 4px;"><input type="radio" name="ig" checked disabled> No</label>
+            <label style="font-size: 10px; display: flex; align-items: center; gap: 4px;"><input type="radio" name="ig" disabled> Yes (triggers finance gate)</label>
+          </div>
+        </div>
+        <div class="sheet-hint">After submission your proposal enters the pipeline: <strong>Submitted → Pre-screening → SDG Review${cat === "ig" ? " → Finance Review" : ""} → Approved</strong>. You can track status from My Proposals.</div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="prop-new-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="prop-submit">Submit Proposal</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderProposalDetail(state) {
+  const p = SAMPLE_PARTNER_PROPOSALS[state?.prop_row ?? 0];
+  return `
+    <div class="sheet-backdrop" data-action="prop-detail-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">${p.title}</span>
+        <span class="sheet-close" data-action="prop-detail-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+          <span class="status-badge ${p.status}" style="font-size: 9px; text-transform: capitalize;">${p.status.replace(/_/g, " ")}</span>
+          <span style="font-size: 9.5px; color: var(--ink-mute);">${p.brgy} · Submitted ${p.submitted}</span>
+        </div>
+
+        <div class="panel" style="margin-bottom: 8px;">
+          <div class="panel-head"><span class="ttl">Pipeline status</span></div>
+          <div class="panel-body dense">
+            ${[
+              { stage: "Submitted",       done: true,  current: false },
+              { stage: "Pre-screening",   done: ["submitted","draft"].indexOf(p.status) < 0, current: false },
+              { stage: "SDG Review",      done: ["approved","finance_review"].includes(p.status), current: p.status === "sdg_review" },
+              { stage: "Finance Review",  done: p.status === "approved",                          current: p.status === "finance_review" },
+              { stage: "Approved",        done: p.status === "approved",                          current: false },
+            ].map((s, i, arr) => `
+              <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: ${s.done ? "#1a1a1a" : s.current ? "#fff" : "#fff"}; border: 1.5px solid ${s.done || s.current ? "#1a1a1a" : "#cdcdcd"}; flex-shrink: 0;">${s.done ? `<span style="display: block; color: #fff; font-size: 9px; text-align: center; line-height: 11px;">✓</span>` : ""}</div>
+                <div style="font-size: 10px; font-weight: ${s.current ? "700" : "500"};">${s.stage}${s.current ? " (in progress)" : ""}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 8px;">
+          <div class="panel-head"><span class="ttl">Rationale</span></div>
+          <div class="panel-body dense"><div style="font-size: 10px; color: var(--ink); line-height: 1.5;">Rationale paragraph describing the community-needs match, the partner's mission alignment, and expected outcomes…</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Budget & timeline</span></div>
+          <div class="panel-body dense">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px;">
+              <div><span style="color: var(--ink-mute);">Budget:</span> ${p.budget != null ? "₱" + p.budget.toLocaleString() : "—"}</div>
+              <div><span style="color: var(--ink-mute);">Timeline:</span> 4 months</div>
+              <div><span style="color: var(--ink-mute);">Income-generating:</span> No</div>
+              <div><span style="color: var(--ink-mute);">SDGs:</span> 4, 11</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        ${p.status === "revisions_requested" ? `<span class="wf-btn" data-action="prop-edit">✎ Edit & Resubmit</span>` : ""}
+        <span class="wf-btn" data-action="prop-detail-cancel">Close</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderProposalSubmitted() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Proposal Submitted</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        Your proposal is now in PARAYA's review queue. You'll receive notifications as it advances through pre-screening, SDG review, finance review (if applicable), and final approval. Track status from <strong>My Proposals</strong> at any time.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn" data-action="prop-submit-another">📄 Submit Another</span>
+        <span class="wf-btn primary" data-action="prop-back-to-list">← Back to Proposals</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.proposals = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "Table of all proposals submitted by this partner account. Columns: title, target barangay, status badge (8 pipeline states), budget, submitted date. Header has a status filter dropdown + ‘+ New Proposal’ CTA. Row click opens a detail sheet with the pipeline timeline.",
+  render:  (s) => renderProposalsPage(s),
+};
+
+SCREENS.proposals_status_filter = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "Status filter dropdown (8 pipeline states + ‘All’). Picking one re-filters the table; the dropdown collapses back to its compact form once a value is chosen.",
+  render:  (s) => `${renderProposalsPage(s)}${renderProposalStatusFilter()}`,
+};
+
+SCREENS.proposals_filtered = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "Table filtered by a single pipeline status. The active filter is shown in the dropdown trigger; clearing it returns to the ‘All statuses’ view.",
+  render:  (s) => renderProposalsPage(s),
+};
+
+SCREENS.proposals_new = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "New Proposal sheet (right side panel). Required: title, rationale, barangay. Optional: objectives, target beneficiaries, dates, budget, income-generating flag. Submit POSTs /api/proposals with status='submitted'.",
+  render:  (s) => `${renderProposalsPage(s)}${renderProposalNewSheet(s)}`,
+};
+
+SCREENS.proposals_detail = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "Proposal detail sheet — pipeline timeline (5 stages), rationale, budget & timeline summary, SDG alignment. For proposals in 'revisions_requested', an ✎ Edit & Resubmit action appears.",
+  render:  (s) => `${renderProposalsPage(s)}${renderProposalDetail(s)}`,
+};
+
+SCREENS.proposals_submitted = {
+  route:   "/partner/proposals",
+  title:   "Project Proposals",
+  navKey:  "proposals",
+  caption: "Submission success state. Confirms the proposal entered the review pipeline. Offers ‘Submit Another’ (back to the form) or ‘Back to Proposals’ (back to the list).",
+  render:  () => renderProposalSubmitted(),
+};
+
+/* ---------- PROGRAM TRACKING (born from approved proposals) ---------- */
+
+const SAMPLE_PARTNER_PROGRAMS = [
+  { id: 0, title: "Literacy Drive — Lolomboy",   brgy: "Brgy. Lolomboy",  status: "active",    vols: 12, desc: "Weekly tutoring sessions for school-age children across 3 sitios. Builds on Q1 reading-readiness assessment." },
+  { id: 1, title: "Health Caravan — Antipona",  brgy: "Brgy. Antipona",  status: "active",    vols: 9,  desc: "Mobile clinic in partnership with DYCI College of Nursing — checkups, vaccinations, BP monitoring." },
+  { id: 2, title: "ICT Training — Sulucan",     brgy: "Brgy. Sulucan",   status: "planning",  vols: 6,  desc: "8-week basic computing course for senior high school students. Lab access provided by CICS." },
+  { id: 3, title: "Bayanihan Clean-up — Bunducan", brgy: "Brgy. Bunducan", status: "completed", vols: 22, desc: "Quarterly community clean-up campaign. Co-organized with the Sangguniang Kabataan." },
+  { id: 4, title: "DRR Workshop — Wakas",       brgy: "Brgy. Wakas",     status: "planning",  vols: 0,  desc: "Disaster-risk reduction simulation + take-home preparedness kits." },
+];
+
+function renderProgramsPage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">My Programs</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Programs born from your approved proposals. Click a card to add activities, budget items, or volunteers — additions are reviewed by PARAYA before they count toward the program.
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      ${SAMPLE_PARTNER_PROGRAMS.map((p) => `
+        <div class="panel" data-action="prog-open" data-row="${p.id}" style="cursor: pointer;">
+          <div class="panel-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span class="ttl" style="line-height: 1.3;">${p.title}</span>
+            <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize; flex-shrink: 0;">${p.status}</span>
+          </div>
+          <div class="panel-body dense">
+            <div style="font-size: 10px; color: var(--ink); line-height: 1.5; margin-bottom: 6px;">${p.desc}</div>
+            <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--ink-mute); padding-top: 4px; border-top: 1px solid var(--line-soft);">
+              <span>${p.brgy}</span>
+              <span>${p.vols} volunteer${p.vols === 1 ? "" : "s"}</span>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+              <span style="font-size: 9.5px; color: var(--ink);">Manage →</span>
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderProgramDetailPage(state) {
+  const p = SAMPLE_PARTNER_PROGRAMS[state?.prog_row ?? 0];
+  const activities = [
+    { title: "Orientation session",          date: "May 18, 2025", loc: "Brgy. Hall",   appr: "approved", desc: "Kick-off + volunteer briefing." },
+    { title: "Reading Buddy Session #1",     date: "May 25, 2025", loc: "Sitio Mabini", appr: "approved", desc: "Pairs students with volunteer tutors." },
+    { title: "Mid-program parents' meeting", date: "Jun 15, 2025", loc: "Brgy. Hall",   appr: "pending",  desc: "Update parents on progress + collect feedback." },
+  ];
+  const budgets = [
+    { cat: "Supplies — workbooks, pens",   amount: 18000, appr: "approved", notes: "10 copies × ₱150 + consumables" },
+    { cat: "Transportation",               amount: 6000,  appr: "approved", notes: "Volunteer commute reimbursement" },
+    { cat: "Snacks for parents' meeting",  amount: 4500,  appr: "pending",  notes: "Coordination with Brgy. canteen" },
+  ];
+  const signups = [
+    { name: "Maria S. Cruz",     email: "mcruz@dyci.edu.ph",   appr: "approved" },
+    { name: "Jose B. Reyes",     email: "jreyes@dyci.edu.ph",  appr: "approved" },
+    { name: "Anna L. Bautista",  email: "abautista@dyci.edu.ph", appr: "approved" },
+    { name: "Patrick M. Lim",    email: "plim@dyci.edu.ph",    appr: "pending"  },
+  ];
+
+  const apprBadge = (s) =>
+    s === "approved" ? `<span class="status-badge approved" style="font-size: 8.5px;">✓ Approved</span>`
+    : s === "rejected" ? `<span class="status-badge rejected" style="font-size: 8.5px;">✕ Rejected</span>`
+    : `<span class="status-badge pre_screening" style="font-size: 8.5px;">⏳ Pending review</span>`;
+
+  return `
+    <div style="margin-bottom: 10px;">
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px; color: var(--ink-mute); margin-bottom: 4px;">
+        <span class="wf-link" data-action="prog-back">← My Programs</span>
+      </div>
+      <div style="font-weight: 700; font-size: 16px;">${p.title}</div>
+      <div style="font-size: 10px; color: var(--ink-mute); margin-top: 2px;">${p.brgy} · <span style="text-transform: capitalize;">${p.status}</span></div>
+      <div style="font-size: 10px; color: var(--ink); margin-top: 6px; line-height: 1.5;">${p.desc}</div>
+    </div>
+
+    <div style="background: #fafafa; border: 1px solid var(--line-soft); border-left: 3px solid #2a2a2a; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 10px; line-height: 1.5;">
+      ⚠ Anything you add below — activities, budget lines, volunteer assignments — must be validated by a PARAYA officer before it counts toward the program.
+    </div>
+
+    <div class="panel" style="margin-bottom: 8px;">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">📅 Activities <span style="color: var(--ink-mute); font-weight: 400;">(${activities.length})</span></span>
+        <span class="wf-btn primary" data-action="prog-add-activity" style="padding: 4px 10px; font-size: 9.5px;">+ Add Activity</span>
+      </div>
+      <div class="panel-body dense">
+        ${activities.map((a) => `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; font-size: 10.5px;">${a.title}</div>
+              <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${a.date} · ${a.loc}</div>
+              <div style="font-size: 9.5px; color: var(--ink); margin-top: 3px; line-height: 1.4;">${a.desc}</div>
+            </div>
+            ${apprBadge(a.appr)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 8px;">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">💰 Budget Items <span style="color: var(--ink-mute); font-weight: 400;">(${budgets.length})</span></span>
+        <span class="wf-btn primary" data-action="prog-add-budget" style="padding: 4px 10px; font-size: 9.5px;">+ Add Budget Item</span>
+      </div>
+      <div class="panel-body dense">
+        ${budgets.map((b) => `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; font-size: 10.5px;">${b.cat}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 1px;">₱${b.amount.toLocaleString()}</div>
+              <div style="font-size: 9px; color: var(--ink-mute); margin-top: 3px;">${b.notes}</div>
+            </div>
+            ${apprBadge(b.appr)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">👥 Volunteers <span style="color: var(--ink-mute); font-weight: 400;">(${signups.length})</span></span>
+        <span class="wf-btn primary" data-action="prog-add-volunteer" style="padding: 4px 10px; font-size: 9.5px;">+ Add Volunteer</span>
+      </div>
+      <div class="panel-body dense">
+        ${signups.map((v) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+              <div class="vol-avatar" style="width: 28px; height: 28px; font-size: 11px;">${v.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 10.5px;">${v.name}</div>
+                <div style="font-size: 9px; color: var(--ink-mute);">${v.email}</div>
+              </div>
+            </div>
+            ${apprBadge(v.appr)}
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderAddActivitySheet() {
+  return `
+    <div class="sheet-backdrop" data-action="act-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">Add Activity</span>
+        <span class="sheet-close" data-action="act-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field">
+          <span class="sheet-label">Title <span class="req">*</span></span>
+          <div class="sheet-input">e.g. Reading Buddy Session #2</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Description</span>
+          <div class="sheet-input" style="min-height: 56px; align-items: flex-start; padding: 8px 10px;">What happens during this activity?</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="sheet-field">
+            <span class="sheet-label">Date</span>
+            <div class="sheet-input">📅 yyyy-mm-dd</div>
+          </div>
+          <div class="sheet-field">
+            <span class="sheet-label">Location</span>
+            <div class="sheet-input">e.g. Brgy. Hall</div>
+          </div>
+        </div>
+        <div class="sheet-hint">⏳ This activity enters PARAYA's validation queue. It won't count toward the program until an officer approves it.</div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="act-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="act-submit">Submit for review</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderAddBudgetSheet() {
+  return `
+    <div class="sheet-backdrop" data-action="bud-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">Add Budget Item</span>
+        <span class="sheet-close" data-action="bud-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field">
+          <span class="sheet-label">Category <span class="req">*</span></span>
+          <div class="sheet-input">e.g. Supplies, Transportation</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Amount (₱) <span class="req">*</span></span>
+          <div class="sheet-input">0.00</div>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">Notes</span>
+          <div class="sheet-input" style="min-height: 44px; align-items: flex-start; padding: 8px 10px;">Optional context — what is this for?</div>
+        </div>
+        <div class="sheet-hint">⏳ This budget item enters PARAYA's validation queue. It won't count toward the program total until an officer approves it.</div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="bud-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="bud-submit">Submit for review</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderAddVolunteerSheet() {
+  return `
+    <div class="sheet-backdrop" data-action="vol-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">Add Volunteer</span>
+        <span class="sheet-close" data-action="vol-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field">
+          <span class="sheet-label">Volunteer email <span class="req">*</span></span>
+          <div class="sheet-input">student@dyci.edu.ph</div>
+          <div class="sheet-hint">Must be an existing volunteer account. Lookup hits <code>/api/users/lookup?email=…</code> on submit.</div>
+        </div>
+        <div class="sheet-hint">⏳ PARAYA will validate the assignment. The signup is created with <code>approval_status='pending'</code> and <code>status='pending'</code> until an officer confirms it.</div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="vol-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="vol-submit">Submit for review</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.programs = {
+  route:   "/partner/programs",
+  title:   "Program Tracking",
+  navKey:  "programs",
+  caption: "Card grid of programs born from this partner's approved proposals. Each card shows title, description, barangay, volunteer count, and a status badge. Clicking opens the program detail view where activities, budget items, and volunteer assignments are managed.",
+  render:  () => renderProgramsPage(),
+};
+
+SCREENS.programs_detail = {
+  route:   "/partner/programs/:id",
+  title:   "Program Detail",
+  navKey:  "programs",
+  caption: "Program detail page. Three sections (Activities / Budget Items / Volunteers), each with its own + Add CTA. Every partner-submitted item carries an approval_status badge (✓ Approved / ⏳ Pending review / ✕ Rejected) and only counts toward the program once a PARAYA officer validates it.",
+  render:  (s) => renderProgramDetailPage(s),
+};
+
+SCREENS.programs_add_activity = {
+  route:   "/partner/programs/:id",
+  title:   "Program Detail",
+  navKey:  "programs",
+  caption: "Add Activity sheet. POSTs to /api/programs/[id]/activities; the resulting program_activities row defaults to approval_status='pending' for partner-submitted items.",
+  render:  (s) => `${renderProgramDetailPage(s)}${renderAddActivitySheet()}`,
+};
+
+SCREENS.programs_add_budget = {
+  route:   "/partner/programs/:id",
+  title:   "Program Detail",
+  navKey:  "programs",
+  caption: "Add Budget Item sheet. POSTs to /api/programs/[id]/budget. The amount stays excluded from the program total until validation; the officer's validation queue surfaces pending items.",
+  render:  (s) => `${renderProgramDetailPage(s)}${renderAddBudgetSheet()}`,
+};
+
+SCREENS.programs_add_volunteer = {
+  route:   "/partner/programs/:id",
+  title:   "Program Detail",
+  navKey:  "programs",
+  caption: "Add Volunteer sheet. Resolves the email via /api/users/lookup, then POSTs to /api/programs/[id]/signup. Signup is created with status='pending' + approval_status='pending'.",
+  render:  (s) => `${renderProgramDetailPage(s)}${renderAddVolunteerSheet()}`,
+};
+
+/* ---------- VOLUNTEERS (scoped to partner's programs / department) ---------- */
+
+const SAMPLE_PARTNER_VOLUNTEERS = [
+  { name: "Maria S. Cruz",     email: "mcruz@dyci.edu.ph",     dept: "CICS", hours: 28, programs: ["Literacy Drive — Lolomboy", "ICT Training — Sulucan"] },
+  { name: "Jose B. Reyes",     email: "jreyes@dyci.edu.ph",    dept: "CICS", hours: 22, programs: ["Literacy Drive — Lolomboy"] },
+  { name: "Anna L. Bautista",  email: "abautista@dyci.edu.ph", dept: "COE",  hours: 18, programs: ["Health Caravan — Antipona"] },
+  { name: "Patrick M. Lim",    email: "plim@dyci.edu.ph",      dept: "CICS", hours: 5,  programs: ["ICT Training — Sulucan"] },
+  { name: "Sofia D. Mercado",  email: "smercado@dyci.edu.ph",  dept: "CBA",  hours: 32, programs: ["Bayanihan Clean-up — Bunducan"] },
+  { name: "Ramon T. Castillo", email: "rcastillo@dyci.edu.ph", dept: "CICS", hours: 12, programs: ["Literacy Drive — Lolomboy", "ICT Training — Sulucan"] },
+  { name: "Liza F. Aquino",    email: "laquino@dyci.edu.ph",   dept: "COE",  hours: 9,  programs: ["DRR Workshop — Wakas"] },
+];
+
+function renderVolunteersPage(state) {
+  const role = currentRole;
+  const info = ROLE_INFO[role];
+  const notice = role === "department"
+    ? `Department account scope: showing volunteers whose <code>department</code> matches <strong>${info.org}</strong>.`
+    : role === "office"
+      ? `Office account scope: showing volunteers signed up to programs owned by <strong>${info.org}</strong>.`
+      : `Student-org account scope: showing volunteers signed up to programs owned by <strong>${info.org}</strong>.`;
+
+  const rows = role === "department"
+    ? SAMPLE_PARTNER_VOLUNTEERS.filter((v) => v.dept === info.org)
+    : SAMPLE_PARTNER_VOLUNTEERS;
+
+  const search = state?.vol_search ?? "";
+  const deptFilter = state?.vol_dept_filter ?? "all";
+  const filtered = rows
+    .filter((v) => deptFilter === "all" ? true : v.dept === deptFilter)
+    .filter((v) => !search ? true : v.name.toLowerCase().includes(search.toLowerCase()));
+
+  const depts = ["all", ...Array.from(new Set(rows.map((v) => v.dept)))];
+
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">Volunteers</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Volunteers related to your account — department accounts see students from their department; offices and organizations see volunteers signed up to their programs.
+      </div>
+    </div>
+
+    <div style="background: #fafafa; border: 1px solid var(--line-soft); padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 9.5px; line-height: 1.5;">ℹ ${notice}</div>
+
+    <div class="panel">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+        <span class="ttl">${filtered.length} volunteer${filtered.length === 1 ? "" : "s"}</span>
+        <div style="display: flex; gap: 6px;">
+          <div class="sheet-input" data-action="vol-search" style="padding: 4px 10px; font-size: 9.5px; min-width: 160px; cursor: text;">🔍 Search name…</div>
+          ${role !== "department" ? `
+            <div class="sheet-input" data-action="vol-open-dept-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer;">
+              Dept: ${deptFilter === "all" ? "All" : deptFilter} ▾
+            </div>
+          ` : ""}
+        </div>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Name</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Email</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Dept</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Hours</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Programs</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((v) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);" data-action="vol-open-row">
+                <td style="padding: 9px 10px; font-weight: 600;">${v.name}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${v.email}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${v.dept}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${v.hours}</td>
+                <td style="padding: 9px 10px;">
+                  ${v.programs.map((t) => `<span style="display: inline-block; padding: 2px 6px; border: 1px solid var(--line-soft); border-radius: 999px; font-size: 8.5px; margin-right: 3px; background: #fafafa;">${t}</span>`).join("")}
+                </td>
+              </tr>
+            `).join("")}
+            ${filtered.length === 0 ? `
+              <tr><td colspan="5" style="padding: 24px 10px; text-align: center; color: var(--ink-mute);">No volunteers match your filters.</td></tr>
+            ` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    ${deptFilter === "all" && !search ? "" : `
+      <div style="margin-top: 6px; font-size: 9.5px; color: var(--ink-mute);">
+        Active filters: ${[search && `name~"${search}"`, deptFilter !== "all" && `dept=${deptFilter}`].filter(Boolean).join(" · ")}
+        · <span class="wf-link" data-action="vol-clear-filters">Clear all</span>
+      </div>
+    `}
+  `;
+}
+
+function renderVolunteerDeptFilter(state) {
+  const role = currentRole;
+  const info = ROLE_INFO[role];
+  const rows = role === "department" ? SAMPLE_PARTNER_VOLUNTEERS.filter((v) => v.dept === info.org) : SAMPLE_PARTNER_VOLUNTEERS;
+  const depts = ["all", ...Array.from(new Set(rows.map((v) => v.dept)))];
+  return `
+    <div style="position: absolute; top: 60px; right: 22px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 160px; z-index: 14; overflow: hidden;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by department</div>
+      ${depts.map((d) => `
+        <div data-action="vol-set-dept:${d}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${d === "all" ? "All departments" : d}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+SCREENS.volunteers = {
+  route:   "/partner/volunteers",
+  title:   "Volunteer Management",
+  navKey:  "volunteers",
+  caption: "Volunteer table scoped to this partner account. Department roles see volunteers whose users.department matches their org_name; Office and Student-Org roles see volunteers signed up to programs they own. Columns: name / email / dept / hours / programs.",
+  render:  (s) => renderVolunteersPage(s),
+};
+
+SCREENS.volunteers_dept_filter = {
+  route:   "/partner/volunteers",
+  title:   "Volunteer Management",
+  navKey:  "volunteers",
+  caption: "Department filter dropdown. Only shown for Office and Student-Org accounts (Department accounts are already scoped to their own department).",
+  render:  (s) => `${renderVolunteersPage(s)}${renderVolunteerDeptFilter(s)}`,
+};
+
+SCREENS.volunteers_filtered = {
+  route:   "/partner/volunteers",
+  title:   "Volunteer Management",
+  navKey:  "volunteers",
+  caption: "Volunteers table with one or more filters applied. The active-filters bar at the bottom shows what's narrowed the view; ‘Clear all’ returns to the unfiltered list.",
+  render:  (s) => renderVolunteersPage(s),
+};
+
+SCREENS.volunteers_search = {
+  route:   "/partner/volunteers",
+  title:   "Volunteer Management",
+  navKey:  "volunteers",
+  caption: "Search-by-name view. Filters the table by a substring match on volunteer name; combine with the department dropdown to narrow further.",
+  render:  (s) => renderVolunteersPage({ ...s, vol_search: "maria" }),
+};
+
+/* ---------- FORUM (shared semantics with officer view) ---------- */
+
+const SAMPLE_FORUM_THREADS = [
+  { id: 0, title: "Volunteer recruitment drive — Q2",            author: "R. Yanga (PARAYA)",  date: "May 17, 2025", replies: 8,  last: "2h ago", pinned: true,  locked: false },
+  { id: 1, title: "ICT Training — equipment loan request",       author: "CICS Chair",         date: "May 16, 2025", replies: 6,  last: "4h ago", pinned: false, locked: false },
+  { id: 2, title: "Joint proposal: OSAS + CSG literacy program", author: "OSAS Coordinator",   date: "May 14, 2025", replies: 12, last: "1d ago", pinned: false, locked: false },
+  { id: 3, title: "[ARCHIVED] Q1 partner retrospective",         author: "R. Yanga (PARAYA)",  date: "Apr 28, 2025", replies: 23, last: "3w ago", pinned: false, locked: true  },
+];
+
+function renderForum() {
+  return `
+    <div style="margin-bottom: 8px;">
+      <div style="font-weight: 700; font-size: 13px;">💬 Discussion Forum</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Internal threads for partner accounts + PARAYA staff. Moderation actions (pin / lock / delete) are PARAYA-officer only — partner accounts here are regular posters.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px;">
+      <div class="partner-search" style="flex: 1; max-width: 320px;">🔍 Search threads…</div>
+      <span class="partner-add-btn" data-action="forum-new">+ New Thread</span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${SAMPLE_FORUM_THREADS.map((t) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); cursor: pointer;" data-action="forum-open" data-id="${t.id}">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${t.pinned ? '<span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>' : ""}
+                ${t.locked ? '<span class="status-badge rejected" style="font-size: 8.5px;">🔒 Locked</span>' : ""}
+                <span style="font-weight: 700; font-size: 11px;">${t.title}</span>
+              </div>
+              <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">
+                ${t.author} · ${t.date} · 💬 ${t.replies} replies · last activity ${t.last}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderForumNewDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="forum-new-cancel-backdrop"></div>
+    <div class="sheet-panel" style="width: 50%;">
+      <div class="sheet-head">
+        <span class="sheet-title">💬 New Thread</span>
+        <span class="sheet-close" data-action="forum-new-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field"><span class="sheet-label">Title <span class="req">*</span></span><div class="sheet-input">What's the topic?</div></div>
+        <div class="sheet-field">
+          <span class="sheet-label">Body <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 140px; align-items: flex-start; padding: 10px; line-height: 1.5;">Share the context, question, or discussion starter…</div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="forum-new-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="forum-new-save">+ Create Thread</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderForumThread() {
+  return `
+    <span class="wf-btn" data-action="forum-back" style="padding: 3px 8px; font-size: 9.5px; margin-bottom: 10px; display: inline-block;">← Back to threads</span>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>
+            <span style="font-weight: 700; font-size: 13px;">Volunteer recruitment drive — Q2</span>
+          </div>
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">R. Yanga (PARAYA Director) · May 17, 2025 · 💬 8 replies</div>
+        </div>
+      </div>
+      <div class="panel-body dense">
+        <div style="font-size: 10.5px; line-height: 1.55;">
+          Hi partner accounts — we're opening a Q2 recruitment drive to seed volunteer rosters for the new programs landing this June. Offices, Student Orgs, and Departments are all welcome to nominate candidates. Please drop department, year-level, and a target program count below and I'll loop OSAS for orientation scheduling.
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 10px; font-weight: 700; margin-bottom: 6px;">8 Replies</div>
+
+    ${[
+      { author: "CICS Chair",          date: "May 17, 2025 · 11:30", content: "CICS can commit 15 BSCS/BSIT students for the ICT Training program. Will share roster by Wed." },
+      { author: "OSAS Coordinator",    date: "May 17, 2025 · 14:18", content: "OSAS volunteers (mixed dept) — I can route 8 students to the Literacy Drive. Should I open NSTP coordination too?" },
+      { author: "M. Cruz (PARAYA)",    date: "May 17, 2025 · 16:42", content: "Yes please on NSTP. Health Caravan team also has room for 10 nursing students." },
+    ].map((r) => `
+      <div style="display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;">
+        <div class="vol-avatar">${r.author.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("")}</div>
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <span style="font-weight: 700; font-size: 10.5px;">${r.author}</span>
+            <span style="font-size: 9px; color: var(--ink-mute);">${r.date}</span>
+          </div>
+          <div style="font-size: 10px; margin-top: 3px; line-height: 1.5;">${r.content}</div>
+        </div>
+      </div>
+    `).join("")}
+
+    <div class="panel" style="margin-top: 10px;">
+      <div class="panel-head"><span class="ttl">Write a reply</span></div>
+      <div class="panel-body dense">
+        <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 10px; line-height: 1.5;">Type your reply…</div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <span class="wf-btn primary" data-action="forum-reply" style="padding: 4px 12px;">▶ Post Reply</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.forum = {
+  route:   "/partner/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Internal forum. Search + thread list with pinned/locked badges. Partner accounts and PARAYA staff post in mixed threads (joint-proposal coordination, volunteer drives, equipment-loan requests).",
+  render:  () => renderForum(),
+};
+
+SCREENS.forum_new = {
+  route:   "/partner/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "New Thread dialog. Title + body; @mentions notify the target user via /api/notifications.",
+  render:  () => `${renderForum()}${renderForumNewDialog()}`,
+};
+
+SCREENS.forum_thread = {
+  route:   "/partner/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Thread detail. Partner accounts can read + reply. The pin/lock/delete header buttons that officers see are hidden here (partners aren't forum moderators).",
+  render:  () => renderForumThread(),
+};
+
+/* ---------- CHATBOT, NOTIFICATIONS, PROFILE (shared semantics) ---------- */
+
+const SUGGESTED_PROMPTS_B = [
+  "How do I submit a new project proposal?",
+  "Why is my proposal still in pre-screening?",
+  "How do I add a volunteer to my approved program?",
+  "What is the difference between SDG review and finance review?",
+  "How do I update my notification preferences?",
+];
+
+function renderChatbot(state) {
+  const active = state.chat_active;
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100%;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center;">✨</div>
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">AGAPE Assistant</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">AI-powered platform guide · Claude</div>
+          </div>
+        </div>
+        ${active ? `<span class="wf-btn" data-action="chat-new" style="padding: 3px 8px; font-size: 9.5px;">↻ New chat</span>` : ""}
+      </div>
+      <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel-body" style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; ${active ? "" : "justify-content: center; align-items: center; text-align: center;"}">
+          ${!active ? `
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">Hi! I'm AGAPE Assistant.</div>
+              <div style="font-size: 10px; color: var(--ink-mute); margin-top: 4px; max-width: 280px;">
+                Ask me anything about needs, surveys, programs, or how to use the platform.
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; margin-top: 6px;">
+              ${SUGGESTED_PROMPTS_B.map((p, i) => `
+                <span class="wf-btn" data-action="chat-prompt:${i}" style="text-align: left; padding: 7px 12px; font-size: 10px; font-weight: 400;">${p}</span>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="background: #1a1a1a; color: #fff; max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; font-size: 10.5px; line-height: 1.5;">
+                How do I submit a new project proposal?
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-start;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 12px;">🤖</div>
+              <div style="background: #fafafa; border: 1px solid var(--line-soft); max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; font-size: 10.5px; line-height: 1.55;">
+To submit a new project proposal:
+
+1. Click <strong>Project Proposals</strong> in the sidebar, then <strong>+ New Proposal</strong>.
+2. Fill in <em>title</em>, <em>rationale</em>, target <em>barangay</em>, optional objectives, beneficiaries, dates, and budget.
+3. Flag <em>income-generating</em> if applicable — this routes the proposal through Finance Review after SDG.
+4. Click <strong>Submit Proposal</strong>.
+
+Your proposal enters PARAYA's review pipeline: <strong>Submitted → Pre-screening → SDG Review → Finance Review (if applicable) → Approved</strong>. You'll receive notifications at each stage.
+              </div>
+            </div>
+          `}
+        </div>
+        <div style="border-top: 1px solid var(--line-soft); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end;">
+          <div class="sheet-input" style="flex: 1; min-height: 36px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Ask me anything…</div>
+          <span class="wf-btn primary" data-action="chat-send" style="padding: 7px 12px;">▶</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 8.5px; color: var(--ink-mute); margin-top: 6px;">
+        AGAPE Assistant is AI-powered and may make mistakes. Do not rely on it for official decisions.
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.chatbot = {
+  route:   "/partner/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Empty-state chatbot with 5 partner-scoped suggested prompts. Click a prompt or type a question → routes to the active conversation view.",
+  render:  (s) => renderChatbot(s),
+};
+
+SCREENS.chatbot_active = {
+  route:   "/partner/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Active conversation. Same back-and-forth bubble layout as the officer chatbot, but the AI is given partner-account context so it can reference your specific proposals + programs.",
+  render:  (s) => renderChatbot({ chat_active: true }),
+};
+
+const NOTIF_FILTER_LABEL = { all: "All notifications", unread: "Unread only", read: "Read only" };
+const SAMPLE_BARANGAY_NOTIFS = [
+  { id: 0, type: "success", icon: "✓", title: "Proposal approved — Literacy Drive for Brgy. Sta. Ana", message: "PARAYA Director endorsed your proposal. A program record has been created in My Programs.",         time: "20m ago", read: false },
+  { id: 1, type: "warning", icon: "⚠", title: "Activity pending validation",                            message: "Your 'Mid-program parents' meeting' awaits PARAYA validation before it counts toward the program.", time: "1h ago",  read: false },
+  { id: 2, type: "info",    icon: "ℹ", title: "Proposal moved to Finance Review",                       message: "Health Caravan — Lolomboy needs Finance Officer clearance because it's flagged income-generating.",  time: "5h ago",  read: false },
+  { id: 3, type: "warning", icon: "⚠", title: "Volunteer signup rejected",                              message: "Patrick M. Lim's signup was rejected by the validator — duplicate enrollment for the same program.", time: "2d ago",  read: true  },
+  { id: 4, type: "info",    icon: "ℹ", title: "Revisions requested on proposal",                        message: "DRR Workshop Series Q2 — PARAYA asked for clarification on Section 4 (budget breakdown).",           time: "3d ago",  read: true  },
+];
+const NOTIF_TYPE_BADGE = { info: "submitted", success: "approved", warning: "revisions_requested", error: "rejected" };
+
+function renderNotificationsPage(state) {
+  const filter         = state.notif_filter ?? "all";
+  const filterMenuOpen = state.notif_filter_open;
+  let rows = SAMPLE_BARANGAY_NOTIFS;
+  if (filter === "unread") rows = rows.filter((n) => !n.read);
+  if (filter === "read")   rows = rows.filter((n) =>  n.read);
+  const unread = SAMPLE_BARANGAY_NOTIFS.filter((n) => !n.read).length;
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          🔔 Notifications
+          ${unread > 0 ? `<span class="status-badge approved" style="font-size: 8.5px;">${unread} unread</span>` : ""}
+        </div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+          In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <div class="partner-filter-wrap">
+          <div class="partner-filter" data-action="notif-open-filter">${NOTIF_FILTER_LABEL[filter]} ▾</div>
+          ${filterMenuOpen ? `
+            <div class="status-filter-menu" style="min-width: 140px;">
+              ${Object.entries(NOTIF_FILTER_LABEL).map(([k, lbl]) => `
+                <div class="status-filter-item ${filter === k ? "active" : ""}" data-action="notif-set-filter:${k}">${lbl}</div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <span class="wf-btn" data-action="notif-mark-all" style="padding: 4px 10px; font-size: 9.5px;">✓ Mark all read</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${rows.map((n, i) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); background: ${!n.read ? "#fafafa" : "#fff"};">
+            <div style="width: 30px; height: 30px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${n.icon}</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 10.5px;">${n.title}</span>
+                <span class="status-badge ${NOTIF_TYPE_BADGE[n.type]}" style="font-size: 8px;">${n.type}</span>
+                ${!n.read ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a;"></span>' : ""}
+                <span style="margin-left: auto; font-size: 9px; color: var(--ink-mute);">${n.time}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; line-height: 1.4;">${n.message}</div>
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <span class="wf-link" data-action="notif-open" data-row="${i}" style="font-size: 9.5px;">View ↗</span>
+                ${!n.read ? `<span class="wf-link" data-action="notif-mark-one" data-row="${i}" style="font-size: 9.5px;">Mark read</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.notifications = {
+  route:   "/partner/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Partner-account notifications. Includes pipeline-stage changes on your proposals, validation decisions on activities/budget/volunteer signups, and revision requests from PARAYA reviewers.",
+  render:  (s) => renderNotificationsPage(s),
+};
+
+SCREENS.notifications_filter = {
+  route:   "/partner/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Filter dropdown — All / Unread / Read. Scopes the list; the unread badge in the header always shows the full unread count.",
+  render:  (s) => renderNotificationsPage({ ...s, notif_filter_open: true }),
+};
+
+function renderProfile() {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("");
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">👤 Profile Information</span></div>
+        <div class="panel-body dense">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div class="vol-avatar lg" style="width: 56px; height: 56px; font-size: 18px;">${initials}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 13px;">${info.name}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute);">${info.email}</div>
+              <span class="status-badge approved" style="font-size: 8.5px; margin-top: 4px; display: inline-block;">${info.label}</span>
+            </div>
+            <span class="wf-btn" data-action="profile-change-photo" style="padding: 4px 10px; font-size: 9.5px;">📷 Change photo</span>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${info.name}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.email}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Organization <span style="color: var(--ink-mute);">(read-only — managed by Admin)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.org} — ${info.label}</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <span class="wf-btn primary" data-action="profile-save" style="padding: 5px 14px;">💾 Save Profile</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔔 Notification Preferences</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field" style="margin-bottom: 10px;">
+            <span class="sheet-label">📞 Phone (for SMS)</span>
+            <div class="sheet-input">+63 9XX XXX XXXX</div>
+            <div class="sheet-hint">Required if you turn SMS on. SMS is dispatched via Semaphore.</div>
+          </div>
+          ${[
+            { key: "in_app", icon: "💬", label: "In-app notifications", desc: "Show in the bell dropdown and on the Notifications page", on: true },
+            { key: "email",  icon: "📧", label: "Email notifications",  desc: "Forward important messages to your email address",       on: true },
+            { key: "sms",    icon: "📱", label: "SMS notifications",    desc: "Send urgent items as SMS (e.g. captain approvals)",       on: false },
+          ].map((p) => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;" data-action="profile-toggle:${p.key}">
+              <span style="font-size: 16px;">${p.icon}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 10.5px;">${p.label}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.desc}</div>
+              </div>
+              <div style="width: 32px; height: 18px; background: ${p.on ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative; flex-shrink: 0;">
+                <div style="position: absolute; top: 2px; ${p.on ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-notifs" style="padding: 5px 14px;">💾 Save Preferences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔐 Change Password</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Current Password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div class="sheet-field"><span class="sheet-label">New Password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm New Password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-password" style="padding: 5px 14px;">🔐 Update Password</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.profile = {
+  route:   "/partner/profile",
+  title:   "My Profile",
+  navKey:  "profile",
+  caption: "Profile settings. Shows the partner's Organization row (read-only — populated from users.org_name, managed by Admin). Otherwise identical to the officer profile page: name + email + phone + 3 channel toggles + password change.",
+  render:  () => renderProfile(),
+};
+
+
+/* ============================================================
+   Auto-generate placeholder stub screens for every partner nav
+   destination that doesn't already have a custom render above.
+   ============================================================ */
+const ROUTE_FOR_SCREEN = {
+  proposals:      ["/partner/proposals",      "Project Proposals"],
+  programs:       ["/partner/programs",       "Program Tracking"],
+  volunteers:     ["/partner/volunteers",     "Volunteer Management"],
+  forum:          ["/partner/forum",          "Discussion Forum"],
+  chatbot:        ["/partner/chatbot",        "AI Assistant"],
+  notifications:  ["/partner/notifications",  "Notifications"],
+  profile:        ["/partner/profile",        "My Profile"],
+};
+
+const STUB_CAPTIONS = {
+  proposals:     "Table of proposals submitted by this partner account. New Proposal CTA opens a sheet; status badges track pipeline progress (submitted → pre-screening → SDG → finance → approved).",
+  programs:      "Card grid of programs born from this partner's approved proposals. Each card opens a detail view with Activities, Budget Items, and Volunteers — partner additions need PARAYA validation.",
+  volunteers:    "Volunteer table scoped to this partner account. Department accounts see students from their department; Office and Student-Org accounts see volunteers signed up to their programs.",
+  forum:         "Discussion forum — internal threads for partner accounts + PARAYA staff. Partner accounts are not moderators (officer/admin are); they can post + reply.",
+  chatbot:       "Role-aware AI assistant. Same chatbot as officer view but with partner-account context (your proposals, programs, validation queue status).",
+  notifications: "In-app notifications feed. Includes pipeline-stage changes on your proposals, validation decisions on activities/budget/volunteer signups, revision requests.",
+  profile:       "Profile settings: full name, email (read-only), organization (read-only — managed by Admin), phone, password change, and per-channel notification preferences.",
+};
+
+for (const [screenId, [route, title]] of Object.entries(ROUTE_FOR_SCREEN)) {
+  if (SCREENS[screenId]) continue;
+  SCREENS[screenId] = {
+    route, title,
+    navKey: screenId,
+    caption: STUB_CAPTIONS[screenId] ?? "Placeholder wireframe — full content to be designed.",
+    render: () => `
+      <div class="stub">
+        <div class="stub-route">${route}</div>
+        <div class="stub-title">${title}</div>
+        <div class="stub-desc">${STUB_CAPTIONS[screenId] ?? ""}</div>
+        <div class="stub-tag">Placeholder — wireframe pending</div>
+      </div>
+    `,
+  };
+}
+
+/* ============================================================
+   SIDEBAR RENDERING
+   ============================================================ */
+function getActiveNavKey(screenId) {
+  const def = SCREENS[screenId];
+  return def?.navKey ?? screenId;
+}
+
+function isNavItemActive(item, activeKey) {
+  if (item.key === activeKey) return true;
+  if (item.children) return item.children.some((c) => c.key === activeKey);
+  return false;
+}
+
+function renderSidebar(activeKey, state) {
+  const role = currentRole;
+  const nav = PARTNER_NAV;
+  const info = ROLE_INFO[role];
+  const expandedGroup = state?.expandedGroup;
+
+  const items = nav.map((item) => {
+    if (item.group) {
+      const childActive = isNavItemActive(item, activeKey);
+      const manuallyExpanded = expandedGroup === item.key;
+      const expanded = childActive || manuallyExpanded;
+      const collapsed = !expanded;
+      // Filter children by role allowlist
+      const children = item.children.filter((c) => !c.roles || c.roles.includes(role));
+      if (children.length === 0) return "";
+      const groupCls = `side-item group${collapsed ? " collapsed" : ""}${childActive ? " active" : ""}`;
+      return `
+        <li>
+          <div class="${groupCls}" data-action="toggle-group:${item.key}">
+            <span class="ico"></span>${item.label}
+          </div>
+          ${collapsed ? "" : `
+            <ul class="side-children">
+              ${children.map((c) => `
+                <li class="side-child ${c.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${c.screen}">${c.label}</li>
+              `).join("")}
+            </ul>
+          `}
+        </li>`;
+    }
+    const cls = `side-item${item.key === activeKey ? " active" : ""}`;
+    return `<li><div class="${cls}" data-action="nav" data-screen="${item.screen}"><span class="ico"></span>${item.label}</div></li>`;
+  }).join("");
+
+  // AI Assistant + Notifications pinned at the bottom for all roles.
+  const pinned = `
+    <div class="side-divider"></div>
+    ${SIDEBAR_PINNED.map((p) => `
+      <div class="side-item ${p.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${p.screen}"><span class="ico"></span>${p.label}</div>
+    `).join("")}
+  `;
+
+  return `
+    <div class="page-side">
+      <div class="side-brand">
+        <div class="side-logo">LOGO</div>
+        <div>
+          <div class="side-brand-title">AGAPE</div>
+          <div class="side-brand-sub">PARAYA · DYCI</div>
+        </div>
+      </div>
+      <div class="side-nav">
+        <ul>${items}</ul>
+        ${pinned}
+      </div>
+      <div class="side-user">
+        <div class="row">
+          <div class="avatar">${info.name.charAt(0)}</div>
+          <div style="min-width: 0;">
+            <div class="name">${info.name}</div>
+            <div class="email">${info.email}</div>
+          </div>
+        </div>
+        <button class="signout" data-action="signout">↩ Sign out</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader(title, route, state) {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const notifDropdown = state.bellOpen ? `
+    <div class="dropdown notif-dropdown">
+      <div class="dropdown-head">
+        <span class="dropdown-title">Notifications</span>
+        <span class="dropdown-action" data-action="mark-read">✓ Mark all read</span>
+      </div>
+      <div class="dropdown-body">
+        <div class="notif-item unread">
+          <div class="notif-icon">!</div>
+          <div class="notif-content">
+            <div class="notif-title">New proposal awaiting pre-screen</div>
+            <div class="notif-msg">"Reading Caravan — Brgy. Lolomboy" submitted by CSG</div>
+            <div class="notif-time">5m ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon">i</div>
+          <div class="notif-content">
+            <div class="notif-title">3 new survey responses</div>
+            <div class="notif-msg">Health needs assessment — Brgy. Bunducan</div>
+            <div class="notif-time">1h ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon">✓</div>
+          <div class="notif-content">
+            <div class="notif-title">Activity report approved</div>
+            <div class="notif-msg">Literacy Camp — May 14</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-foot">
+        <span class="dropdown-link" data-action="nav" data-screen="notifications">View all notifications →</span>
+      </div>
+    </div>
+  ` : "";
+
+  const profileDropdown = state.profileOpen ? `
+    <div class="dropdown profile-dropdown">
+      <div class="dropdown-user">
+        <div class="dropdown-user-name">${info.name}</div>
+        <div class="dropdown-user-email">${info.email}</div>
+      </div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" data-action="nav" data-screen="profile">Profile Settings</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item danger" data-action="signout">Sign out</div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="page-header">
+      <div class="page-title"><span class="crumb">${route} ·</span> ${title}</div>
+      <div class="spacer"></div>
+      <div class="iconbtn bell" data-action="toggle:bell" title="Notifications">
+        🔔<span class="badge">2</span>
+      </div>
+      <div class="iconbtn avatar" data-action="toggle:profile" title="${info.name}">${initials}</div>
+      ${notifDropdown}
+      ${profileDropdown}
+    </div>
+  `;
+}
+
+/* ============================================================
+   BOARD STATE — same FIFO mechanics as auth.html
+   ============================================================ */
+let nextInstanceId = 1;
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey, initialState) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  let target;
+  if (initialState) {
+    target = makeInstance(screenId);
+    target.state = { ...initialState };
+    board.push(target);
+  } else {
+    const existing = board.find((b) => b.screenId === screenId);
+    if (existing) {
+      target = existing;
+    } else {
+      target = makeInstance(screenId);
+      board.push(target);
+    }
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  // Record what changed so undo can reverse it. We always push an entry when
+  // pushScreen is called from an interactive context, even if no tile was
+  // added (so the user can also undo "click that just re-highlighted").
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   Resolve a stored action-key back to the element that was clicked.
+   "nav" actions are special because the data-action is shared across
+   many sidebar items + the header icons; we disambiguate via data-screen.
+   ============================================================ */
+function findClickedElement(root, key) {
+  if (!key) return null;
+  if (key.startsWith("nav:")) {
+    const screen = key.slice(4);
+    return root.querySelector(`[data-action="nav"][data-screen="${screen}"]`);
+  }
+  // CSS.escape protects against keys containing characters like ":" or "/"
+  return root.querySelector(`[data-action="${CSS.escape(key)}"]`);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const meta = document.createElement("div");
+    meta.className = "tile-meta";
+    meta.innerHTML = `<span class="route">${def.route}</span><span class="id">screen: ${entry.screenId}</span>`;
+
+    const page = document.createElement("div");
+    page.className = "page" + (def.chromeless ? " chromeless" : "");
+    if (def.chromeless) {
+      page.innerHTML = `
+        <div class="page-main">
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    } else {
+      const activeKey = getActiveNavKey(entry.screenId);
+      page.innerHTML = `
+        ${renderSidebar(activeKey, entry.state)}
+        <div class="page-main">
+          ${renderHeader(def.title, def.route, entry.state)}
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    }
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = def.caption;
+
+    tile.appendChild(meta);
+    tile.appendChild(page);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every [data-action] inside this tile
+    tile.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        if (action === "nav") {
+          pushScreen(el.dataset.screen, entry, "nav:" + el.dataset.screen);
+          return;
+        }
+        if (action.startsWith("toggle-group:")) {
+          // Spawn a new tile with this sidebar group expanded so the children
+          // become visible and clickable. Click the same group again to collapse.
+          const key = action.slice("toggle-group:".length);
+          const wasExpanded = entry.state.expandedGroup === key;
+          pushScreen(entry.screenId, entry, action, {
+            ...entry.state,
+            expandedGroup: wasExpanded ? null : key,
+          });
+          return;
+        }
+        if (action === "toggle:bell") {
+          // Spawn a NEW tile showing the same page with the notif dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:bell", { bellOpen: true });
+          return;
+        }
+        if (action === "toggle:profile") {
+          // Spawn a NEW tile showing the same page with the profile dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:profile", { profileOpen: true });
+          return;
+        }
+        if (action === "mark-read") {
+          // Cosmetic — would PATCH /api/notifications in the real app.
+          entry.clickedActionKey = "mark-read";
+          render();
+          return;
+        }
+        if (action === "signout") {
+          // Now that login is in scope, sign-out closes the loop back to it.
+          pushScreen("login", entry, "signout");
+          return;
+        }
+        // Dashboard cards: "go:<screen>"
+        if (action.startsWith("go:")) {
+          const screen = action.slice(3);
+          pushScreen(screen, entry, action);
+          return;
+        }
+        // Login form: input toggle + submit
+        if (action === "fill") {
+          entry.state[el.dataset.field] = !entry.state[el.dataset.field];
+          entry.clickedActionKey = "fill";
+          render();
+          return;
+        }
+        if (action === "signin") {
+          pushScreen("dashboard", entry, "signin");
+          return;
+        }
+        if (action === "forgot" || action === "signup") {
+          // Out of scope for the officer wireframe — auth.html maps these.
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROJECT PROPOSALS ---------- */
+        if (action === "prop-new") {
+          pushScreen("proposals_new", entry, action);
+          return;
+        }
+        if (action === "prop-open-status-filter") {
+          pushScreen("proposals_status_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("prop-set-status:")) {
+          const s = action.slice("prop-set-status:".length);
+          pushScreen("proposals_filtered", entry, action, { prop_status_filter: s });
+          return;
+        }
+        if (action === "prop-open") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("proposals_detail", entry, action, { prop_row: row });
+          return;
+        }
+        if (action === "prop-pick-brgy") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "prop-new-cancel" ||
+          action === "prop-new-cancel-x" ||
+          action === "prop-new-cancel-backdrop"
+        ) {
+          pushScreen("proposals", entry, action);
+          return;
+        }
+        if (action === "prop-submit") {
+          pushScreen("proposals_submitted", entry, action);
+          return;
+        }
+        if (action === "prop-submit-another") {
+          pushScreen("proposals_new", entry, action);
+          return;
+        }
+        if (action === "prop-back-to-list") {
+          pushScreen("proposals", entry, action);
+          return;
+        }
+        if (
+          action === "prop-detail-cancel" ||
+          action === "prop-detail-cancel-x" ||
+          action === "prop-detail-cancel-backdrop"
+        ) {
+          pushScreen("proposals", entry, action);
+          return;
+        }
+        if (action === "prop-edit") {
+          pushScreen("proposals_new", entry, action);
+          return;
+        }
+
+        /* ---------- PROGRAM TRACKING ---------- */
+        if (action === "prog-open") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("programs_detail", entry, action, { prog_row: row });
+          return;
+        }
+        if (action === "prog-back") {
+          pushScreen("programs", entry, action);
+          return;
+        }
+        if (action === "prog-add-activity") {
+          pushScreen("programs_add_activity", entry, action, { ...entry.state });
+          return;
+        }
+        if (action === "prog-add-budget") {
+          pushScreen("programs_add_budget", entry, action, { ...entry.state });
+          return;
+        }
+        if (action === "prog-add-volunteer") {
+          pushScreen("programs_add_volunteer", entry, action, { ...entry.state });
+          return;
+        }
+
+        /* ---------- ADD ACTIVITY / BUDGET / VOLUNTEER sheets ---------- */
+        if (
+          action === "act-cancel" ||
+          action === "act-cancel-x" ||
+          action === "act-cancel-backdrop" ||
+          action === "act-submit"
+        ) {
+          pushScreen("programs_detail", entry, action, { ...entry.state });
+          return;
+        }
+        if (
+          action === "bud-cancel" ||
+          action === "bud-cancel-x" ||
+          action === "bud-cancel-backdrop" ||
+          action === "bud-submit"
+        ) {
+          pushScreen("programs_detail", entry, action, { ...entry.state });
+          return;
+        }
+        if (
+          action === "vol-cancel" ||
+          action === "vol-cancel-x" ||
+          action === "vol-cancel-backdrop" ||
+          action === "vol-submit"
+        ) {
+          pushScreen("programs_detail", entry, action, { ...entry.state });
+          return;
+        }
+
+        /* ---------- VOLUNTEERS PAGE filters ---------- */
+        if (action === "vol-search") {
+          pushScreen("volunteers_search", entry, action);
+          return;
+        }
+        if (action === "vol-open-dept-filter") {
+          pushScreen("volunteers_dept_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("vol-set-dept:")) {
+          const d = action.slice("vol-set-dept:".length);
+          pushScreen("volunteers_filtered", entry, action, { vol_dept_filter: d });
+          return;
+        }
+        if (action === "vol-clear-filters") {
+          pushScreen("volunteers", entry, action);
+          return;
+        }
+        if (action === "vol-open-row") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- DISCUSSION FORUM ---------- */
+        if (action === "forum-new") {
+          pushScreen("forum_new", entry, action);
+          return;
+        }
+        if (action === "forum-open") {
+          pushScreen("forum_thread", entry, action);
+          return;
+        }
+        if (action === "forum-back") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (
+          action === "forum-new-cancel" ||
+          action === "forum-new-cancel-x" ||
+          action === "forum-new-cancel-backdrop"
+        ) {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-new-save") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-reply") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- CHATBOT ---------- */
+        if (action.startsWith("chat-prompt:")) {
+          const idx = parseInt(action.slice("chat-prompt:".length), 10);
+          pushScreen("chatbot_active", entry, action, { chat_active: true, chat_prompt_idx: idx });
+          return;
+        }
+        if (action === "chat-send") {
+          pushScreen("chatbot_active", entry, action, { chat_active: true });
+          return;
+        }
+        if (action === "chat-new") {
+          pushScreen("chatbot", entry, action);
+          return;
+        }
+
+        /* ---------- NOTIFICATIONS PAGE ---------- */
+        if (action === "notif-open-filter") {
+          pushScreen("notifications_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("notif-set-filter:")) {
+          const f = action.slice("notif-set-filter:".length);
+          pushScreen("notifications", entry, action, { notif_filter: f });
+          return;
+        }
+        if (
+          action === "notif-mark-all" ||
+          action === "notif-mark-one" ||
+          action === "notif-open"
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROFILE ---------- */
+        if (
+          action === "profile-change-photo" ||
+          action === "profile-save" ||
+          action === "profile-save-notifs" ||
+          action === "profile-save-password" ||
+          action.startsWith("profile-toggle:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+      });
+    });
+
+    // Highlight the most-recently-clicked control on this tile
+    if (entry.clickedActionKey) {
+      const clickedEl = findClickedElement(tile, entry.clickedActionKey);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting through
+  // the page content next to the button.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = findClickedElement(fromTile, t.fromActionKey);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    return { t, a, aBox, b };
+  });
+
+  // Pass 2: pick exit + entry side per transition based on the dominant axis
+  // between source tile center and destination tile center.
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const dx = (d.b.left + d.b.width / 2) - (d.aBox.left + d.aBox.width / 2);
+    const dy = (d.b.top  + d.b.height / 2) - (d.aBox.top  + d.aBox.height / 2);
+    const horizontal = Math.abs(dx) * 1.2 >= Math.abs(dy);
+    let exit, entry;
+    if (horizontal) {
+      exit  = dx > 0 ? "R" : "L";
+      entry = dx > 0 ? "L" : "R";
+    } else {
+      exit  = dy > 0 ? "B" : "T";
+      entry = dy > 0 ? "T" : "B";
+    }
+    d.exit = exit; d.entry = entry;
+    const arrKey = `${d.t.toInstanceId}:${entry}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${exit}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw. The arrow exits the clicked element on the chosen side and
+  // enters the destination tile on the opposite-facing side, so it never cuts
+  // across unrelated content.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, b, exit, entry } = d;
+
+    const arrGroup    = arrivals[`${t.toInstanceId}:${entry}`];
+    const arrPos      = arrGroup.indexOf(idx);
+    const arrN        = arrGroup.length;
+    const arrAlongLen = (entry === "L" || entry === "R") ? b.height : b.width;
+    const arrSpread   = Math.min(arrAlongLen * 0.7, 28 * arrN);
+    const arrFrac     = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const arrOffset   = arrSpread * (arrFrac - 0.5);
+
+    const depGroup    = departures[`${t.fromInstanceId}:${t.fromActionKey}:${exit}`];
+    const depPos      = depGroup.indexOf(idx);
+    const depN        = depGroup.length;
+    const depOffset   = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+
+    let sx, sy, tx, ty;
+    if (exit === "R")      { sx = a.right;             sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "L") { sx = a.left;              sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "B") { sx = a.left + a.width/2 + depOffset; sy = a.bottom; }
+    else                   { sx = a.left + a.width/2 + depOffset; sy = a.top;    }
+
+    if (entry === "L")      { tx = b.left;              ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "R") { tx = b.right;             ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "T") { tx = b.left + b.width/2 + arrOffset; ty = b.top;    }
+    else                    { tx = b.left + b.width/2 + arrOffset; ty = b.bottom; }
+
+    // Base positions (auto-computed). User-applied offsets shift the
+    // endpoints; the offsets persist per-transition and survive re-renders.
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    // Cubic bezier whose tangents respect the chosen exit/entry sides.
+    const dist  = Math.hypot(x2 - x1, y2 - y1);
+    const reach = Math.max(40, Math.min(220, dist * 0.45));
+    let cp1x = x1, cp1y = y1, cp2x = x2, cp2y = y2;
+    if (exit === "R")      cp1x = x1 + reach;
+    else if (exit === "L") cp1x = x1 - reach;
+    else if (exit === "B") cp1y = y1 + reach;
+    else                   cp1y = y1 - reach;
+    if (entry === "L")      cp2x = x2 - reach;
+    else if (entry === "R") cp2x = x2 + reach;
+    else if (entry === "T") cp2y = y2 - reach;
+    else                    cp2y = y2 + reach;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+    // Wide invisible hit-area path — makes the arrow easy to click without
+    // forcing the visible stroke to be fat.
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode so they don't clutter
+    // the board for screenshots. Stable transition index identifies each.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — let the user reposition the source/dest endpoint
+   of any arrow. Offsets are stored on the transition object and
+   re-applied on every drawArrows() call.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow (its wide hit-area path) to bring it to the front layer.
+// Move that transition to the end of the array so it draws last on top.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  // Wipe any user-applied endpoint offsets but keep the tiles in place.
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-partner-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+resetBoard("login");
+</script>
+</body>
+</html>

@@ -1,0 +1,3331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — Barangay Wireframes</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --side-bg: #f3f3f3;
+    --side-active: #dadada;
+    --red: #d32f2f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  .board-wrap { padding: 24px; background: var(--board-bg); min-height: calc(100vh - 40px); }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  /* Click any arrow to bring it to the front layer. .arrow-hit is an
+     invisible wide path that catches clicks near the visible stroke. */
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-hit:hover ~ .arrow-line,
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  .slot { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 660px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 13px;
+  }
+  .slot-index {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; z-index: 4;
+  }
+
+  /* Tile shell */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-meta {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-meta .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-meta .id { font-size: 10px; color: var(--ink-mute); }
+
+  /* The page shell: sidebar + (header + body) */
+  .page {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 620px;
+  }
+  .page-side {
+    background: var(--side-bg);
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column;
+    font-size: 10.5px;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .side-logo {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--ink-mute);
+  }
+  .side-brand-title { font-weight: 700; font-size: 12px; }
+  .side-brand-sub { font-size: 8px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .side-nav { flex: 1; overflow: hidden; padding: 8px 6px; }
+  .side-nav ul { list-style: none; margin: 0; padding: 0; }
+  .side-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    line-height: 1.2;
+  }
+  .side-item:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-item.active { background: rgba(0,0,0,0.06); color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+  .side-item .ico {
+    width: 12px; height: 12px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .side-item.group { font-weight: 500; }
+  .side-item.group::after { content: "▾"; margin-left: auto; font-size: 9px; color: var(--ink-mute); }
+  .side-item.group.collapsed::after { content: "▸"; }
+  .side-children {
+    list-style: none; margin: 1px 0 4px 0; padding: 0 0 0 18px;
+    border-left: 1px solid var(--line-soft);
+    margin-left: 13px;
+  }
+  .side-child {
+    padding: 4px 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-child::before { content: "•"; color: var(--ink-mute); font-size: 9px; }
+  .side-child:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-child.active { color: var(--ink); font-weight: 600; background: rgba(0,0,0,0.05); }
+  .side-divider { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+  .side-user {
+    padding: 8px 10px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .side-user .row { display: flex; align-items: center; gap: 6px; }
+  .side-user .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-soft);
+  }
+  .side-user .name { font-size: 10px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .side-user .email { font-size: 9px; color: var(--ink-mute); line-height: 1.1; }
+  .side-user .signout {
+    margin-top: 2px; padding: 4px 6px; font-size: 9px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    color: var(--ink-soft); cursor: pointer; background: #fff;
+    text-align: left;
+  }
+  .side-user .signout:hover { background: #f6f6f6; }
+
+  .page-main { display: flex; flex-direction: column; min-width: 0; }
+  .page-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page-title .crumb { font-weight: 400; color: var(--ink-mute); font-size: 11px; margin-right: 4px; }
+  .page-header .spacer { flex: 1; }
+  .page-header .iconbtn {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    position: relative;
+  }
+  .page-header .iconbtn.avatar {
+    border-radius: 50%;
+    font-size: 9px; font-weight: 700;
+    background: var(--box);
+  }
+  .page-header .iconbtn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 13px; height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Header dropdowns (notifications + profile) */
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 20;
+    font-size: 10px;
+  }
+  .notif-dropdown { right: 38px; width: 240px; }
+  .profile-dropdown { right: 8px; width: 168px; }
+
+  .dropdown-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafafa;
+  }
+  .dropdown-title { font-weight: 700; font-size: 11px; }
+  .dropdown-action {
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 9.5px;
+    text-decoration: underline;
+  }
+  .dropdown-action:hover { color: var(--ink); }
+
+  .dropdown-body { max-height: 200px; overflow-y: auto; }
+  .notif-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    display: flex; gap: 6px;
+    cursor: pointer;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafafa; }
+  .notif-item.unread { background: #ececec; border-left: 3px solid #1a1a1a; }
+  .notif-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: #fff;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-size: 10px; font-weight: 700; line-height: 1.2; }
+  .notif-item:not(.unread) .notif-title { font-weight: 500; color: var(--ink-soft); }
+  .notif-msg { font-size: 9px; color: var(--ink-mute); margin-top: 2px; line-height: 1.3; }
+  .notif-time { font-size: 8px; color: var(--ink-mute); margin-top: 3px; }
+  .notif-dot {
+    width: 6px; height: 6px;
+    background: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  .dropdown-foot {
+    padding: 7px 10px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+  }
+  .dropdown-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .dropdown-link:hover { color: var(--ink); }
+
+  .dropdown-user { padding: 8px 10px; }
+  .dropdown-user-name { font-size: 11px; font-weight: 700; }
+  .dropdown-user-email { font-size: 9px; color: var(--ink-mute); margin-top: 1px; }
+  .dropdown-sep { height: 1px; background: var(--line-soft); }
+  .dropdown-item {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .dropdown-item:hover { background: #fafafa; color: var(--ink); }
+  .dropdown-item.danger { color: #2a2a2a; font-style: italic; }
+  .dropdown-item.danger:hover { background: #f0f0f0; }
+
+  .page-body {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 13px; color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Wireframe primitives inside the page body */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .kpi .kpi-label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .kpi-value { font-size: 18px; font-weight: 700; }
+  .kpi .kpi-sub { font-size: 9px; color: var(--ink-mute); }
+
+  .panel-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .panel-row.r-2-1 { grid-template-columns: 2fr 1fr; }
+  .panel-row.r-1-2 { grid-template-columns: 1fr 2fr; }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fafafa;
+  }
+  .panel-head .ttl { font-size: 11px; font-weight: 700; }
+  .panel-head .lnk { font-size: 10px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .panel-body { padding: 10px; }
+  .panel-body.dense { padding: 8px 10px; }
+
+  /* Bar chart placeholder */
+  .barchart {
+    height: 150px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 8px 12px;
+  }
+  .barchart .bar {
+    flex: 1;
+    background: #6e6e6e;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+  }
+  .barchart .axis {
+    position: absolute;
+    bottom: -16px;
+    left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--ink-mute);
+  }
+
+  .sdg-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sdg-row .label { font-size: 10px; color: var(--ink-soft); }
+  .sdg-row .val { font-size: 11px; font-weight: 700; }
+  .sdg-row .bar {
+    grid-column: 1 / -1;
+    height: 5px; background: var(--box-soft); border-radius: 3px;
+    overflow: hidden;
+  }
+  .sdg-row .bar > div { height: 100%; background: var(--ink-soft); }
+
+  .brgy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+  .brgy-row .rank { width: 14px; color: var(--ink-mute); }
+  .brgy-row .name { flex: 1; }
+  .brgy-row .pct { width: 60px; height: 4px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .brgy-row .pct > div { height: 100%; background: var(--ink-soft); }
+  .brgy-row .count { color: var(--ink); font-weight: 600; min-width: 18px; text-align: right; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl th, .tbl td { padding: 5px 6px; text-align: left; border-bottom: 1px solid var(--box-soft); }
+  .tbl th { color: var(--ink-mute); font-weight: 500; background: #fafafa; }
+  .tbl td { color: var(--ink-soft); }
+  .tbl .pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-soft); font-size: 9px; color: var(--ink-soft);
+    background: #fff;
+  }
+
+  /* Stub page body (used by placeholder screens) */
+  .stub {
+    height: 100%;
+    min-height: 480px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 12px;
+    padding: 30px 24px;
+    border: 1px dashed var(--line-soft);
+    border-radius: 6px;
+    background: #fafafa;
+    color: var(--ink-soft);
+  }
+  .stub .stub-route { font-family: ui-monospace, "Courier New", monospace; font-size: 12px; color: var(--ink-mute); }
+  .stub .stub-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .stub .stub-desc { font-size: 12px; max-width: 360px; line-height: 1.5; color: var(--ink-soft); }
+  .stub .stub-tag {
+    margin-top: 6px;
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-size: 10px; color: var(--ink-mute); background: #fff;
+  }
+
+  /* Login / "public" pages: no sidebar, no top header. Centered content. */
+  .page.chromeless { grid-template-columns: 1fr; background: #ffffff; }
+  .page.chromeless .page-main { display: flex; align-items: center; justify-content: center; }
+  .page.chromeless .page-body { width: 100%; display: flex; align-items: center; justify-content: center; padding: 30px 24px; min-height: 540px; }
+
+  /* Login wireframe primitives (copied from auth.html). */
+  .wf { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+  .wf-card {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer; user-select: none;
+    min-height: 32px; display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-btn {
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    padding: 9px 12px; text-align: center;
+    background: #f0f0f0; font-size: 12px; font-weight: 600;
+    cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft); text-decoration: underline;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+
+  /* ── Partnership management primitives ─────────────────────────── */
+  .partner-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .map-area {
+    height: 180px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, var(--box-soft) 30px 31px),
+      repeating-linear-gradient(90deg, transparent 0 40px, var(--box-soft) 40px 41px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 4px;
+    position: relative;
+  }
+  .map-marker {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker.active   { background: #2a2a2a; }
+  .map-marker.inactive { background: #ffffff; border-color: #2a2a2a; }
+  .map-toggle {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  .map-toggle .opt {
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .map-toggle .opt.active {
+    background: var(--ink); color: #fff; font-weight: 600;
+  }
+
+  .partner-tools {
+    display: flex; gap: 6px;
+    margin: 8px 0 4px 0;
+  }
+  .partner-search {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px; color: var(--ink-mute);
+    background: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .partner-filter, .partner-add-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .partner-filter-wrap { position: relative; }
+  .status-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 108px;
+    font-size: 10px;
+  }
+  .status-filter-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .status-filter-item:hover { background: #fafafa; color: var(--ink); }
+  .status-filter-item.active { font-weight: 700; color: var(--ink); background: #f4f4f4; }
+  .partner-add-btn { background: #2a2a2a; color: #fff; border-color: #2a2a2a; font-weight: 600; }
+  .partner-add-btn:hover { background: #1a1a1a; }
+
+  .tbl-actions { width: 18px; text-align: center; cursor: pointer; color: var(--ink-mute); }
+  .tbl-actions:hover { color: var(--ink); }
+  .status-pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; border: 1px solid; }
+  .status-pill.active { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .status-pill.inactive { background: #f5f5f5; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+
+  /* Row action menu (the "⋯" dropdown) */
+  .row-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 138px;
+    font-size: 10px;
+  }
+  .row-menu-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .row-menu-item:hover { background: #fafafa; color: var(--ink); }
+  .row-menu-item.danger { color: #2a2a2a; font-style: italic; }
+  .row-menu-item.danger:hover { background: #f0f0f0; }
+  .row-menu-sep { height: 1px; background: var(--line-soft); }
+
+  /* Sheet overlay (slide-in side panel) */
+  .sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.30);
+    z-index: 14;
+  }
+  .sheet-panel {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 62%;
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    display: flex; flex-direction: column;
+  }
+  .sheet-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 13px; font-weight: 700; }
+  .sheet-close {
+    width: 20px; height: 20px;
+    border: 1px solid var(--line-soft); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 11px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+  }
+  .sheet-foot {
+    padding: 9px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: flex-end; gap: 6px;
+    background: #fafafa;
+  }
+  .sheet-section { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-section-title {
+    font-size: 9px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .sheet-field { display: flex; flex-direction: column; gap: 2px; }
+  .sheet-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-label { font-size: 10px; color: var(--ink-soft); }
+  .sheet-label .req { color: #1a1a1a; font-weight: 700; }
+  .sheet-input, .sheet-select {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    color: var(--ink-mute);
+    background: #fff;
+    min-height: 26px;
+    display: flex; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .sheet-input.filled, .sheet-select.filled { color: var(--ink); background: #f6f6f6; }
+  .sheet-select::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  .sheet-hint { font-size: 9px; color: var(--ink-mute); line-height: 1.4; }
+  .sheet-hint .auto {
+    color: #1a1a1a; font-weight: 700;
+  }
+
+  /* ── Project Proposals primitives ─────────────────────────────── */
+  .proposal-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .phase-rollup-card { margin-bottom: 10px; }
+  .phase-bar {
+    display: flex; height: 7px;
+    background: var(--box-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .phase-seg { height: 100%; }
+  .phase-seg.diagnostic { background: #8a8a8a; }
+  .phase-seg.research   { background: #6a6a6a; }
+  .phase-seg.filing     { background: #4a4a4a; }
+  .phase-seg.execution  { background: #2a2a2a; }
+  .phase-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .phase-card {
+    display: flex; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .phase-card .label-row {
+    font-size: 9px; color: var(--ink-mute);
+  }
+  .phase-card .count {
+    font-size: 14px; font-weight: 700; line-height: 1.1;
+  }
+
+  /* Pipeline stepper (inside row, also detail) */
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .stepper-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 600;
+  }
+  .stepper-chip.done { background: #2a2a2a; color: #fff; }
+  .stepper-chip.current { background: #fff; color: #1a1a1a; border: 1px solid #1a1a1a; }
+  .stepper-chip.upcoming { background: var(--box-soft); color: var(--ink-mute); }
+  .stepper-arrow { color: var(--ink-mute); font-size: 7px; }
+  .stepper-rejected, .stepper-revising {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    color: #2a2a2a;
+  }
+  .stepper-rejected { text-decoration: line-through; }
+  .stepper-revising { font-style: italic; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 600;
+    border: 1px solid;
+    text-transform: capitalize;
+  }
+  .status-badge.draft           { background: #ececec; color: #6a6a6a; border-color: #c0c0c0; }
+  .status-badge.submitted       { background: #e2e2e2; color: #1a1a1a; border-color: #8a8a8a; }
+  .status-badge.pre_screening,
+  .status-badge.sdg_review,
+  .status-badge.finance_review  { background: #d4d4d4; color: #1a1a1a; border-color: #6a6a6a; }
+  .status-badge.approved        { background: #2a2a2a; color: #ffffff; border-color: #1a1a1a; }
+  .status-badge.rejected        { background: #f5f5f5; color: #6a6a6a; border-color: #6a6a6a; border-style: dashed; }
+  .status-badge.revisions_requested { background: #ececec; color: #1a1a1a; border-color: #4a4a4a; border-style: dashed; }
+
+  /* SDG chips */
+  .sdg-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 2px;
+  }
+  .sdg-chip.sdg-4  { background: #2a2a2a; }
+  .sdg-chip.sdg-9  { background: #4a4a4a; }
+  .sdg-chip.sdg-11 { background: #6a6a6a; }
+  .sdg-chip.sdg-17 { background: #1a1a1a; }
+
+  /* SDG selector buttons in Create sheet */
+  .sdg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sdg-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sdg-btn.selected { box-shadow: 0 0 0 2px currentColor inset; }
+  .sdg-btn .head { display: flex; align-items: center; gap: 4px; }
+  .sdg-btn .lbl  { font-size: 9.5px; color: var(--ink); font-weight: 500; margin-top: 3px; }
+
+  /* Income-generating gate */
+  .income-gate {
+    border: 1px solid var(--line);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .income-gate .gate-check {
+    width: 13px; height: 13px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .income-gate .gate-text {
+    font-size: 9.5px; color: var(--ink); line-height: 1.4;
+  }
+  .income-gate .gate-text strong { font-weight: 700; }
+  .income-gate .gate-text .sub { color: var(--ink-mute); display: block; margin-top: 2px; font-size: 9px; }
+
+  /* Detail-sheet specific blocks */
+  .detail-field { font-size: 11px; }
+  .detail-field .lbl {
+    font-size: 9px; font-weight: 700;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-field .val { margin-top: 2px; color: var(--ink); line-height: 1.4; }
+  .detail-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
+
+  .review-item {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .review-item-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+  }
+  .review-item-stage { font-weight: 700; text-transform: capitalize; font-size: 10px; }
+  .review-item-notes { color: var(--ink-mute); font-size: 9.5px; line-height: 1.4; }
+  .review-item-meta  { color: var(--ink-mute); font-size: 9px; margin-top: 3px; }
+
+  /* Inline notice blocks (validation, finance, revisions) */
+  .notice {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .notice.warning { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.success { background: #ececec; border-color: #4a4a4a; color: #1a1a1a; }
+  .notice.info    { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.accent  { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; border-style: dashed; }
+  .notice-row { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+  /* Action button group in detail sheet */
+  .detail-actions-row { display: flex; gap: 5px; }
+  .detail-actions-row .icon-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    width: 28px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .detail-actions-row .icon-btn.danger { border-color: var(--line); color: var(--ink-soft); border-style: dashed; }
+  .detail-actions-row .icon-btn.accent { border-color: var(--line); color: var(--ink-soft); }
+
+  .ppf-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 9px;
+    color: var(--ink-soft);
+    background: #f5f5f5;
+    cursor: pointer;
+  }
+
+  /* ── Community Needs Assessment primitives ─────────────────────── */
+
+  /* Donut chart placeholder for distributions (income, etc.) */
+  .donut-chart {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#1a1a1a 0% 40%, #4a4a4a 40% 65%, #8a8a8a 65% 85%, #c0c0c0 85% 100%);
+    position: relative;
+    margin: 4px auto;
+  }
+  .donut-chart::after {
+    content: ""; position: absolute;
+    inset: 30%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .donut-legend { font-size: 9px; color: var(--ink-soft); margin-top: 6px; text-align: center; }
+  .donut-legend-item { display: inline-flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Key indicator tiles (extended profile) */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ind-tile {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 7px 10px;
+  }
+  .ind-tile .lbl { font-size: 9px; color: var(--ink-mute); }
+  .ind-tile .val { font-size: 16px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .ind-tile .val .pct { font-size: 9px; color: var(--ink-mute); font-weight: 400; margin-left: 3px; }
+
+  /* Need pills (health/economic/environmental/social) */
+  .need-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink);
+    margin-right: 3px;
+  }
+
+  /* Builder tab strip */
+  .builder-tabs {
+    display: flex; gap: 1px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    padding: 2px;
+    font-size: 10px;
+    width: fit-content;
+  }
+  .builder-tab {
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .builder-tab.active {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Builder section + question blocks */
+  .builder-section {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .builder-section-head {
+    padding: 6px 10px;
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .builder-question {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .builder-question:last-child { border-bottom: none; }
+  .builder-q-handle { color: var(--ink-mute); font-size: 11px; cursor: grab; }
+  .builder-q-body { flex: 1; min-width: 0; }
+  .builder-q-text { font-weight: 600; color: var(--ink); }
+  .builder-q-type {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--box-soft);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .builder-q-required {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+  .builder-q-options { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Create-survey choice modal cards */
+  .choice-modal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.30);
+    z-index: 15;
+    padding: 20px;
+  }
+  .choice-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .choice-card .ttl { font-size: 14px; font-weight: 700; }
+  .choice-card .sub { font-size: 10px; color: var(--ink-mute); margin-top: 3px; }
+  .choice-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .choice-option {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+  }
+  .choice-option:hover { background: #f5f5f5; }
+  .choice-option .ic { font-size: 18px; margin-bottom: 4px; }
+  .choice-option .nm { font-size: 11px; font-weight: 700; }
+  .choice-option .ds { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Compare grid (Pre/Post) */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+  .compare-cell {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+  .compare-cell .lbl { color: var(--ink-mute); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .compare-cell .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .compare-cell .delta { font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Survey-selector card list */
+  .selector-list {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+  .selector-row {
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .selector-row:hover { background: #f5f5f5; }
+  .selector-row.selected { background: #1a1a1a; color: #fff; }
+
+  /* Theme/code chips for qualitative analysis */
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: #fff;
+    margin: 2px 2px 0 0;
+    cursor: pointer;
+  }
+  .theme-chip:hover { background: #f5f5f5; }
+  .theme-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  /* Bar chart (horizontal) for "Primary Needs Frequency" */
+  .h-barchart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 24px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .h-barchart-row .lbl { color: var(--ink-soft); }
+  .h-barchart-row .bar { height: 8px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .h-barchart-row .bar > div { height: 100%; background: #2a2a2a; }
+  .h-barchart-row .num { text-align: right; font-weight: 700; }
+
+  /* ── Volunteer Management primitives ───────────────────────────── */
+
+  /* Avatar circle */
+  .vol-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--box);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .vol-avatar.lg { width: 36px; height: 36px; font-size: 12px; }
+
+  /* Pending logs warning card */
+  .pending-banner {
+    border: 1px solid #4a4a4a;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .pending-banner .head {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .pending-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .pending-log-row .body { flex: 1; min-width: 0; }
+  .pending-log-row .name { font-weight: 700; color: var(--ink); font-size: 10px; }
+  .pending-log-row .desc { color: var(--ink-mute); line-height: 1.3; margin-top: 1px; }
+  .pending-log-row .meta { color: var(--ink-mute); font-size: 8.5px; margin-top: 2px; }
+  .pending-log-row .actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .pending-log-row .btn-ico {
+    width: 24px; height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .pending-log-row .btn-ico.accept { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .pending-log-row .btn-ico.reject { background: #fff; color: #2a2a2a; border-style: dashed; }
+
+  /* Activity selector (attendance left pane) */
+  .activity-list {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .activity-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: #fafafa; }
+  .activity-item.active {
+    background: #f4f4f4;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 7px;
+  }
+  .activity-item .title-row { display: flex; align-items: center; justify-content: space-between; }
+  .activity-item .title { font-weight: 700; color: var(--ink); }
+  .activity-item .prog { color: var(--ink-mute); font-size: 9px; margin-top: 1px; }
+  .activity-item .meta {
+    display: flex; justify-content: space-between;
+    font-size: 8.5px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* OTP block */
+  .otp-display {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-align: center;
+    padding: 12px 8px;
+    background: #f4f4f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .otp-empty {
+    padding: 16px 8px;
+    text-align: center;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink-mute);
+  }
+  .otp-meta {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* QR placeholder */
+  .qr-block {
+    width: 130px; height: 130px;
+    background:
+      conic-gradient(from 0deg at 50% 50%, #1a1a1a 0% 8%, #fff 8% 16%, #1a1a1a 16% 24%, #fff 24% 32%, #1a1a1a 32% 40%, #fff 40% 48%, #1a1a1a 48% 56%, #fff 56% 64%, #1a1a1a 64% 72%, #fff 72% 80%, #1a1a1a 80% 88%, #fff 88% 100%),
+      #fff;
+    background-blend-mode: normal;
+    border: 4px solid #fff;
+    outline: 1px solid var(--line);
+    margin: 0 auto;
+    position: relative;
+  }
+  /* Cheap QR-ish look via tiled radial gradients */
+  .qr-block {
+    background:
+      radial-gradient(circle, #1a1a1a 25%, transparent 26%) 0 0 / 10px 10px,
+      radial-gradient(circle, #1a1a1a 22%, transparent 23%) 5px 5px / 10px 10px,
+      #fff;
+  }
+  .qr-block::before, .qr-block::after {
+    content: ""; position: absolute;
+    width: 28px; height: 28px;
+    border: 5px solid #1a1a1a;
+    background: #fff;
+  }
+  .qr-block::before { top: 4px; left: 4px; }
+  .qr-block::after { top: 4px; right: 4px; }
+
+  .qr-empty {
+    width: 130px; height: 130px;
+    background: #fafafa;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--ink-mute);
+  }
+
+  /* Roster list */
+  .roster-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+  }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-row .body { flex: 1; min-width: 0; }
+  .roster-row .name { font-weight: 600; color: var(--ink); }
+  .roster-row .email { color: var(--ink-mute); font-size: 9px; }
+  .roster-row .method {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 8.5px;
+    font-weight: 600;
+  }
+  .roster-row .method.qr     { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .roster-row .method.otp    { background: #f4f4f4; color: var(--ink); border-color: var(--line); }
+  .roster-row .method.manual { background: #fff; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+  .roster-row .time { font-size: 9px; color: var(--ink-mute); white-space: nowrap; }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role:</label>
+    <select id="rolePicker">
+      <option value="barangay_captain">Barangay Captain (sees Approval Queue)</option>
+      <option value="barangay_secretary">Barangay Secretary</option>
+      <option value="barangay_mother_leader">Mother Leader</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE INFO (for sidebar user block)
+   ============================================================ */
+const ROLE_INFO = {
+  barangay_captain:      { label: "Barangay Captain",  name: "Cap. P. Reyes",  email: "preyes@brgy.gov.ph"   },
+  barangay_secretary:    { label: "Barangay Secretary", name: "Sec. A. Cruz",   email: "acruz@brgy.gov.ph"    },
+  barangay_mother_leader:{ label: "Mother Leader",      name: "ML L. Bautista", email: "lbautista@brgy.gov.ph"},
+};
+let currentRole = "barangay_captain";
+
+/* ============================================================
+   BARANGAY SIDEBAR NAV (mirrors barangayNav in Sidebar.tsx)
+   Each leaf has a screenId pointing at SCREENS.
+   ============================================================ */
+const BARANGAY_NAV = [
+  { key: "dashboard",    label: "Dashboard",             screen: "dashboard" },
+  { key: "partnership",  label: "Partnership Management", screen: "partnership" },
+  {
+    key: "cna_grp", label: "Community Needs Assessment", group: true,
+    children: [
+      { key: "submit_needs", label: "Submit Community Needs", screen: "submit_needs" },
+      { key: "approvals",    label: "Approval Queue",         screen: "approvals", roles: ["barangay_captain"] },
+      { key: "surveys",      label: "Survey Responses",       screen: "surveys" },
+    ],
+  },
+  { key: "reports", label: "Reporting", screen: "reports" },
+  {
+    key: "comm_grp", label: "Communication", group: true,
+    children: [
+      { key: "forum", label: "Discussion Forum", screen: "forum" },
+    ],
+  },
+];
+
+// Pinned at the bottom of the sidebar.
+const SIDEBAR_PINNED = [
+  { key: "chatbot",       label: "AI Assistant",  screen: "chatbot"       },
+  { key: "notifications", label: "Notifications", screen: "notifications" },
+];
+
+// (Barangay roles share one nav; Approval Queue child is gated by role allowlist.)
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   route   — path string for tile header
+   title   — page title shown in the in-tile header
+   navKey  — which sidebar item should be highlighted
+   caption — 1-2 sentence description shown below the tile
+   render  — returns HTML for the page body
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN (entry point) ---------- */
+  login: {
+    route:     "/login",
+    title:     "Sign In",
+    navKey:    "login",
+    chromeless: true,
+    caption:   "Entry point. Email/password sign-in via Supabase Auth. On success, middleware reads the user's role from the users table and forwards to the matching dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input ${s.email ? "filled" : ""}" data-action="fill" data-field="email">${s.email ? "officer@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input ${s.password ? "filled" : ""}" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>
+    `,
+  },
+
+  /* ---------- BARANGAY DASHBOARD ---------- */
+  dashboard: {
+    route:   "/barangay",
+    title:   "Dashboard",
+    navKey:  "dashboard",
+    caption: "Barangay landing page. 3 KPIs (Active Partnerships, Pending Submissions, Total Beneficiaries), then Recent Programs + Action Items panels. Data comes from /api/barangay/dashboard, scoped to the signed-in user's barangay assignment.",
+    render:  () => `
+      <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="kpi" data-action="go:partnership"><span class="kpi-label">🤝 Active Partnerships</span><span class="kpi-value">5</span><span class="kpi-sub">Programs in your barangay</span></div>
+        <div class="kpi" data-action="go:submit_needs"><span class="kpi-label">📋 Pending Submissions</span><span class="kpi-value">3</span><span class="kpi-sub">Awaiting captain approval</span></div>
+        <div class="kpi" data-action="go:reports"><span class="kpi-label">👥 Total Beneficiaries</span><span class="kpi-value">1,240</span><span class="kpi-sub">Across all programs</span></div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Recent Programs</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Literacy Drive — Lolomboy",       range: "May 2025 – Jul 2025", vols: 12, status: "active" },
+              { title: "Health Caravan — Antipona",      range: "May 2025 – Jun 2025", vols: 9,  status: "active" },
+              { title: "Bayanihan Clean-up — Bunducan",  range: "Apr 2025",            vols: 22, status: "completed" },
+              { title: "DRR Workshop — Q2",              range: "Jun 2025",            vols: 0,  status: "upcoming" },
+            ].map((p) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;">
+                <div>
+                  <div style="font-weight: 600; font-size: 10.5px;">${p.title}</div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.range} · ${p.vols} volunteers</div>
+                </div>
+                <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 8.5px;">${p.status}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">Action Items</span></div>
+          <div class="panel-body dense">
+            ${[
+              { task: "Review 3 pending community needs (Captain)", priority: "high",   date: "May 17, 2025" },
+              { task: "Complete health & nutrition survey",          priority: "medium", date: "May 14, 2025" },
+              { task: "Sitio Mabini flood drainage report",         priority: "high",   date: "May 12, 2025" },
+              { task: "Submit Q2 partnership feedback to PARAYA",   priority: "low",    date: "May 03, 2025" },
+            ].map((a) => `
+              <div style="padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
+                  <div style="font-weight: 600; font-size: 10.5px;">${a.task}</div>
+                  <span class="status-badge ${a.priority === "high" ? "rejected" : a.priority === "medium" ? "pre_screening" : "draft"}" style="font-size: 8.5px; text-transform: capitalize;">${a.priority}</span>
+                </div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 3px;">Submitted ${a.date}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    `,
+  },
+
+};
+
+/* ---------- PARTNERSHIP (own-barangay read-only view) ---------- */
+
+function renderPartnership() {
+  return `
+    <div style="margin-bottom: 10px;">
+      <div style="font-weight: 700; font-size: 13px;">🤝 Our Partnership</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Your barangay's registered profile, contact information, and partnership history with PARAYA. Edits are managed by PARAYA officers.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <span class="ttl">📍 Brgy. Lolomboy</span>
+        <span class="status-badge approved" style="font-size: 8.5px;">Active Partnership</span>
+      </div>
+      <div class="panel-body dense">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;">
+          <div class="detail-field">
+            <div class="lbl">Province</div>
+            <div class="val">Bulacan</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Municipality</div>
+            <div class="val">Bocaue</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Total population</div>
+            <div class="val">4,820</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Total households</div>
+            <div class="val">1,180</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Partnership since</div>
+            <div class="val">Mar 14, 2024</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Coordinates</div>
+            <div class="val" style="font-family: monospace; font-size: 10px;">14.8025, 120.9305</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head"><span class="ttl">📞 Contact Information</span></div>
+      <div class="panel-body dense">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;">
+          <div class="detail-field">
+            <div class="lbl">Contact person</div>
+            <div class="val">Cap. Pedro Reyes</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Phone</div>
+            <div class="val">+63 917 555 0203</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Email</div>
+            <div class="val">lolomboy@brgy.gov.ph</div>
+          </div>
+          <div class="detail-field">
+            <div class="lbl">Office address</div>
+            <div class="val">Brgy. Hall, Sitio Bagong, Lolomboy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="ttl">📜 Partnership History</span></div>
+      <div class="panel-body dense">
+        ${[
+          { date: "May 14, 2025", event: "Literacy Drive — Lolomboy",     desc: "Program kickoff. 12 volunteers assigned.",                            by: "PARAYA Director" },
+          { date: "Mar 22, 2025", event: "DRR Workshop completed",        desc: "Q1 community resilience training. 84 attendees.",                     by: "PARAYA Associate" },
+          { date: "Nov 18, 2024", event: "Quarterly liaison sync",        desc: "Captain + Mother Leader met with PARAYA staff. Agreed Q1 priorities.", by: "PARAYA Director" },
+          { date: "Mar 14, 2024", event: "Partnership established",       desc: "Brgy. Lolomboy onboarded as a PARAYA partner barangay.",              by: "PARAYA Director" },
+        ].map((h) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--box-soft);">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a; margin-top: 6px; flex-shrink: 0;"></div>
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <span style="font-weight: 700; font-size: 10.5px;">${h.event}</span>
+                <span style="font-size: 9px; color: var(--ink-mute);">${h.date}</span>
+              </div>
+              <div style="font-size: 9.5px; color: var(--ink-soft); margin-top: 2px; line-height: 1.4;">${h.desc}</div>
+              <div style="font-size: 9px; color: var(--ink-mute); margin-top: 2px;">Recorded by ${h.by}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.partnership = {
+  route:   "/barangay/partnership",
+  title:   "Partnership Management",
+  navKey:  "partnership",
+  caption: "Read-only barangay profile view. Shows the barangay's registered info (population, households, coordinates), contact information, and an append-only timeline of partnership events (program kickoffs, syncs, captain rotations). The Edit button is hidden — RLS only allows PARAYA officers to mutate barangay rows.",
+  render:  () => renderPartnership(),
+};
+
+/* ---------- SUBMIT COMMUNITY NEEDS ---------- */
+
+const NEED_CATEGORIES = [
+  { value: "health",        label: "Health",        desc: "Medical access, sanitation, nutrition" },
+  { value: "economic",      label: "Economic",      desc: "Livelihood, employment, poverty" },
+  { value: "environmental", label: "Environmental", desc: "Waste, flooding, pollution" },
+  { value: "social",        label: "Social",        desc: "Education, safety, community services" },
+];
+
+const SAMPLE_RECENT_NEEDS = [
+  { title: "Lack of clean drinking water in Sitio Mabini", category: "health",        priority: "high",   status: "pending_captain", date: "May 17, 2025", notes: null },
+  { title: "Flooding on Lolomboy main road during heavy rains", category: "environmental", priority: "high",   status: "approved",        date: "May 14, 2025", notes: null },
+  { title: "Youth requesting after-school sports program",  category: "social",        priority: "low",    status: "approved",        date: "May 09, 2025", notes: null },
+  { title: "Sari-sari stores struggling post-pandemic",     category: "economic",      priority: "medium", status: "needs_revision",  date: "May 02, 2025", notes: "Please add the number of affected households and any prior outreach attempts." },
+  { title: "Trash collection bypasses Purok 3",             category: "environmental", priority: "medium", status: "rejected",        date: "Apr 28, 2025", notes: "This is a municipal service issue, not within PARAYA's program scope. Please contact MENRO directly." },
+];
+
+const NEED_STATUS_META = {
+  pending_captain:  { label: "Awaiting Captain",     class: "pre_screening" },
+  approved:         { label: "Forwarded to PARAYA", class: "approved"       },
+  rejected:         { label: "Rejected",             class: "rejected"       },
+  needs_revision:   { label: "Needs Revision",       class: "submitted"      },
+};
+
+function renderSubmitNeeds(state) {
+  const selectedCat      = state.need_cat      ?? null;
+  const selectedPriority = state.need_priority ?? "medium";
+  return `
+    <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;">
+
+      <!-- Form -->
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">📋 Community Needs Report</span></div>
+        <div class="panel-body" style="padding: 14px;">
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 10px;">
+            Report community needs for review by the Barangay Captain. Approved submissions are forwarded to PARAYA for planning and action.
+          </div>
+
+          <div class="sheet-field">
+            <span class="sheet-label">Category <span class="req">*</span></span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;">
+              ${NEED_CATEGORIES.map((c) => `
+                <div data-action="sn-pick-cat:${c.value}" style="padding: 8px 10px; border: 1px solid ${selectedCat === c.value ? "#1a1a1a" : "var(--line-soft)"}; background: ${selectedCat === c.value ? "#f4f4f4" : "#fff"}; border-radius: 4px; cursor: pointer;">
+                  <div style="font-weight: 700; font-size: 10.5px;">${c.label}</div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${c.desc}</div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <div class="sheet-field" style="margin-top: 10px;">
+            <span class="sheet-label">Need title <span class="req">*</span></span>
+            <div class="sheet-input">e.g. Lack of clean drinking water in Sitio Mabini</div>
+          </div>
+
+          <div class="sheet-field" style="margin-top: 10px;">
+            <span class="sheet-label">Description <span class="req">*</span></span>
+            <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 8px; line-height: 1.4;">Describe the situation in detail — how long it has been occurring, who is affected, what has been done so far…</div>
+          </div>
+
+          <div class="sheet-field-row" style="margin-top: 10px;">
+            <div class="sheet-field">
+              <span class="sheet-label">Priority level</span>
+              <div style="display: flex; gap: 5px;">
+                ${["high", "medium", "low"].map((p) => `
+                  <span data-action="sn-pick-priority:${p}" class="wf-btn ${selectedPriority === p ? "primary" : ""}" style="flex: 1; padding: 4px 8px; font-size: 9.5px; text-transform: capitalize; text-align: center;">${p}</span>
+                `).join("")}
+              </div>
+            </div>
+            <div class="sheet-field">
+              <span class="sheet-label">Estimated affected residents</span>
+              <div class="sheet-input">0</div>
+            </div>
+          </div>
+
+          <div class="sheet-field" style="margin-top: 10px;">
+            <span class="sheet-label">Sitio / Purok <span style="color: var(--ink-mute);">(optional)</span></span>
+            <div class="sheet-input">e.g. Sitio Mabini, Purok 3</div>
+            <div class="sheet-hint">Helps PARAYA target outreach to the specific sub-barangay where the need exists.</div>
+          </div>
+
+          <div class="notice info" style="margin-top: 12px;">
+            ⓘ Submissions are reviewed by the Barangay Captain first. You'll receive a notification when it's approved (or sent back for revision).
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+            <span class="wf-btn primary" data-action="sn-submit" style="padding: 6px 16px;">▶ Submit for Approval</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent submissions sidebar -->
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">📂 Recent Submissions</span></div>
+        <div class="panel-body" style="padding: 8px;">
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 8px; padding: 0 4px;">
+            Your barangay's last 10 submissions and their approval status.
+          </div>
+          ${SAMPLE_RECENT_NEEDS.map((n) => {
+            const meta = NEED_STATUS_META[n.status];
+            return `
+              <div style="padding: 7px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fafafa; margin-bottom: 5px;">
+                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
+                  <div style="font-weight: 600; font-size: 10px; line-height: 1.3;">${n.title}</div>
+                  <span class="status-badge ${meta.class}" style="font-size: 8px; flex-shrink: 0;">${meta.label}</span>
+                </div>
+                <div style="font-size: 8.5px; color: var(--ink-mute); margin-top: 3px; text-transform: capitalize;">${n.category} · ${n.priority} priority · ${n.date}</div>
+                ${n.notes ? `<div style="font-size: 9px; color: var(--ink-soft); font-style: italic; margin-top: 4px; padding-left: 6px; border-left: 2px solid var(--line-soft); line-height: 1.4;">Captain's note: ${n.notes}</div>` : ""}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSubmitSuccess() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 56px; height: 56px; border-radius: 12px; background: #ececec; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 24px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px;">Submitted for Approval</div>
+      <div style="font-size: 11px; color: var(--ink-soft); margin-top: 8px; line-height: 1.55;">
+        Your submission is now awaiting review by the Barangay Captain. Once approved, it will be forwarded to PARAYA for action.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center; margin-top: 16px;">
+        <span class="wf-btn primary" data-action="sn-submit-another" style="padding: 6px 14px;">+ Submit Another</span>
+        <span class="wf-btn" data-action="sn-back-to-list" style="padding: 6px 14px;">View My Submissions</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.submit_needs = {
+  route:   "/barangay/submit-needs",
+  title:   "Submit Community Needs",
+  navKey:  "submit_needs",
+  caption: "2-column layout: submission form on the left, recent-submissions sidebar on the right. Form fields: 4-category picker (Health/Economic/Environmental/Social), title, description, priority (3-level), affected count, sitio. Submissions go to status='pending_captain'; the Captain reviews them in the Approval Queue.",
+  render:  (s) => renderSubmitNeeds(s),
+};
+
+SCREENS.submit_needs_picked_cat = {
+  route:   "/barangay/submit-needs",
+  title:   "Submit Community Needs",
+  navKey:  "submit_needs",
+  caption: "Form with a category selected. The chosen card flips to a darker border + filled background, and is included in the Zod validation. The 4 categories use the same taxonomy as the household primary_needs and community_needs.category — values flow through the entire CNA pipeline.",
+  render:  (s) => renderSubmitNeeds({ ...s, need_cat: s.need_cat ?? "health" }),
+};
+
+SCREENS.submit_needs_success = {
+  route:   "/barangay/submit-needs",
+  title:   "Submit Community Needs",
+  navKey:  "submit_needs",
+  caption: "Post-submit confirmation state. + Submit Another resets the form; View My Submissions scrolls to the recent-submissions sidebar (or in the wireframe, returns to the form view).",
+  render:  () => renderSubmitSuccess(),
+};
+
+/* ---------- APPROVAL QUEUE (Captain only) ---------- */
+
+const SAMPLE_PENDING_NEEDS = [
+  { id: 0, title: "Lack of clean drinking water in Sitio Mabini", category: "health",        priority: "high",   status: "pending_captain", date: "May 17, 2025", who: "Sec. A. Cruz",       sitio: "Sitio Mabini",  affected: 42, desc: "Wells in Sitio Mabini have shown saline contamination for 3+ months. Affects 42 households. Brgy. council has limited budget for hauling water." },
+  { id: 1, title: "Trash collection bypasses Purok 3",             category: "environmental", priority: "medium", status: "pending_captain", date: "May 16, 2025", who: "ML L. Bautista",      sitio: "Purok 3",       affected: 28, desc: "MENRO truck has skipped Purok 3 for 2 weeks now. Residents are starting to burn waste, which is creating respiratory complaints." },
+  { id: 2, title: "Mangrove die-off near pier",                    category: "environmental", priority: "high",   status: "pending_captain", date: "May 15, 2025", who: "ML L. Bautista",      sitio: "Coastal",       affected: null, desc: "40m stretch of mangrove dying off. Suspected runoff from new market drainage. Has implications for shore erosion." },
+];
+
+const SAMPLE_REVIEWED_NEEDS = [
+  { id: 100, title: "Flooding on Lolomboy main road",      category: "environmental", priority: "high",   status: "approved",        date: "May 14, 2025", who: "Sec. A. Cruz",      decidedNotes: null, decidedAt: "May 15, 2025" },
+  { id: 101, title: "Youth after-school sports program",   category: "social",        priority: "low",    status: "approved",        date: "May 09, 2025", who: "ML L. Bautista",     decidedNotes: null, decidedAt: "May 10, 2025" },
+  { id: 102, title: "Sari-sari stores struggling",         category: "economic",      priority: "medium", status: "needs_revision",  date: "May 02, 2025", who: "Sec. A. Cruz",      decidedNotes: "Please add the number of affected households and any prior outreach attempts.", decidedAt: "May 04, 2025" },
+];
+
+function renderApprovals(state) {
+  const tab = state.appr_tab ?? "pending";
+  const rows = tab === "pending"
+    ? SAMPLE_PENDING_NEEDS
+    : [...SAMPLE_PENDING_NEEDS, ...SAMPLE_REVIEWED_NEEDS];
+
+  return `
+    <div style="margin-bottom: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px;">
+        ✓ Community Needs — Approval Queue
+        <span class="status-badge pre_screening" style="font-size: 8.5px;">${SAMPLE_PENDING_NEEDS.length} pending</span>
+      </div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Review community needs submitted by your Barangay Secretary or Mother Leader. Approved needs are forwarded to PARAYA.
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line-soft); margin-bottom: 10px;">
+      <div style="display: flex;">
+        <div data-action="appr-tab:pending" style="padding: 7px 14px; cursor: pointer; border-bottom: 2px solid ${tab === "pending" ? "#1a1a1a" : "transparent"}; margin-bottom: -1px; font-size: 11px; font-weight: ${tab === "pending" ? 700 : 500}; color: ${tab === "pending" ? "#1a1a1a" : "var(--ink-mute)"};">
+          Pending Review${tab === "pending" ? ` · ${SAMPLE_PENDING_NEEDS.length}` : ""}
+        </div>
+        <div data-action="appr-tab:all" style="padding: 7px 14px; cursor: pointer; border-bottom: 2px solid ${tab === "all" ? "#1a1a1a" : "transparent"}; margin-bottom: -1px; font-size: 11px; font-weight: ${tab === "all" ? 700 : 500}; color: ${tab === "all" ? "#1a1a1a" : "var(--ink-mute)"};">
+          All Submissions${tab === "all" ? ` · ${rows.length}` : ""}
+        </div>
+      </div>
+      <span class="wf-btn" data-action="appr-refresh" style="padding: 4px 10px; font-size: 9.5px;">↻ Refresh</span>
+    </div>
+
+    ${rows.map((n) => {
+      const meta = NEED_STATUS_META[n.status];
+      return `
+        <div class="panel" style="margin-bottom: 8px;">
+          <div class="panel-body dense">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
+              <span style="font-weight: 700; font-size: 11.5px;">${n.title}</span>
+              <span class="status-badge ${meta.class}" style="font-size: 8.5px;">${meta.label}</span>
+              <span class="status-badge ${n.priority === "high" ? "rejected" : n.priority === "medium" ? "pre_screening" : "draft"}" style="font-size: 8.5px; text-transform: capitalize;">${n.priority}</span>
+              <span class="status-badge draft" style="font-size: 8.5px; text-transform: capitalize;">${n.category}</span>
+            </div>
+            <div style="display: flex; gap: 10px; font-size: 9px; color: var(--ink-mute); flex-wrap: wrap;">
+              <span>👤 ${n.who}</span>
+              <span>📅 ${n.date}</span>
+              ${n.sitio ? `<span>Sitio: <strong style="color: var(--ink-soft);">${n.sitio}</strong></span>` : ""}
+              ${n.affected != null ? `<span>${n.affected.toLocaleString()} affected</span>` : ""}
+            </div>
+            ${n.desc ? `<div style="font-size: 10px; color: var(--ink); margin-top: 6px; line-height: 1.5;">${n.desc}</div>` : ""}
+
+            ${n.decidedNotes ? `
+              <div class="notice ${n.status === "approved" ? "success" : n.status === "rejected" ? "accent" : "info"}" style="margin-top: 8px; font-size: 9.5px;">
+                <strong>Captain's note:</strong> ${n.decidedNotes}
+                ${n.decidedAt ? `<div style="font-weight: 400; color: var(--ink-mute); margin-top: 3px;">${n.decidedAt}</div>` : ""}
+              </div>
+            ` : ""}
+
+            ${n.status === "pending_captain" ? `
+              <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft);">
+                <span class="wf-btn primary" data-action="appr-approve" data-row="${n.id}" style="padding: 4px 10px; font-size: 9.5px;">✓ Approve &amp; Forward to PARAYA</span>
+                <span class="wf-btn" data-action="appr-revise" data-row="${n.id}" style="padding: 4px 10px; font-size: 9.5px;">ⓘ Ask for Revision</span>
+                <span class="wf-btn" data-action="appr-reject" data-row="${n.id}" style="padding: 4px 10px; font-size: 9.5px; border-style: dashed;">✕ Reject</span>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }).join("")}
+  `;
+}
+
+function renderApprovalDialog(kind) {
+  const isRevise = kind === "needs_revision";
+  return `
+    <div class="sheet-backdrop" data-action="appr-dlg-cancel-backdrop"></div>
+    <div style="position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); width: 440px; z-index: 16; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line-soft);">
+        <div style="font-weight: 700; font-size: 13px;">${isRevise ? "ⓘ Request Revision" : "✕ Reject Need"}</div>
+        <span class="sheet-close" data-action="appr-dlg-cancel-x">✕</span>
+      </div>
+      <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 10.5px;">
+          <strong>Lack of clean drinking water in Sitio Mabini</strong>
+          <span style="color: var(--ink-mute);"> — submitted by Sec. A. Cruz</span>
+        </div>
+        <div class="sheet-field">
+          <span class="sheet-label">${isRevise ? "What needs to be revised?" : "Reason for rejection"} <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 8px; line-height: 1.45;">${isRevise ? "Explain what should be clarified or added…" : "Explain why this need is being rejected…"}</div>
+          <div class="sheet-hint">The submitter will be notified with this message.</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--line-soft); background: #fafafa;">
+        <span class="wf-btn" data-action="appr-dlg-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="appr-dlg-confirm" style="${isRevise ? "" : "background: #1a1a1a;"}">${isRevise ? "Send for Revision" : "Confirm Rejection"}</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.approvals = {
+  route:   "/barangay/approvals",
+  title:   "Approval Queue",
+  navKey:  "approvals",
+  caption: "Captain-only queue. Reviews community needs submitted by the Secretary or Mother Leader. Pending tab shows only status='pending_captain'; All tab includes already-decided needs. Per-need actions: ✓ Approve & Forward to PARAYA, ⓘ Ask for Revision (notes required), ✕ Reject (notes required).",
+  render:  (s) => renderApprovals(s),
+};
+
+SCREENS.approvals_all = {
+  route:   "/barangay/approvals",
+  title:   "Approval Queue",
+  navKey:  "approvals",
+  caption: "All Submissions tab. Includes already-decided needs with Captain's notes inline (approved/needs_revision/rejected). Approved needs flip to a forwarded-to-PARAYA state and appear in /officer/analytics/community-needs once PARAYA picks them up.",
+  render:  (s) => renderApprovals({ ...s, appr_tab: "all" }),
+};
+
+SCREENS.approvals_revise_dialog = {
+  route:   "/barangay/approvals",
+  title:   "Approval Queue",
+  navKey:  "approvals",
+  caption: "Ask for Revision dialog. Notes are required and become the rejection reason in the submitter's notification + recent-submissions sidebar. Routes the need to approval_status='needs_revision'; the original submitter can edit and resubmit.",
+  render:  (s) => `${renderApprovals(s)}${renderApprovalDialog("needs_revision")}`,
+};
+
+SCREENS.approvals_reject_dialog = {
+  route:   "/barangay/approvals",
+  title:   "Approval Queue",
+  navKey:  "approvals",
+  caption: "Reject Need dialog. Notes required. Final decision — the need's approval_status flips to 'rejected' and it's removed from the active queue. Unlike Revise, rejected items can't be re-submitted as-is; the submitter would have to file a new need.",
+  render:  (s) => `${renderApprovals(s)}${renderApprovalDialog("reject")}`,
+};
+
+/* ---------- SURVEYS (answer published surveys) ---------- */
+
+const SAMPLE_BARANGAY_SURVEYS = [
+  { id: 0, title: "Health needs assessment — May 2025",  desc: "Quarterly check on community health access, sanitation, and nutrition.", category: "Health",         questions: 12, done: false },
+  { id: 1, title: "Literacy survey — Lolomboy",          desc: "Baseline reading + writing self-assessment for households with school-age kids.", category: "Education", questions: 8,  done: true  },
+  { id: 2, title: "Flood preparedness pulse — Wakas",    desc: "Two-month follow-up after DRR workshop to gauge sustained adoption.", category: "Disaster prep",      questions: 10, done: false },
+  { id: 3, title: "Sari-sari livelihood profiling",      desc: "Income and inventory profile for sari-sari store operators.", category: "Economic",                    questions: 14, done: false },
+];
+
+function renderSurveysList() {
+  return `
+    <div style="margin-bottom: 10px;">
+      <div style="font-weight: 700; font-size: 13px;">📊 Available Surveys</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Complete surveys assigned by PARAYA officers to help with community planning.
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+      ${SAMPLE_BARANGAY_SURVEYS.map((s, i) => `
+        <div class="panel">
+          <div class="panel-body dense">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <div style="width: 32px; height: 32px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px;">📄</div>
+              <span class="status-badge ${s.done ? "approved" : "submitted"}" style="font-size: 8.5px;">${s.done ? "✓ Completed" : "Open"}</span>
+            </div>
+            <div style="font-weight: 700; font-size: 11px; margin-top: 6px; line-height: 1.3;">${s.title}</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px; line-height: 1.4;">${s.desc}</div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--ink-mute); margin-top: 8px;">
+              <span>${s.category}</span>
+              <span>${s.questions} questions</span>
+            </div>
+            <span class="wf-btn ${s.done ? "" : "primary"}" data-action="${s.done ? "surv-done" : "surv-open"}" data-row="${i}" style="display: block; text-align: center; margin-top: 8px; padding: 5px 10px; ${s.done ? "color: var(--ink-mute);" : ""}">${s.done ? "✓ Submitted" : "Answer Survey"}</span>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSurveysAnswerSheet() {
+  return `
+    <div class="sheet-backdrop" data-action="surv-cancel-backdrop"></div>
+    <div class="sheet-panel" style="width: 60%;">
+      <div class="sheet-head">
+        <div>
+          <span class="sheet-title">Health needs assessment — May 2025</span>
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">Quarterly check on community health access, sanitation, and nutrition. · 12 questions</div>
+        </div>
+        <span class="sheet-close" data-action="surv-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+
+        <div class="sheet-field">
+          <span class="sheet-label">1. How many households in your sitio have boiled-water-only as their drinking source? <span class="req">*</span></span>
+          <div class="sheet-input">e.g. 42</div>
+        </div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">2. Which of the following health services are accessible within 30 minutes? (select all that apply)</span>
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+            ${["Barangay Health Station (BHS)", "Rural Health Unit (RHU)", "Hospital", "Private clinic", "Mobile medical caravan"].map((opt, i) => `
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 10px;">
+                <div style="width: 14px; height: 14px; border: 2px solid ${i === 0 || i === 1 ? "#1a1a1a" : "var(--line)"}; border-radius: 2px; background: ${i === 0 || i === 1 ? "#1a1a1a" : "#fff"}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">${i === 0 || i === 1 ? '<span style="color: #fff; font-size: 9px;">✓</span>' : ""}</div>
+                ${opt}
+              </label>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">3. How would you rate community access to clean drinking water? <span class="req">*</span></span>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            ${[1, 2, 3, 4, 5].map((n) => `
+              <div data-action="surv-rate" data-val="${n}" style="cursor: pointer; font-size: 22px; color: ${n <= 2 ? "#1a1a1a" : "var(--line)"};">★</div>
+            `).join("")}
+            <span style="font-size: 9.5px; color: var(--ink-mute); align-self: center; margin-left: 6px;">2/5 — Poor</span>
+          </div>
+        </div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">4. Which single health issue most affects your sitio? <span class="req">*</span></span>
+          <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 4px;">
+            ${["Sanitation / waste", "Drinking water access", "Maternal / child health", "Hypertension / chronic disease", "Mental health"].map((opt, i) => `
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 10px;">
+                <div style="width: 14px; height: 14px; border: 2px solid ${i === 1 ? "#1a1a1a" : "var(--line)"}; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">${i === 1 ? '<div style="width: 6px; height: 6px; background: #1a1a1a; border-radius: 50%;"></div>' : ""}</div>
+                ${opt}
+              </label>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="sheet-field">
+          <span class="sheet-label">5. Any additional health concerns specific to your barangay? <span style="color: var(--ink-mute);">(optional)</span></span>
+          <div class="sheet-input" style="min-height: 76px; align-items: flex-start; padding: 8px; line-height: 1.4;">Free-text response…</div>
+        </div>
+
+        <div style="font-size: 9px; color: var(--ink-mute); margin-top: 4px;">Showing 5 of 12 questions. Scroll for more.</div>
+
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="surv-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="surv-submit">▶ Submit Survey</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.surveys = {
+  route:   "/barangay/surveys",
+  title:   "Survey Responses",
+  navKey:  "surveys",
+  caption: "Card grid of published surveys. Non-officers only see surveys with status='published'. Each card shows title, description, category, question count, and a completion badge. Click 'Answer Survey' to open the question sheet; submitted surveys flip to a Completed badge and disable the button.",
+  render:  () => renderSurveysList(),
+};
+
+SCREENS.surveys_answer = {
+  route:   "/barangay/surveys",
+  title:   "Survey Responses",
+  navKey:  "surveys",
+  caption: "Answer Survey sheet. Question types from the builder: text (textarea), multiple_choice (radio), checkbox (multi), rating (1–5 stars). Required-question validation runs client-side; submission POSTs to /api/surveys/[id]/respond and creates a survey_responses + survey_answers row per question.",
+  render:  () => `${renderSurveysList()}${renderSurveysAnswerSheet()}`,
+};
+
+/* ---------- BARANGAY REPORTS (own-scope) ---------- */
+
+function renderBarangayReports() {
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">🏘 Brgy. Lolomboy</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">Bocaue, Bulacan · Partner since Mar 14, 2024</div>
+      </div>
+      <span class="status-badge approved" style="font-size: 8.5px;">Active Partnership</span>
+    </div>
+
+    <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr);">
+      <div class="kpi"><span class="kpi-label">🗂 Total Programs</span><span class="kpi-value">8</span><span class="kpi-sub">3 active · 5 completed</span></div>
+      <div class="kpi" style="border-left-color: #1a1a1a;"><span class="kpi-label">⏱ Volunteer Hours</span><span class="kpi-value">412</span><span class="kpi-sub">86 approved activities</span></div>
+      <div class="kpi" style="border-left-color: #4a4a4a;"><span class="kpi-label">📋 Community Needs</span><span class="kpi-value">14</span><span class="kpi-sub">5 unresolved</span></div>
+      <div class="kpi" style="border-left-color: #6a6a6a;"><span class="kpi-label">📊 Survey Responses</span><span class="kpi-value">38</span><span class="kpi-sub">received</span></div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <span class="ttl">📚 Programs</span>
+        <span class="wf-btn" data-action="rep-export-programs" style="padding: 3px 8px; font-size: 9.5px;">⬇ Export</span>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table class="tbl">
+          <thead><tr><th>Title</th><th>Status</th><th>Start</th><th>End</th></tr></thead>
+          <tbody>
+            <tr><td>Literacy Drive — Lolomboy</td><td><span class="status-badge approved" style="font-size: 8.5px;">active</span></td><td>May 26, 2025</td><td>Jul 30, 2025</td></tr>
+            <tr><td>Bayanihan Clean-up</td><td><span class="status-badge submitted" style="font-size: 8.5px;">completed</span></td><td>Apr 12, 2025</td><td>Apr 19, 2025</td></tr>
+            <tr><td>DRR Workshop — Q1</td><td><span class="status-badge submitted" style="font-size: 8.5px;">completed</span></td><td>Mar 18, 2025</td><td>Mar 22, 2025</td></tr>
+            <tr><td>Reading Caravan — Pilot</td><td><span class="status-badge submitted" style="font-size: 8.5px;">completed</span></td><td>Jan 14, 2025</td><td>Feb 28, 2025</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <span class="ttl">📋 Community Needs</span>
+        <span class="wf-btn" data-action="rep-export-needs" style="padding: 3px 8px; font-size: 9.5px;">⬇ Export</span>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table class="tbl">
+          <thead><tr><th>Category</th><th>Title</th><th>Priority</th><th>Submitted</th><th>Resolved?</th></tr></thead>
+          <tbody>
+            <tr><td>Health</td><td>Clean drinking water in Sitio Mabini</td><td><span class="status-badge rejected" style="font-size: 8.5px;">high</span></td><td>May 17, 2025</td><td><span style="color: var(--ink-mute);">No</span></td></tr>
+            <tr><td>Environmental</td><td>Flooding on main road</td><td><span class="status-badge rejected" style="font-size: 8.5px;">high</span></td><td>May 14, 2025</td><td>Yes</td></tr>
+            <tr><td>Social</td><td>Youth after-school sports</td><td><span class="status-badge draft" style="font-size: 8.5px;">low</span></td><td>May 09, 2025</td><td>Yes</td></tr>
+            <tr><td>Economic</td><td>Sari-sari stores struggling</td><td><span class="status-badge pre_screening" style="font-size: 8.5px;">medium</span></td><td>May 02, 2025</td><td><span style="color: var(--ink-mute);">No</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="ttl">📊 Survey Responses</span>
+        <span class="wf-btn" data-action="rep-export-surveys" style="padding: 3px 8px; font-size: 9.5px;">⬇ Export</span>
+      </div>
+      <div class="panel-body" style="padding: 0;">
+        <table class="tbl">
+          <thead><tr><th>Survey</th><th>Submitted</th></tr></thead>
+          <tbody>
+            <tr><td>Literacy survey — Lolomboy</td><td>May 13, 2025</td></tr>
+            <tr><td>DRR Workshop endline assessment</td><td>Mar 28, 2025</td></tr>
+            <tr><td>Q4 2024 partnership feedback</td><td>Dec 18, 2024</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.reports = {
+  route:   "/barangay/reports",
+  title:   "Reporting",
+  navKey:  "reports",
+  caption: "Read-only barangay-scoped report. Header shows partnership status + 4 KPIs (programs, volunteer hours, community needs, survey responses). Three sections (Programs / Community Needs / Survey Responses) each render a table with an inline Export menu. Data comes from /api/barangay/reports, scoped to the signed-in user's barangay.",
+  render:  () => renderBarangayReports(),
+};
+
+/* ---------- FORUM (shared semantics with officer view) ---------- */
+
+const SAMPLE_FORUM_THREADS = [
+  { id: 0, title: "Q3 program calendar — sync with PARAYA",   author: "R. Yanga (PARAYA)",  date: "May 17, 2025", replies: 8,  last: "2h ago", pinned: true,  locked: false },
+  { id: 1, title: "Sitio Mabini water — emergency response",  author: "Cap. P. Reyes",       date: "May 16, 2025", replies: 6,  last: "4h ago", pinned: false, locked: false },
+  { id: 2, title: "Mother Leader role expansion proposal",    author: "ML L. Bautista",      date: "May 14, 2025", replies: 12, last: "1d ago", pinned: false, locked: false },
+  { id: 3, title: "[ARCHIVED] Q1 retrospective",              author: "R. Yanga (PARAYA)",  date: "Apr 28, 2025", replies: 23, last: "3w ago", pinned: false, locked: true  },
+];
+
+function renderForum() {
+  return `
+    <div style="margin-bottom: 8px;">
+      <div style="font-weight: 700; font-size: 13px;">💬 Discussion Forum</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Internal threads for barangay leadership + PARAYA staff. Moderation actions (pin / lock / delete) are PARAYA-officer only — captains here are regular posters.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px;">
+      <div class="partner-search" style="flex: 1; max-width: 320px;">🔍 Search threads…</div>
+      <span class="partner-add-btn" data-action="forum-new">+ New Thread</span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${SAMPLE_FORUM_THREADS.map((t) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); cursor: pointer;" data-action="forum-open" data-id="${t.id}">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${t.pinned ? '<span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>' : ""}
+                ${t.locked ? '<span class="status-badge rejected" style="font-size: 8.5px;">🔒 Locked</span>' : ""}
+                <span style="font-weight: 700; font-size: 11px;">${t.title}</span>
+              </div>
+              <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">
+                ${t.author} · ${t.date} · 💬 ${t.replies} replies · last activity ${t.last}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderForumNewDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="forum-new-cancel-backdrop"></div>
+    <div class="sheet-panel" style="width: 50%;">
+      <div class="sheet-head">
+        <span class="sheet-title">💬 New Thread</span>
+        <span class="sheet-close" data-action="forum-new-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field"><span class="sheet-label">Title <span class="req">*</span></span><div class="sheet-input">What's the topic?</div></div>
+        <div class="sheet-field">
+          <span class="sheet-label">Body <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 140px; align-items: flex-start; padding: 10px; line-height: 1.5;">Share the context, question, or discussion starter…</div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="forum-new-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="forum-new-save">+ Create Thread</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderForumThread() {
+  return `
+    <span class="wf-btn" data-action="forum-back" style="padding: 3px 8px; font-size: 9.5px; margin-bottom: 10px; display: inline-block;">← Back to threads</span>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>
+            <span style="font-weight: 700; font-size: 13px;">Q3 program calendar — sync with PARAYA</span>
+          </div>
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">R. Yanga (PARAYA Director) · May 17, 2025 · 💬 8 replies</div>
+        </div>
+      </div>
+      <div class="panel-body dense">
+        <div style="font-size: 10.5px; line-height: 1.55;">
+          Hi Captain Reyes — proposing we sync next Tuesday at 2pm on the Q3 program calendar. Need to align on the Health Caravan extension for Lolomboy, possible Reading Caravan rollout in your sitios, and the new Digital Skills Lab pilot if Antipona's slots fill. Please add agenda items below.
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 10px; font-weight: 700; margin-bottom: 6px;">8 Replies</div>
+
+    ${[
+      { author: "Cap. P. Reyes",   date: "May 17, 2025 · 11:30", content: "Tuesday 2pm works. I'll bring the Mother Leader for the sitio-level discussion." },
+      { author: "ML L. Bautista",  date: "May 17, 2025 · 14:18", content: "Adding to agenda: Sitio Mabini water situation — would like to discuss if there's a PARAYA program slot we can fit it into." },
+      { author: "M. Cruz (PARAYA)", date: "May 17, 2025 · 16:42", content: "Good. Health Caravan team can coordinate site visit during the sync." },
+    ].map((r) => `
+      <div style="display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;">
+        <div class="vol-avatar">${r.author.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("")}</div>
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <span style="font-weight: 700; font-size: 10.5px;">${r.author}</span>
+            <span style="font-size: 9px; color: var(--ink-mute);">${r.date}</span>
+          </div>
+          <div style="font-size: 10px; margin-top: 3px; line-height: 1.5;">${r.content}</div>
+        </div>
+      </div>
+    `).join("")}
+
+    <div class="panel" style="margin-top: 10px;">
+      <div class="panel-head"><span class="ttl">Write a reply</span></div>
+      <div class="panel-body dense">
+        <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 10px; line-height: 1.5;">Type your reply…</div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <span class="wf-btn primary" data-action="forum-reply" style="padding: 4px 12px;">▶ Post Reply</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.forum = {
+  route:   "/barangay/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Internal forum. Search + thread list with pinned/locked badges. Captains and PARAYA staff post in mixed threads (officer threads about programs land here for the captain to weigh in).",
+  render:  () => renderForum(),
+};
+
+SCREENS.forum_new = {
+  route:   "/barangay/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "New Thread dialog. Title + body; @mentions notify the target user via /api/notifications.",
+  render:  () => `${renderForum()}${renderForumNewDialog()}`,
+};
+
+SCREENS.forum_thread = {
+  route:   "/barangay/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Thread detail. Barangay users can read + reply. The pin/lock/delete header buttons that officers see are hidden here (the captain isn't a forum moderator).",
+  render:  () => renderForumThread(),
+};
+
+/* ---------- CHATBOT, NOTIFICATIONS, PROFILE (shared semantics) ---------- */
+
+const SUGGESTED_PROMPTS_B = [
+  "How do I submit a community need?",
+  "Where can I see surveys assigned to my barangay?",
+  "How does the captain approve a need?",
+  "What programs are currently active in my barangay?",
+  "How do I update my notification preferences?",
+];
+
+function renderChatbot(state) {
+  const active = state.chat_active;
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100%;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center;">✨</div>
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">AGAPE Assistant</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">AI-powered platform guide · Claude</div>
+          </div>
+        </div>
+        ${active ? `<span class="wf-btn" data-action="chat-new" style="padding: 3px 8px; font-size: 9.5px;">↻ New chat</span>` : ""}
+      </div>
+      <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel-body" style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; ${active ? "" : "justify-content: center; align-items: center; text-align: center;"}">
+          ${!active ? `
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">Hi! I'm AGAPE Assistant.</div>
+              <div style="font-size: 10px; color: var(--ink-mute); margin-top: 4px; max-width: 280px;">
+                Ask me anything about needs, surveys, programs, or how to use the platform.
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; margin-top: 6px;">
+              ${SUGGESTED_PROMPTS_B.map((p, i) => `
+                <span class="wf-btn" data-action="chat-prompt:${i}" style="text-align: left; padding: 7px 12px; font-size: 10px; font-weight: 400;">${p}</span>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="background: #1a1a1a; color: #fff; max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; font-size: 10.5px; line-height: 1.5;">
+                How do I submit a community need?
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-start;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 12px;">🤖</div>
+              <div style="background: #fafafa; border: 1px solid var(--line-soft); max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; font-size: 10.5px; line-height: 1.55;">
+To submit a community need:
+
+1. Navigate to <strong>Community Needs Assessment → Submit Community Needs</strong> in the sidebar.
+2. Pick a category (Health / Economic / Environmental / Social).
+3. Fill in a clear title, detailed description, priority level, and (optionally) the affected count + sitio.
+4. Click <strong>Submit for Approval</strong>.
+
+Your submission goes to the Barangay Captain for review. Once approved, it's forwarded to PARAYA. You'll get notifications for both events.
+              </div>
+            </div>
+          `}
+        </div>
+        <div style="border-top: 1px solid var(--line-soft); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end;">
+          <div class="sheet-input" style="flex: 1; min-height: 36px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Ask me anything…</div>
+          <span class="wf-btn primary" data-action="chat-send" style="padding: 7px 12px;">▶</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 8.5px; color: var(--ink-mute); margin-top: 6px;">
+        AGAPE Assistant is AI-powered and may make mistakes. Do not rely on it for official decisions.
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.chatbot = {
+  route:   "/barangay/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Empty-state chatbot with 5 barangay-scoped suggested prompts. Click a prompt or type a question → routes to the active conversation view.",
+  render:  (s) => renderChatbot(s),
+};
+
+SCREENS.chatbot_active = {
+  route:   "/barangay/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Active conversation. Same back-and-forth bubble layout as the officer chatbot, but the AI is given barangay-scoped context so it can reference your specific programs/needs.",
+  render:  (s) => renderChatbot({ chat_active: true }),
+};
+
+const NOTIF_FILTER_LABEL = { all: "All notifications", unread: "Unread only", read: "Read only" };
+const SAMPLE_BARANGAY_NOTIFS = [
+  { id: 0, type: "warning", icon: "⚠", title: "3 community needs awaiting your review", message: "Captain — please review the pending submissions in your Approval Queue.", time: "20m ago", read: false },
+  { id: 1, type: "success", icon: "✓", title: "PARAYA accepted your forwarded need",   message: "\"Flooding on Lolomboy main road\" is now in PARAYA's planning queue.", time: "1h ago",  read: false },
+  { id: 2, type: "info",    icon: "ℹ", title: "New survey assigned: Health needs",     message: "Quarterly health assessment is now available.",                          time: "5h ago",  read: false },
+  { id: 3, type: "success", icon: "✓", title: "Captain approved your submission",      message: "\"Youth after-school sports program\" was approved and forwarded.",      time: "2d ago",  read: true  },
+  { id: 4, type: "info",    icon: "ℹ", title: "Q2 Literacy Drive — kickoff scheduled", message: "PARAYA confirmed May 26 launch in Lolomboy.",                            time: "3d ago",  read: true  },
+];
+const NOTIF_TYPE_BADGE = { info: "submitted", success: "approved", warning: "revisions_requested", error: "rejected" };
+
+function renderNotificationsPage(state) {
+  const filter         = state.notif_filter ?? "all";
+  const filterMenuOpen = state.notif_filter_open;
+  let rows = SAMPLE_BARANGAY_NOTIFS;
+  if (filter === "unread") rows = rows.filter((n) => !n.read);
+  if (filter === "read")   rows = rows.filter((n) =>  n.read);
+  const unread = SAMPLE_BARANGAY_NOTIFS.filter((n) => !n.read).length;
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          🔔 Notifications
+          ${unread > 0 ? `<span class="status-badge approved" style="font-size: 8.5px;">${unread} unread</span>` : ""}
+        </div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+          In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <div class="partner-filter-wrap">
+          <div class="partner-filter" data-action="notif-open-filter">${NOTIF_FILTER_LABEL[filter]} ▾</div>
+          ${filterMenuOpen ? `
+            <div class="status-filter-menu" style="min-width: 140px;">
+              ${Object.entries(NOTIF_FILTER_LABEL).map(([k, lbl]) => `
+                <div class="status-filter-item ${filter === k ? "active" : ""}" data-action="notif-set-filter:${k}">${lbl}</div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <span class="wf-btn" data-action="notif-mark-all" style="padding: 4px 10px; font-size: 9.5px;">✓ Mark all read</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${rows.map((n, i) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); background: ${!n.read ? "#fafafa" : "#fff"};">
+            <div style="width: 30px; height: 30px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${n.icon}</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 10.5px;">${n.title}</span>
+                <span class="status-badge ${NOTIF_TYPE_BADGE[n.type]}" style="font-size: 8px;">${n.type}</span>
+                ${!n.read ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a;"></span>' : ""}
+                <span style="margin-left: auto; font-size: 9px; color: var(--ink-mute);">${n.time}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; line-height: 1.4;">${n.message}</div>
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <span class="wf-link" data-action="notif-open" data-row="${i}" style="font-size: 9.5px;">View ↗</span>
+                ${!n.read ? `<span class="wf-link" data-action="notif-mark-one" data-row="${i}" style="font-size: 9.5px;">Mark read</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.notifications = {
+  route:   "/barangay/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Barangay-scoped notifications. Captain receives need-approval requests; Secretary and Mother Leader receive captain decisions on their submissions, plus PARAYA announcements + new-survey assignments.",
+  render:  (s) => renderNotificationsPage(s),
+};
+
+SCREENS.notifications_filter = {
+  route:   "/barangay/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Filter dropdown — All / Unread / Read. Scopes the list; the unread badge in the header always shows the full unread count.",
+  render:  (s) => renderNotificationsPage({ ...s, notif_filter_open: true }),
+};
+
+function renderProfile() {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("");
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">👤 Profile Information</span></div>
+        <div class="panel-body dense">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div class="vol-avatar lg" style="width: 56px; height: 56px; font-size: 18px;">${initials}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 13px;">${info.name}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute);">${info.email}</div>
+              <span class="status-badge approved" style="font-size: 8.5px; margin-top: 4px; display: inline-block;">${info.label}</span>
+            </div>
+            <span class="wf-btn" data-action="profile-change-photo" style="padding: 4px 10px; font-size: 9.5px;">📷 Change photo</span>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${info.name}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.email}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Assigned Barangay <span style="color: var(--ink-mute);">(read-only — managed by Admin)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">Brgy. Lolomboy, Bocaue, Bulacan</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <span class="wf-btn primary" data-action="profile-save" style="padding: 5px 14px;">💾 Save Profile</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔔 Notification Preferences</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field" style="margin-bottom: 10px;">
+            <span class="sheet-label">📞 Phone (for SMS)</span>
+            <div class="sheet-input">+63 9XX XXX XXXX</div>
+            <div class="sheet-hint">Required if you turn SMS on. SMS is dispatched via Semaphore.</div>
+          </div>
+          ${[
+            { key: "in_app", icon: "💬", label: "In-app notifications", desc: "Show in the bell dropdown and on the Notifications page", on: true },
+            { key: "email",  icon: "📧", label: "Email notifications",  desc: "Forward important messages to your email address",       on: true },
+            { key: "sms",    icon: "📱", label: "SMS notifications",    desc: "Send urgent items as SMS (e.g. captain approvals)",       on: false },
+          ].map((p) => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;" data-action="profile-toggle:${p.key}">
+              <span style="font-size: 16px;">${p.icon}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 10.5px;">${p.label}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.desc}</div>
+              </div>
+              <div style="width: 32px; height: 18px; background: ${p.on ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative; flex-shrink: 0;">
+                <div style="position: absolute; top: 2px; ${p.on ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-notifs" style="padding: 5px 14px;">💾 Save Preferences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔐 Change Password</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Current Password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div class="sheet-field"><span class="sheet-label">New Password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm New Password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-password" style="padding: 5px 14px;">🔐 Update Password</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.profile = {
+  route:   "/barangay/profile",
+  title:   "My Profile",
+  navKey:  "profile",
+  caption: "Profile settings. Adds an Assigned Barangay row (read-only — admins manage barangay assignments). Otherwise identical to the officer profile page: name + email + phone + 3 channel toggles + password change.",
+  render:  () => renderProfile(),
+};
+
+
+/* ============================================================
+   Auto-generate placeholder stub screens for every barangay nav
+   destination that doesn't already have a custom render above.
+   ============================================================ */
+const ROUTE_FOR_SCREEN = {
+  partnership:    ["/barangay/partnership",    "Partnership Management"],
+  submit_needs:   ["/barangay/submit-needs",   "Submit Community Needs"],
+  approvals:      ["/barangay/approvals",      "Approval Queue"],
+  surveys:        ["/barangay/surveys",        "Survey Responses"],
+  reports:        ["/barangay/reports",        "Reporting"],
+  forum:          ["/barangay/forum",          "Discussion Forum"],
+  chatbot:        ["/barangay/chatbot",        "AI Assistant"],
+  notifications:  ["/barangay/notifications",  "Notifications"],
+  profile:        ["/barangay/profile",        "My Profile"],
+};
+
+const STUB_CAPTIONS = {
+  partnership:   "Read-only view of the barangay's own profile: name, contact info, partnership history timeline. Edits are managed by PARAYA officers (RLS-enforced).",
+  submit_needs:  "Form for Barangay Secretary / Mother Leader to log a community need. Required: category (health/economic/environmental/social), title, description, priority, optional affected count + sitio. Routes to the Captain's approval queue.",
+  approvals:     "Captain-only queue. Tabs (Pending / All) of community_needs rows where approval_status='pending_captain'. Per-row: ✓ Approve & Forward to PARAYA, ⓘ Ask for Revision, ✕ Reject (notes required).",
+  surveys:       "Card grid of published surveys the barangay can fill (status='published'). Click a card to open the answer sheet with text / multiple-choice / checkbox / rating questions. Submitted surveys show a Completed badge.",
+  reports:       "Barangay-scoped report. 4 KPIs (programs / volunteer hours / community needs / survey responses), then per-section tables (Programs, Needs, Surveys) each with their own Export menu.",
+  forum:         "Discussion forum — internal threads for barangay leadership + PARAYA staff. Captains are not moderators (officer/admin are); they can post + reply.",
+  chatbot:       "Role-aware AI assistant. Same chatbot as officer view but with barangay-scoped prompt context (your barangay's programs, needs, surveys, contacts).",
+  notifications: "In-app notifications feed. Captain receives need-approval requests; Secretary/Mother Leader receive captain decisions on their submissions.",
+  profile:       "Profile settings: full name, email (read-only), phone, password change, and per-channel notification preferences (in-app, email, SMS).",
+};
+
+for (const [screenId, [route, title]] of Object.entries(ROUTE_FOR_SCREEN)) {
+  if (SCREENS[screenId]) continue;
+  SCREENS[screenId] = {
+    route, title,
+    navKey: screenId,
+    caption: STUB_CAPTIONS[screenId] ?? "Placeholder wireframe — full content to be designed.",
+    render: () => `
+      <div class="stub">
+        <div class="stub-route">${route}</div>
+        <div class="stub-title">${title}</div>
+        <div class="stub-desc">${STUB_CAPTIONS[screenId] ?? ""}</div>
+        <div class="stub-tag">Placeholder — wireframe pending</div>
+      </div>
+    `,
+  };
+}
+
+/* ============================================================
+   SIDEBAR RENDERING
+   ============================================================ */
+function getActiveNavKey(screenId) {
+  const def = SCREENS[screenId];
+  return def?.navKey ?? screenId;
+}
+
+function isNavItemActive(item, activeKey) {
+  if (item.key === activeKey) return true;
+  if (item.children) return item.children.some((c) => c.key === activeKey);
+  return false;
+}
+
+function renderSidebar(activeKey, state) {
+  const role = currentRole;
+  const nav = BARANGAY_NAV;
+  const info = ROLE_INFO[role];
+  const expandedGroup = state?.expandedGroup;
+
+  const items = nav.map((item) => {
+    if (item.group) {
+      const childActive = isNavItemActive(item, activeKey);
+      const manuallyExpanded = expandedGroup === item.key;
+      const expanded = childActive || manuallyExpanded;
+      const collapsed = !expanded;
+      // Filter children by role allowlist
+      const children = item.children.filter((c) => !c.roles || c.roles.includes(role));
+      if (children.length === 0) return "";
+      const groupCls = `side-item group${collapsed ? " collapsed" : ""}${childActive ? " active" : ""}`;
+      return `
+        <li>
+          <div class="${groupCls}" data-action="toggle-group:${item.key}">
+            <span class="ico"></span>${item.label}
+          </div>
+          ${collapsed ? "" : `
+            <ul class="side-children">
+              ${children.map((c) => `
+                <li class="side-child ${c.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${c.screen}">${c.label}</li>
+              `).join("")}
+            </ul>
+          `}
+        </li>`;
+    }
+    const cls = `side-item${item.key === activeKey ? " active" : ""}`;
+    return `<li><div class="${cls}" data-action="nav" data-screen="${item.screen}"><span class="ico"></span>${item.label}</div></li>`;
+  }).join("");
+
+  // AI Assistant + Notifications pinned at the bottom for all roles.
+  const pinned = `
+    <div class="side-divider"></div>
+    ${SIDEBAR_PINNED.map((p) => `
+      <div class="side-item ${p.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${p.screen}"><span class="ico"></span>${p.label}</div>
+    `).join("")}
+  `;
+
+  return `
+    <div class="page-side">
+      <div class="side-brand">
+        <div class="side-logo">LOGO</div>
+        <div>
+          <div class="side-brand-title">AGAPE</div>
+          <div class="side-brand-sub">PARAYA · DYCI</div>
+        </div>
+      </div>
+      <div class="side-nav">
+        <ul>${items}</ul>
+        ${pinned}
+      </div>
+      <div class="side-user">
+        <div class="row">
+          <div class="avatar">${info.name.charAt(0)}</div>
+          <div style="min-width: 0;">
+            <div class="name">${info.name}</div>
+            <div class="email">${info.email}</div>
+          </div>
+        </div>
+        <button class="signout" data-action="signout">↩ Sign out</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader(title, route, state) {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const notifDropdown = state.bellOpen ? `
+    <div class="dropdown notif-dropdown">
+      <div class="dropdown-head">
+        <span class="dropdown-title">Notifications</span>
+        <span class="dropdown-action" data-action="mark-read">✓ Mark all read</span>
+      </div>
+      <div class="dropdown-body">
+        <div class="notif-item unread">
+          <div class="notif-icon">!</div>
+          <div class="notif-content">
+            <div class="notif-title">New proposal awaiting pre-screen</div>
+            <div class="notif-msg">"Reading Caravan — Brgy. Lolomboy" submitted by CSG</div>
+            <div class="notif-time">5m ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon">i</div>
+          <div class="notif-content">
+            <div class="notif-title">3 new survey responses</div>
+            <div class="notif-msg">Health needs assessment — Brgy. Bunducan</div>
+            <div class="notif-time">1h ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon">✓</div>
+          <div class="notif-content">
+            <div class="notif-title">Activity report approved</div>
+            <div class="notif-msg">Literacy Camp — May 14</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-foot">
+        <span class="dropdown-link" data-action="nav" data-screen="notifications">View all notifications →</span>
+      </div>
+    </div>
+  ` : "";
+
+  const profileDropdown = state.profileOpen ? `
+    <div class="dropdown profile-dropdown">
+      <div class="dropdown-user">
+        <div class="dropdown-user-name">${info.name}</div>
+        <div class="dropdown-user-email">${info.email}</div>
+      </div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" data-action="nav" data-screen="profile">Profile Settings</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item danger" data-action="signout">Sign out</div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="page-header">
+      <div class="page-title"><span class="crumb">${route} ·</span> ${title}</div>
+      <div class="spacer"></div>
+      <div class="iconbtn bell" data-action="toggle:bell" title="Notifications">
+        🔔<span class="badge">2</span>
+      </div>
+      <div class="iconbtn avatar" data-action="toggle:profile" title="${info.name}">${initials}</div>
+      ${notifDropdown}
+      ${profileDropdown}
+    </div>
+  `;
+}
+
+/* ============================================================
+   BOARD STATE — same FIFO mechanics as auth.html
+   ============================================================ */
+let nextInstanceId = 1;
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey, initialState) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  let target;
+  if (initialState) {
+    target = makeInstance(screenId);
+    target.state = { ...initialState };
+    board.push(target);
+  } else {
+    const existing = board.find((b) => b.screenId === screenId);
+    if (existing) {
+      target = existing;
+    } else {
+      target = makeInstance(screenId);
+      board.push(target);
+    }
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  // Record what changed so undo can reverse it. We always push an entry when
+  // pushScreen is called from an interactive context, even if no tile was
+  // added (so the user can also undo "click that just re-highlighted").
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   Resolve a stored action-key back to the element that was clicked.
+   "nav" actions are special because the data-action is shared across
+   many sidebar items + the header icons; we disambiguate via data-screen.
+   ============================================================ */
+function findClickedElement(root, key) {
+  if (!key) return null;
+  if (key.startsWith("nav:")) {
+    const screen = key.slice(4);
+    return root.querySelector(`[data-action="nav"][data-screen="${screen}"]`);
+  }
+  // CSS.escape protects against keys containing characters like ":" or "/"
+  return root.querySelector(`[data-action="${CSS.escape(key)}"]`);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const meta = document.createElement("div");
+    meta.className = "tile-meta";
+    meta.innerHTML = `<span class="route">${def.route}</span><span class="id">screen: ${entry.screenId}</span>`;
+
+    const page = document.createElement("div");
+    page.className = "page" + (def.chromeless ? " chromeless" : "");
+    if (def.chromeless) {
+      page.innerHTML = `
+        <div class="page-main">
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    } else {
+      const activeKey = getActiveNavKey(entry.screenId);
+      page.innerHTML = `
+        ${renderSidebar(activeKey, entry.state)}
+        <div class="page-main">
+          ${renderHeader(def.title, def.route, entry.state)}
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    }
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = def.caption;
+
+    tile.appendChild(meta);
+    tile.appendChild(page);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every [data-action] inside this tile
+    tile.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        if (action === "nav") {
+          pushScreen(el.dataset.screen, entry, "nav:" + el.dataset.screen);
+          return;
+        }
+        if (action.startsWith("toggle-group:")) {
+          // Spawn a new tile with this sidebar group expanded so the children
+          // become visible and clickable. Click the same group again to collapse.
+          const key = action.slice("toggle-group:".length);
+          const wasExpanded = entry.state.expandedGroup === key;
+          pushScreen(entry.screenId, entry, action, {
+            ...entry.state,
+            expandedGroup: wasExpanded ? null : key,
+          });
+          return;
+        }
+        if (action === "toggle:bell") {
+          // Spawn a NEW tile showing the same page with the notif dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:bell", { bellOpen: true });
+          return;
+        }
+        if (action === "toggle:profile") {
+          // Spawn a NEW tile showing the same page with the profile dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:profile", { profileOpen: true });
+          return;
+        }
+        if (action === "mark-read") {
+          // Cosmetic — would PATCH /api/notifications in the real app.
+          entry.clickedActionKey = "mark-read";
+          render();
+          return;
+        }
+        if (action === "signout") {
+          // Now that login is in scope, sign-out closes the loop back to it.
+          pushScreen("login", entry, "signout");
+          return;
+        }
+        // Dashboard cards: "go:<screen>"
+        if (action.startsWith("go:")) {
+          const screen = action.slice(3);
+          pushScreen(screen, entry, action);
+          return;
+        }
+        // Login form: input toggle + submit
+        if (action === "fill") {
+          entry.state[el.dataset.field] = !entry.state[el.dataset.field];
+          entry.clickedActionKey = "fill";
+          render();
+          return;
+        }
+        if (action === "signin") {
+          pushScreen("dashboard", entry, "signin");
+          return;
+        }
+        if (action === "forgot" || action === "signup") {
+          // Out of scope for the officer wireframe — auth.html maps these.
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- SUBMIT COMMUNITY NEEDS ---------- */
+        if (action.startsWith("sn-pick-cat:")) {
+          const cat = action.slice("sn-pick-cat:".length);
+          pushScreen("submit_needs_picked_cat", entry, action, { sn_cat: cat });
+          return;
+        }
+        if (action.startsWith("sn-pick-priority:")) {
+          const pri = action.slice("sn-pick-priority:".length);
+          pushScreen("submit_needs_picked_cat", entry, action, {
+            ...entry.state, sn_priority: pri,
+          });
+          return;
+        }
+        if (action === "sn-submit") {
+          pushScreen("submit_needs_success", entry, action);
+          return;
+        }
+        if (action === "sn-submit-another") {
+          pushScreen("submit_needs", entry, action);
+          return;
+        }
+        if (action === "sn-back-to-list") {
+          pushScreen("dashboard", entry, action);
+          return;
+        }
+
+        /* ---------- APPROVAL QUEUE (Captain) ---------- */
+        if (action === "appr-tab:pending") {
+          pushScreen("approvals", entry, action);
+          return;
+        }
+        if (action === "appr-tab:all") {
+          pushScreen("approvals_all", entry, action);
+          return;
+        }
+        if (action === "appr-refresh") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "appr-approve") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "appr-revise") {
+          pushScreen("approvals_revise_dialog", entry, action);
+          return;
+        }
+        if (action === "appr-reject") {
+          pushScreen("approvals_reject_dialog", entry, action);
+          return;
+        }
+        if (
+          action === "appr-dlg-cancel" ||
+          action === "appr-dlg-cancel-x" ||
+          action === "appr-dlg-cancel-backdrop"
+        ) {
+          pushScreen("approvals", entry, action);
+          return;
+        }
+        if (action === "appr-dlg-confirm") {
+          pushScreen("approvals", entry, action);
+          return;
+        }
+
+        /* ---------- SURVEYS (answer published surveys) ---------- */
+        if (action === "surv-open") {
+          pushScreen("surveys_answer", entry, action);
+          return;
+        }
+        if (action === "surv-done") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "surv-cancel" ||
+          action === "surv-cancel-x" ||
+          action === "surv-cancel-backdrop"
+        ) {
+          pushScreen("surveys", entry, action);
+          return;
+        }
+        if (action === "surv-submit") {
+          pushScreen("surveys", entry, action);
+          return;
+        }
+        if (action === "surv-rate") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- BARANGAY REPORTS ---------- */
+        if (action.startsWith("rep-export-")) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- DISCUSSION FORUM ---------- */
+        if (action === "forum-new") {
+          pushScreen("forum_new", entry, action);
+          return;
+        }
+        if (action === "forum-open") {
+          pushScreen("forum_thread", entry, action);
+          return;
+        }
+        if (action === "forum-back") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (
+          action === "forum-new-cancel" ||
+          action === "forum-new-cancel-x" ||
+          action === "forum-new-cancel-backdrop"
+        ) {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-new-save") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-reply") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- CHATBOT ---------- */
+        if (action.startsWith("chat-prompt:")) {
+          const idx = parseInt(action.slice("chat-prompt:".length), 10);
+          pushScreen("chatbot_active", entry, action, { chat_active: true, chat_prompt_idx: idx });
+          return;
+        }
+        if (action === "chat-send") {
+          pushScreen("chatbot_active", entry, action, { chat_active: true });
+          return;
+        }
+        if (action === "chat-new") {
+          pushScreen("chatbot", entry, action);
+          return;
+        }
+
+        /* ---------- NOTIFICATIONS PAGE ---------- */
+        if (action === "notif-open-filter") {
+          pushScreen("notifications_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("notif-set-filter:")) {
+          const f = action.slice("notif-set-filter:".length);
+          pushScreen("notifications", entry, action, { notif_filter: f });
+          return;
+        }
+        if (
+          action === "notif-mark-all" ||
+          action === "notif-mark-one" ||
+          action === "notif-open"
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROFILE ---------- */
+        if (
+          action === "profile-change-photo" ||
+          action === "profile-save" ||
+          action === "profile-save-notifs" ||
+          action === "profile-save-password" ||
+          action.startsWith("profile-toggle:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+      });
+    });
+
+    // Highlight the most-recently-clicked control on this tile
+    if (entry.clickedActionKey) {
+      const clickedEl = findClickedElement(tile, entry.clickedActionKey);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting through
+  // the page content next to the button.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = findClickedElement(fromTile, t.fromActionKey);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    return { t, a, aBox, b };
+  });
+
+  // Pass 2: pick exit + entry side per transition based on the dominant axis
+  // between source tile center and destination tile center.
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const dx = (d.b.left + d.b.width / 2) - (d.aBox.left + d.aBox.width / 2);
+    const dy = (d.b.top  + d.b.height / 2) - (d.aBox.top  + d.aBox.height / 2);
+    const horizontal = Math.abs(dx) * 1.2 >= Math.abs(dy);
+    let exit, entry;
+    if (horizontal) {
+      exit  = dx > 0 ? "R" : "L";
+      entry = dx > 0 ? "L" : "R";
+    } else {
+      exit  = dy > 0 ? "B" : "T";
+      entry = dy > 0 ? "T" : "B";
+    }
+    d.exit = exit; d.entry = entry;
+    const arrKey = `${d.t.toInstanceId}:${entry}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${exit}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw. The arrow exits the clicked element on the chosen side and
+  // enters the destination tile on the opposite-facing side, so it never cuts
+  // across unrelated content.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, b, exit, entry } = d;
+
+    const arrGroup    = arrivals[`${t.toInstanceId}:${entry}`];
+    const arrPos      = arrGroup.indexOf(idx);
+    const arrN        = arrGroup.length;
+    const arrAlongLen = (entry === "L" || entry === "R") ? b.height : b.width;
+    const arrSpread   = Math.min(arrAlongLen * 0.7, 28 * arrN);
+    const arrFrac     = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const arrOffset   = arrSpread * (arrFrac - 0.5);
+
+    const depGroup    = departures[`${t.fromInstanceId}:${t.fromActionKey}:${exit}`];
+    const depPos      = depGroup.indexOf(idx);
+    const depN        = depGroup.length;
+    const depOffset   = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+
+    let sx, sy, tx, ty;
+    if (exit === "R")      { sx = a.right;             sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "L") { sx = a.left;              sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "B") { sx = a.left + a.width/2 + depOffset; sy = a.bottom; }
+    else                   { sx = a.left + a.width/2 + depOffset; sy = a.top;    }
+
+    if (entry === "L")      { tx = b.left;              ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "R") { tx = b.right;             ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "T") { tx = b.left + b.width/2 + arrOffset; ty = b.top;    }
+    else                    { tx = b.left + b.width/2 + arrOffset; ty = b.bottom; }
+
+    // Base positions (auto-computed). User-applied offsets shift the
+    // endpoints; the offsets persist per-transition and survive re-renders.
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    // Cubic bezier whose tangents respect the chosen exit/entry sides.
+    const dist  = Math.hypot(x2 - x1, y2 - y1);
+    const reach = Math.max(40, Math.min(220, dist * 0.45));
+    let cp1x = x1, cp1y = y1, cp2x = x2, cp2y = y2;
+    if (exit === "R")      cp1x = x1 + reach;
+    else if (exit === "L") cp1x = x1 - reach;
+    else if (exit === "B") cp1y = y1 + reach;
+    else                   cp1y = y1 - reach;
+    if (entry === "L")      cp2x = x2 - reach;
+    else if (entry === "R") cp2x = x2 + reach;
+    else if (entry === "T") cp2y = y2 - reach;
+    else                    cp2y = y2 + reach;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+    // Wide invisible hit-area path — makes the arrow easy to click without
+    // forcing the visible stroke to be fat.
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode so they don't clutter
+    // the board for screenshots. Stable transition index identifies each.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — let the user reposition the source/dest endpoint
+   of any arrow. Offsets are stored on the transition object and
+   re-applied on every drawArrows() call.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow (its wide hit-area path) to bring it to the front layer.
+// Move that transition to the end of the array so it draws last on top.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  // Wipe any user-applied endpoint offsets but keep the tiles in place.
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-barangay-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+resetBoard("login");
+</script>
+</body>
+</html>

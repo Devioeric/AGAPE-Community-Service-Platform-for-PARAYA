@@ -1,27 +1,263 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@600;700&display=swap");
+@import "leaflet/dist/leaflet.css";
+
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* PARAYA warm palette mapped to shadcn CSS vars */
+    --background: #FAFAF7;
+    --foreground: #2C2416;
+
+    --card: #FFFFFF;
+    --card-foreground: #2C2416;
+
+    --popover: #FFFFFF;
+    --popover-foreground: #2C2416;
+
+    --primary: #6B5B3E;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #F5F0E8;
+    --secondary-foreground: #2C2416;
+
+    --muted: #F5F0E8;
+    --muted-foreground: #6B6356;
+
+    --accent: #C4A96A;
+    --accent-foreground: #2C2416;
+
+    --destructive: #9B3B3B;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #E5DDD0;
+    --input: #E5DDD0;
+    --ring: #6B5B3E;
+
+    --radius: 0.625rem;
+
+    /* Chart colors — brown-gold-green palette */
+    --chart-1: #6B5B3E;
+    --chart-2: #C4A96A;
+    --chart-3: #4A7C59;
+    --chart-4: #8B7A5E;
+    --chart-5: #E8D5A8;
+
+    /* Sidebar */
+    --sidebar: #F5F0E8;
+    --sidebar-foreground: #2C2416;
+    --sidebar-primary: #6B5B3E;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #E8D5A8;
+    --sidebar-accent-foreground: #2C2416;
+    --sidebar-border: #E5DDD0;
+    --sidebar-ring: #6B5B3E;
+  }
+
+  .dark {
+    --background: #1C1610;
+    --foreground: #F5F0E8;
+
+    --card: #2C2416;
+    --card-foreground: #F5F0E8;
+
+    --popover: #2C2416;
+    --popover-foreground: #F5F0E8;
+
+    --primary: #C4A96A;
+    --primary-foreground: #1C1610;
+
+    --secondary: #3A3020;
+    --secondary-foreground: #F5F0E8;
+
+    --muted: #3A3020;
+    --muted-foreground: #9C9488;
+
+    --accent: #6B5B3E;
+    --accent-foreground: #F5F0E8;
+
+    --destructive: #9B3B3B;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #3A3020;
+    --input: #3A3020;
+    --ring: #C4A96A;
+
+    --chart-1: #C4A96A;
+    --chart-2: #6B5B3E;
+    --chart-3: #4A7C59;
+    --chart-4: #8B7A5E;
+    --chart-5: #E8D5A8;
+
+    --sidebar: #1C1610;
+    --sidebar-foreground: #F5F0E8;
+    --sidebar-primary: #C4A96A;
+    --sidebar-primary-foreground: #1C1610;
+    --sidebar-accent: #2C2416;
+    --sidebar-accent-foreground: #F5F0E8;
+    --sidebar-border: #3A3020;
+    --sidebar-ring: #C4A96A;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3 {
+    @apply font-heading;
+  }
+
+  /* Unified select styling — rounded-xl to match buttons */
+  select {
+    @apply rounded-xl border border-border bg-transparent px-3 text-sm text-foreground
+           outline-none transition-all duration-150
+           focus:ring-2 focus:ring-primary/30 focus:border-primary/40
+           cursor-pointer appearance-none;
+  }
+}
+
+/* SDG badge colors */
+@layer utilities {
+  .sdg-4  { background-color: #C5192D; color: #fff; }
+  .sdg-9  { background-color: #FD6925; color: #fff; }
+  .sdg-11 { background-color: #FD9D24; color: #fff; }
+  .sdg-17 { background-color: #19486A; color: #fff; }
+
+  .animate-fade-in {
+    animation: fade-in 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+  .animate-page-in {
+    animation: page-in 0.15s ease-out both;
+  }
+  .animate-overlay-in {
+    animation: overlay-fade-in 0.3s ease-out forwards;
+  }
+  .animate-overlay-out {
+    animation: overlay-fade-out 0.25s ease-in forwards;
+  }
+  .animate-fade-out {
+    animation: fade-out 0.25s ease-in forwards;
+  }
+  .animate-sheet-in-right {
+    animation: sheet-in-right 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+  .animate-sheet-out-right {
+    animation: sheet-out-right 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  }
+
+  /* Hide an element only when printing — used for sidebar/header/action buttons */
+  .print-hidden { /* no-op outside print */ }
+
+  /* Thin, modern scrollbar — only visible on hover */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s ease;
+  }
+  .scrollbar-thin:hover {
+    scrollbar-color: rgba(107, 91, 62, 0.25) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+    transition: background-color 0.2s ease;
+  }
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(107, 91, 62, 0.25);
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(107, 91, 62, 0.45);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlay-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes sheet-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes sheet-out-right {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
+}
+
+/* ── Print stylesheet ─────────────────────────────────────────────────────
+   Browser "Save as PDF" produces a clean export of just the main content.
+   The sidebar, header, page-transition shell, and any element marked
+   .print-hidden are removed.
+*/
+@media print {
+  /* Strip the dashboard chrome */
+  aside,
+  header,
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Reset the offset that normally accounts for the fixed sidebar/header */
+  .ml-\[280px\] { margin-left: 0 !important; }
+  main { padding-top: 0 !important; }
+
+  /* Always use light colors for printed output */
+  body {
+    background: #fff !important;
+    color:      #000 !important;
+  }
+
+  /* Force backgrounds + colors on charts/badges so they don't strip */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust:         exact !important;
+  }
+
+  /* Avoid awkward page breaks inside cards/rows */
+  .shadow-card, tr, li {
+    break-inside: avoid;
   }
 }

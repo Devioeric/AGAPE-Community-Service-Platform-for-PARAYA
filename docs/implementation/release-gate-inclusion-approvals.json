@@ -1,0 +1,23 @@
+{
+  "schema": "agape.release-inclusion-approvals.v1",
+  "approvedBy": "Repository owner",
+  "approvalSource": "Conversation approval on 2026-08-23",
+  "approvedIncludePaths": [
+    "AGAPE-ERD.drawio"
+  ],
+  "approvedIncludePrefixes": [
+    "ProcessFiles Paraya/"
+  ],
+  "acknowledgedSyntheticSecretFixtures": {
+    "test/security/authoritative-evidence.test.mjs": [
+      "postgres-credential-url"
+    ],
+    "test/security/local-database-gate.test.mjs": [
+      "jwt-token",
+      "postgres-credential-url"
+    ],
+    "test/security/migration-governance.test.mjs": [
+      "postgres-credential-url"
+    ]
+  }
+}

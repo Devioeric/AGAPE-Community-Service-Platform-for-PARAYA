@@ -1,0 +1,64 @@
+%% AGAPE Exploded DFD — Figure 1 of 3
+%% System Access & Administration
+%% Processes: 1.0 Authentication, 2.0 Dashboard, 3.0 User Management,
+%%            4.0 System Admin & Backup, 5.0 Partnership Management
+
+flowchart LR
+    %% External Entities
+    EU["Any User Role"]:::entity
+    E1["PARAYA Director"]:::entity
+    E2["PARAYA Associate"]:::entity
+    EBO["Barangay Officials<br/>(Captain / Secretary / Mother Leader)"]:::entity
+    E7["DYCI Volunteer"]:::entity
+    E8["System Administrator"]:::entity
+
+    %% Processes
+    P1(("1.0 Log In & Authentication")):::process
+    P2(("2.0 Dashboard")):::process
+    P3(("3.0 User Management")):::process
+    P4(("4.0 System Administration & Backup")):::process
+    P5(("5.0 Partnership Management")):::process
+
+    %% Data Stores
+    D1[("D1 User Database")]:::store
+    D2[("D2 Audit Logs")]:::store
+    D3[("D3 Partnership Records + History")]:::store
+    D14[("D14 Backup Files")]:::store
+
+    %% 1.0 Log In & Authentication (session, password recovery)
+    EU -- "login credentials, password reset request" --> P1
+    P1 -- "session token, recovery email" --> EU
+    D1 -- "verify credentials" --> P1
+    P1 -- "auth event" --> D2
+
+    %% 2.0 Dashboard (role-aware summary)
+    EU -- "request landing page" --> P2
+    D1 -- "role + permissions" --> P2
+    P2 -- "role-aware summary<br/>(+ live reads from D4, D5, D7, D9, D10, D11 — see Figs 2 & 3)" --> EU
+
+    %% 3.0 User Management
+    E8 -- "invite, edit, status, password reset" --> P3
+    P3 -- "user record + permissions + org_name" --> D1
+    D1 -- "existing user" --> P3
+    P3 -- "confirmation" --> E8
+    P3 -- "admin action event" --> D2
+
+    %% 4.0 System Administration & Backup
+    E8 -- "audit query, backup export, backup restore request" --> P4
+    D2 -- "audit trail" --> P4
+    P4 -- "JSON snapshot of all tables" --> D14
+    D14 -- "restored data preview (dry-run)" --> P4
+    P4 -- "audit view, backup file, restore result" --> E8
+
+    %% 5.0 Partnership Management
+    E1 -- "partnership review, oversight" --> P5
+    E2 -- "barangay profile, contacts, coordinates" --> P5
+    P5 -- "partnership + timeline event" --> D3
+    D3 -- "existing partnerships + history" --> P5
+    P5 -- "partner map + timeline" --> E1
+    P5 -- "own-partnership view" --> EBO
+    P5 -- "barangay assignment (read)" --> E7
+
+    classDef entity fill:#F5F0E8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef process fill:#E8D5A8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef store fill:#FFFFFF,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;

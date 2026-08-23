@@ -1,0 +1,20 @@
+flowchart LR
+  ML[Mother Leader] -->|assigned-sitio drafts, imports, outcomes| API[Scoped profiling RPC boundary]
+  SEC[Barangay Secretary] -->|detail review, approve or return| API
+  CAP[Barangay Captain] -->|approved detail, endorsement| API
+  RES[PARAYA Researcher] -->|setup, samples, duplicates, lifecycle, completion| API
+  DA[Director / Associate] -->|aggregate request only| AGG[Approved aggregate service]
+
+  API -->|runtime, active account, capability, deny override, scope, version| DB[(Normalized profiling store)]
+  DB -->|approved cycle/version facts| AGG
+  AGG -->|k >= 5 and complementary suppression| DASH[Analytics and audited aggregate export]
+  AGG -->|de-identified aggregate DTO only| AI[Advisory AI boundary]
+  DB -->|immutable completion snapshot| EVID[Proposal evidence snapshot]
+
+  ADMIN[System Admin] -. infrastructure only .-> OPS[Audit/configuration health]
+  LEGACY[Legacy institutional identities] -. historical summaries only .-> HISTORY[Proposal/program history]
+  DB -.-x ADMIN
+  DB -.-x AI
+
+%% No resident PII is sent to AI, blockchain, Admin browsing, legacy accounts,
+%% or identifiable export. Runtime off denies collection and PII reads.

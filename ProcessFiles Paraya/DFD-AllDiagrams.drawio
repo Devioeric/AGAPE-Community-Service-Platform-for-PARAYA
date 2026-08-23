@@ -1,0 +1,259 @@
+<mxfile host="app.diagrams.net" agent="AGAPE-DFD-15Modules" version="24.0.0">
+
+  <!-- ============================================================
+       Figure 1 of 3 — System Access & Administration
+       Processes: 1.0 Auth, 2.0 Dashboard, 3.0 User Mgmt, 4.0 Sys Admin & Backup, 5.0 Partnerships
+       ============================================================ -->
+  <diagram name="Fig 1 of 3 Access &amp; Admin" id="fig1of3">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="aT" value="Figure 1 of 3 — System Access &amp; Administration  (Processes 1.0, 2.0, 3.0, 4.0, 5.0)"
+                style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="10" width="1120" height="24" as="geometry"/></mxCell>
+
+        <!-- Entities -->
+        <mxCell id="aEU"  value="Any User Role"               style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="40" y="60"  width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="aE1"  value="PARAYA Director"             style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="160" width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="aE2"  value="PARAYA Associate"            style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="260" width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="aEBO" value="Barangay Officials&#10;(Captain / Secretary / Mother Leader)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=10;" vertex="1" parent="1"><mxGeometry x="40" y="360" width="170" height="60" as="geometry"/></mxCell>
+        <mxCell id="aE7"  value="DYCI Volunteer"              style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="470" width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="aE8"  value="System Administrator"        style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="600" width="170" height="50" as="geometry"/></mxCell>
+
+        <!-- Processes -->
+        <mxCell id="aP1" value="1.0&#10;Log In &amp;&#10;Authentication"        style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="440" y="60"  width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="aP2" value="2.0&#10;Dashboard"                            style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="440" y="200" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="aP3" value="3.0&#10;User Management"                      style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="440" y="340" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="aP4" value="4.0&#10;System Administration&#10;&amp; Backup" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="440" y="480" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="aP5" value="5.0&#10;Partnership Management"               style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="440" y="620" width="220" height="100" as="geometry"/></mxCell>
+
+        <!-- Data Stores -->
+        <mxCell id="aD1"  value="D1  User Database"                  style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="60"  width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="aD2"  value="D2  Audit Logs"                     style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="200" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="aD3"  value="D3  Partnership Records + History"  style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="340" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="aD14" value="D14 Backup Files"                   style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="480" width="260" height="50" as="geometry"/></mxCell>
+
+        <!-- Edges 1.0 -->
+        <mxCell id="af1"  value="login credentials, password reset request" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aEU" target="aP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af2"  value="session token, recovery email"        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP1" target="aEU"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af3"  value="verify credentials"                   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD1" target="aP1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af4"  value="auth event"                           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP1" target="aD2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 2.0 -->
+        <mxCell id="af5"  value="request landing page"                 style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aEU" target="aP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af6"  value="role + permissions"                   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD1" target="aP2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af7"  value="role-aware summary (+ live reads from D4/D5/D7/D9/D10/D11 — see Figs 2 &amp; 3)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP2" target="aEU"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 3.0 -->
+        <mxCell id="af8"  value="invite, edit, status, password reset" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aE8" target="aP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af9"  value="user record + permissions + org_name" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP3" target="aD1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af10" value="existing user"                        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD1" target="aP3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af11" value="confirmation"                         style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP3" target="aE8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af12" value="admin action event"                   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP3" target="aD2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 4.0 -->
+        <mxCell id="af13" value="audit query, backup export / restore" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aE8" target="aP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af14" value="audit trail"                          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD2" target="aP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af15" value="JSON snapshot (all tables)"           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP4" target="aD14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af16" value="restored data preview"                style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD14" target="aP4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af17" value="audit view, backup file, restore result" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP4" target="aE8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 5.0 -->
+        <mxCell id="af18" value="partnership review, oversight"        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aE1" target="aP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af19" value="barangay profile, contacts, coords"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aE2" target="aP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af20" value="partnership + timeline event"         style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP5" target="aD3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af21" value="existing partnerships + history"      style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aD3" target="aP5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af22" value="partner map + timeline"               style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP5" target="aE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af23" value="own-partnership view"                 style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP5" target="aEBO"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="af24" value="barangay assignment (read)"           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="aP5" target="aE7"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ============================================================
+       Figure 2 of 3 — Operations & Community
+       Processes: 6.0 Proposals, 7.0 Community Needs, 8.0 Volunteers, 9.0 Skills/Assets, 10.0 Programs
+       ============================================================ -->
+  <diagram name="Fig 2 of 3 Operations &amp; Community" id="fig2of3">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="bT" value="Figure 2 of 3 — Operations &amp; Community  (Processes 6.0, 7.0, 8.0, 9.0, 10.0)"
+                style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="10" width="1120" height="24" as="geometry"/></mxCell>
+
+        <!-- Entities -->
+        <mxCell id="bE1"  value="PARAYA Director"  style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="40"  width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bE2"  value="PARAYA Associate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="100" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bE3"  value="PARAYA Researcher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="160" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bEF"  value="Finance Officer"  style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="220" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bEPa" value="Partner Account&#10;(Office / Student Org / Department)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=10;" vertex="1" parent="1"><mxGeometry x="40" y="280" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="bE4"  value="Barangay Captain"   style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="350" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bE5"  value="Barangay Secretary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="410" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bE6"  value="Mother Leader"    style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="470" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="bE7"  value="DYCI Volunteer"   style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="530" width="180" height="50" as="geometry"/></mxCell>
+
+        <!-- Processes -->
+        <mxCell id="bP6"  value="6.0&#10;Project Proposal &amp;&#10;Approval Workflow" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="40"  width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="bP7"  value="7.0&#10;Community Needs Assessment"  style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="180" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="bP8"  value="8.0&#10;Volunteer Management"        style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="320" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="bP9"  value="9.0&#10;Skill &amp; Asset Documentation" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="460" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="bP10" value="10.0&#10;Program Tracking &amp; Monitoring" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="600" width="220" height="110" as="geometry"/></mxCell>
+
+        <!-- Data Stores -->
+        <mxCell id="bD4" value="D4  Project Proposals + Reviews/Revisions"           style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="40"  width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="bD5" value="D5  Community Needs + Households + Field Observations" style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="170" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="bD6" value="D6  Survey Data + Codebook"                          style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="290" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="bD7" value="D7  Volunteer Records + Classes + Attendance"        style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="400" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="bD8" value="D8  Skill &amp; Asset Records"                       style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="510" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="bD9" value="D9  Program Records + Photos"                        style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="620" width="260" height="50" as="geometry"/></mxCell>
+
+        <!-- Edges 6.0 Proposals -->
+        <mxCell id="bf1"  value="draft, SDG, community validation"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE2" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf2"  value="submit proposal (partner)"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bEPa" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf3"  value="endorsement / advance / revise"     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE1" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf4"  value="finance clearance / send back"      style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bEF" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf5"  value="submitted + approved + prescreen + finance + community + revisions" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP6" target="bD4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf6"  value="existing + informed-by"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD4" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf7"  value="needs context (gatekeeping)"        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD5" target="bP6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf8"  value="approval status, PPF"               style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP6" target="bE2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf9"  value="approval status, PPF"               style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP6" target="bEPa"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf10" value="finance queue, decisions"           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP6" target="bEF"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 7.0 Community Needs -->
+        <mxCell id="bf11" value="submit needs (sitio), respondent answers" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE5" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf12" value="sitio needs + household profiles"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE6" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf13" value="field obs, build survey, methodology, codes, flag outliers" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE3" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf14" value="approve / reject / revise"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE4" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf15" value="publish / archive surveys"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE1" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf16" value="interview responses"                style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE7" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf17" value="needs + households + observations + approval" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP7" target="bD5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf18" value="existing needs + status"            style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD5" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf19" value="surveys + methodology + responses + codes" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP7" target="bD6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf20" value="templates + answers + codebook"     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD6" target="bP7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf21" value="status badge, Captain notes"        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP7" target="bE5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf22" value="approval queue"                     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP7" target="bE4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 8.0 Volunteers -->
+        <mxCell id="bf23" value="task assignments"                   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE1" target="bP8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf24" value="signup, PPF, schedule, QR/OTP check-in, activity log" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE7" target="bP8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf25" value="volunteer + signups + classes + attendance" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP8" target="bD7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf26" value="volunteer records + schedules"      style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD7" target="bP8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf27" value="schedule, assignments"              style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP8" target="bE7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf28" value="dept-matched volunteers (read)"     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP8" target="bEPa"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 9.0 Skills & Assets -->
+        <mxCell id="bf29" value="maintain barangay inventory"        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE3" target="bP9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf30" value="sitio-level skills/assets"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE6" target="bP9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf31" value="skills + assets (anonymized)"       style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP9" target="bD8"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf32" value="existing inventory"                 style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD8" target="bP9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 10.0 Programs -->
+        <mxCell id="bf33" value="activities, OTP, Activity + Financial reports, photos, validate partner items" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE2" target="bP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf34" value="check-in confirmation, activity log" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bE7" target="bP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf35" value="submit activity / budget / signup (pending)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bEPa" target="bP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf36" value="approved proposals"                 style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD4" target="bP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf37" value="activities + reports + photos + approval state" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP10" target="bD9"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf38" value="program state, roster, validation queue" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bD9" target="bP10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf39" value="program status"                     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP10" target="bE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="bf40" value="validation result, status"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="bP10" target="bEPa"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ============================================================
+       Figure 3 of 3 — Resources, Insight & Communication
+       Processes: 11.0 Donations, 12.0 Analytics, 13.0 Reporting, 14.0 Impact, 15.0 Communication
+       ============================================================ -->
+  <diagram name="Fig 3 of 3 Resources, Insight &amp; Comms" id="fig3of3">
+    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="cT" value="Figure 3 of 3 — Resources, Insight &amp; Communication  (Processes 11.0, 12.0, 13.0, 14.0, 15.0)"
+                style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="10" width="1120" height="24" as="geometry"/></mxCell>
+
+        <!-- Entities -->
+        <mxCell id="cE1"   value="PARAYA Director"     style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="40"  width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cE2"   value="PARAYA Associate"    style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="110" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cE3"   value="PARAYA Researcher"   style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="180" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cE4"   value="Barangay Captain"    style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="250" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cE5"   value="Barangay Secretary"  style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="320" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cE7"   value="DYCI Volunteer"      style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="390" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="cEAny" value="Any User Role&#10;(chatbot)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=10;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="40" y="460" width="180" height="60" as="geometry"/></mxCell>
+        <mxCell id="cES"   value="System Scheduler&#10;(Cron)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0E8;strokeColor=#6B5B3E;fontSize=10;fontStyle=2;dashed=1;" vertex="1" parent="1"><mxGeometry x="40" y="540" width="180" height="50" as="geometry"/></mxCell>
+
+        <!-- Processes -->
+        <mxCell id="cP11" value="11.0&#10;Donation &amp; Resource&#10;Management"  style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="40"  width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="cP12" value="12.0&#10;Analytics"                                style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="180" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="cP13" value="13.0&#10;Reporting&#10;(incl. AI Narrative)"       style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="320" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="cP14" value="14.0&#10;Impact Measurement"                       style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="460" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="cP15" value="15.0&#10;Communication&#10;(incl. AI Chatbot)"     style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8D5A8;strokeColor=#6B5B3E;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="460" y="600" width="220" height="110" as="geometry"/></mxCell>
+
+        <!-- Data Stores -->
+        <mxCell id="cD1"  value="D1  User Database (read-only — Fig 1)"                          style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="900" y="40"  width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD5"  value="D5  Needs + Households + Observations (read-only — Fig 2)"     style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="900" y="100" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD6"  value="D6  Survey Data + Codebook (read-only — Fig 2)"                style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="900" y="160" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD7"  value="D7  Volunteers + Classes + Attendance (read-only — Fig 2)"     style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="900" y="220" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD9"  value="D9  Programs + Photos (read-only — Fig 2)"                     style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="900" y="280" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD10" value="D10 Donation Log"                                              style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="360" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD11" value="D11 Analytics &amp; AI Reports + Snapshots"                    style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="440" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD12" value="D12 Impact Records"                                            style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="500" width="260" height="38" as="geometry"/></mxCell>
+        <mxCell id="cD13" value="D13 Notifications &amp; Forum"                                 style="shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6B5B3E;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1"><mxGeometry x="900" y="560" width="260" height="38" as="geometry"/></mxCell>
+
+        <!-- Edges 11.0 Donations -->
+        <mxCell id="cf1"  value="donation entries, distributions" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE2" target="cP11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf2"  value="oversight"                       style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE1" target="cP11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf3"  value="donation + distribution (tied to program)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP11" target="cD10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf4"  value="donation log"                    style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD10" target="cP11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf5"  value="donation summary"                style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP11" target="cE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 12.0 Analytics -->
+        <mxCell id="cf6"  value="exec dashboard / cross-tab query" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE1" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf7"  value="analytics query"                  style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE2" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf8"  value="scheduled snapshot trigger"       style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;dashed=1;" edge="1" parent="1" source="cES" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf9"  value="user/role"                        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD1" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf10" value="needs + observations"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD5" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf11" value="survey + methodology + codes"     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD6" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf12" value="volunteer participation"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD7" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf13" value="program + attendance"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD9" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf14" value="donations"                        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD10" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf15" value="freq + % + cross-tabs + SDG + snapshots" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP12" target="cD11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf16" value="stored snapshots"                 style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD11" target="cP12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf17" value="dashboards, SDG tracker, cross-tabs" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP12" target="cE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 13.0 Reporting -->
+        <mxCell id="cf18" value="report request, AI narrative request" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE1" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf19" value="compile community profiling report" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE3" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf20" value="barangay-scoped report request"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE4" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf21" value="barangay-scoped report request"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE5" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf22" value="aggregated metrics for report"    style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD11" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf23" value="community profiling data"         style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD5" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf24" value="program performance data"         style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD9" target="cP13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf25" value="AI report"                        style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP13" target="cD11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf26" value="PDF / Excel report + AI narrative" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP13" target="cE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf27" value="draft report for review"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP13" target="cE3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf28" value="barangay-scoped report"           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP13" target="cE4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf29" value="barangay-scoped report"           style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP13" target="cE5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 14.0 Impact -->
+        <mxCell id="cf30" value="case studies, qualitative, 6mo/12mo follow-ups" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE3" target="cP14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf31" value="quantitative indicators"          style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE2" target="cP14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf32" value="program data"                     style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD9" target="cP14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf33" value="pre/post survey data"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD6" target="cP14"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf34" value="impact + qual + staged follow-ups" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP14" target="cD12"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf35" value="impact summary"                   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP14" target="cD11"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf36" value="impact report"                    style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP14" target="cE1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <!-- Edges 15.0 Communication -->
+        <mxCell id="cf37" value="announcements"                    style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE1" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf38" value="forum threads, posts"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE2" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf39" value="chatbot query"                    style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE3" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf40" value="forum reply, prefs, chatbot query" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cE7" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf41" value="chatbot query (any role)"         style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cEAny" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf42" value="twice-yearly profiling reminder"  style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;dashed=1;" edge="1" parent="1" source="cES" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf43" value="user prefs, threads"              style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cD13" target="cP15"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf44" value="notifications + threads + posts + prefs" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP15" target="cD13"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf45" value="role-tailored chatbot response"   style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP15" target="cEAny"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf46" value="email / SMS / in-app"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP15" target="cE7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf47" value="email / SMS / in-app"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP15" target="cE4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="cf48" value="email / SMS / in-app"             style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;fontSize=8;" edge="1" parent="1" source="cP15" target="cE5"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+</mxfile>

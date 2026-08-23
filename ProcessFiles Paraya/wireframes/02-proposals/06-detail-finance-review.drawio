@@ -1,0 +1,172 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="06 - Detail (Finance Review)" id="p6">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="sb" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="220" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" value="AGAPE" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="180" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="PARAYA Officers" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="20" y="56" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="n2" value="[x] Proposals" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontStyle=1;align=left;spacingLeft=12;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="10" y="144" width="200" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="navmore" value="(... other nav items ...)" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="10" y="200" width="200" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="bgdim" value="(proposals list underneath — dimmed)" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="240" y="400" width="600" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sh" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="880" y="0" width="720" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="dt" value="Bayanihan Cleanup Drive" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="14" width="640" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="( finance review )" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="904" y="46" width="120" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="dx" value="[ X ]" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="14" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="dd" style="endArrow=none;html=1;strokeColor=#000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="880" y="76" as="sourcePoint" />
+            <mxPoint x="1600" y="76" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aph" value="Approval Pipeline" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="86" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="appf" value="[ 🖨 Project Participation Form ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;dashed=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="88" width="240" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap1" value="✓ Draft" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="904" y="118" width="78" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap2" value="✓ Submitted" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="990" y="118" width="100" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap3" value="✓ Pre-Scr" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1098" y="118" width="90" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap4" value="✓ SDG" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1196" y="118" width="80" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap5" value="(Finance)" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1284" y="118" width="86" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap5a" value="›" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1370" y="118" width="14" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="ap6" value="Approved" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1384" y="118" width="86" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" style="endArrow=none;html=1;strokeColor=#000;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="904" y="158" as="sourcePoint" />
+            <mxPoint x="1576" y="158" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="trio" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="904" y="170" width="672" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ttl" value="Timeline" style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="904" y="170" width="224" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ttv" value="Jul 2 — Jul 31, 2026" style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="904" y="182" width="224" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl" value="Budget" style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1128" y="170" width="224" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tbv" value="₱15,000.00" style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=10;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1128" y="182" width="224" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tbal" value="Barangay" style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1352" y="170" width="224" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tbav" value="Lolomboy" style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1352" y="182" width="224" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="hh" value="Review History" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="240" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="hi1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="904" y="270" width="672" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="hi1t" value="Pre-Screening" style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="904" y="270" width="300" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hi1d" value="(approved)" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="278" width="86" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hi1m" value="J. dela Cruz · May 10, 2026 · All 5 checks passed." style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=8;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="904" y="270" width="600" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="hi2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1">
+          <mxGeometry x="904" y="324" width="672" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="hi2t" value="SDG Review" style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=8;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="904" y="324" width="300" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hi2d" value="(approved)" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="332" width="86" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="hi2m" value="M. Santos · May 11, 2026 · SDGs 11 + 17 indicators sound." style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=8;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="904" y="324" width="600" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" style="endArrow=none;html=1;strokeColor=#000;dashed=1;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="904" y="394" as="sourcePoint" />
+            <mxPoint x="1576" y="394" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fh" value="Finance Clearance" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="404" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="fst" value="Not yet cleared" style="rounded=10;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1450" y="404" width="126" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="fbx" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="904" y="436" width="672" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fbt" value="Finance Office must verify the budget breakdown and confirm this is a non-income-generating activity. Required before final approval." style="text;html=1;align=left;verticalAlign=top;spacingLeft=14;spacingTop=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="904" y="436" width="640" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="fbm" value="Income-generating flag: NO · Estimated budget: ₱15,000.00 · Budget items: 12 (in detail)" style="text;html=1;align=left;verticalAlign=bottom;spacingLeft=14;spacingBottom=10;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="904" y="436" width="640" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ach" value="Actions" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="528" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="acl" value="Finance clearance notes" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="880" y="554" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="acn" value="Budget verified against itemized breakdown; no income-generating components flagged." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;dashed=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="904" y="576" width="672" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="aca" value="[ ✓ MARK FINANCE CLEARED ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;fontColor=#fff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="904" y="636" width="540" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="acv" value="[ ♻ ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1450" y="636" width="56" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="acrj" value="[ X ]" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1512" y="636" width="56" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="acm" value="After clearance, the Approve Proposal button becomes the next primary action." style="text;html=1;align=left;verticalAlign=middle;spacingLeft=24;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="880" y="680" width="700" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="nt" value="STATE: Finance Review (not cleared) — Mark Finance Cleared is forced first; review history shows prior stages" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="240" y="822" width="640" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

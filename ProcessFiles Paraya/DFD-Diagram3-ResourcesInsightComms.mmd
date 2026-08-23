@@ -1,0 +1,95 @@
+%% AGAPE Exploded DFD — Figure 3 of 3
+%% Resources, Insight & Communication
+%% Processes: 11.0 Donations, 12.0 Analytics, 13.0 Reporting (incl. AI Narrative),
+%%            14.0 Impact Measurement, 15.0 Communication (incl. AI Chatbot)
+
+flowchart LR
+    %% External Entities
+    E1["PARAYA Director"]:::entity
+    E2["PARAYA Associate"]:::entity
+    E3["PARAYA Researcher"]:::entity
+    E4["Barangay Captain"]:::entity
+    E5["Barangay Secretary"]:::entity
+    E7["DYCI Volunteer"]:::entity
+    EAny["Any User Role<br/>(chatbot)"]:::entity
+    ES["System Scheduler (Cron)"]:::entity
+
+    %% Processes
+    P11(("11.0 Donation & Resource Management")):::process
+    P12(("12.0 Analytics")):::process
+    P13(("13.0 Reporting (incl. AI Narrative)")):::process
+    P14(("14.0 Impact Measurement")):::process
+    P15(("15.0 Communication (incl. AI Chatbot)")):::process
+
+    %% Data Stores
+    D1[("D1 User Database (read-only — Fig 1)")]:::store
+    D5[("D5 Needs + Households + Observations (read-only — Fig 2)")]:::store
+    D6[("D6 Survey Data + Codebook (read-only — Fig 2)")]:::store
+    D7[("D7 Volunteers + Classes (read-only — Fig 2)")]:::store
+    D9[("D9 Programs + Attendance + Photos (read-only — Fig 2)")]:::store
+    D10[("D10 Donation Log")]:::store
+    D11[("D11 Analytics & AI Reports + Snapshots")]:::store
+    D12[("D12 Impact Records")]:::store
+    D13[("D13 Notifications & Forum")]:::store
+
+    %% 11.0 Donation & Resource Management
+    E2 -- "donation entries, distributions" --> P11
+    E1 -- "oversight" --> P11
+    P11 -- "donation + distribution record (tied to program)" --> D10
+    D10 -- "donation log" --> P11
+    P11 -- "donation summary" --> E1
+
+    %% 12.0 Analytics (frequency, percentage, cross-tab, SDG, snapshots)
+    E1 -- "executive dashboard / cross-tab query" --> P12
+    E2 -- "analytics query" --> P12
+    ES -- "scheduled snapshot trigger (cron)" --> P12
+    D1 -- "user/role data" --> P12
+    D5 -- "needs + household + observation data" --> P12
+    D6 -- "survey aggregates + methodology + codes" --> P12
+    D7 -- "volunteer participation" --> P12
+    D9 -- "program + attendance" --> P12
+    D10 -- "donation data" --> P12
+    P12 -- "frequency + % + cross-tabs + SDG charts + snapshots" --> D11
+    D11 -- "stored snapshots" --> P12
+    P12 -- "dashboards, SDG impact tracker, cross-tabs" --> E1
+
+    %% 13.0 Reporting (incl. AI Narrative — community profiling, programs, donations, SDG)
+    E1 -- "report request, AI narrative request" --> P13
+    E3 -- "compile community profiling report" --> P13
+    E4 -- "barangay-scoped report request" --> P13
+    E5 -- "barangay-scoped report request" --> P13
+    D11 -- "aggregated metrics for report" --> P13
+    D5 -- "community profiling data" --> P13
+    D9 -- "program performance data" --> P13
+    P13 -- "AI report" --> D11
+    P13 -- "PDF / Excel report + AI narrative" --> E1
+    P13 -- "draft report for review" --> E3
+    P13 -- "barangay-scoped report" --> E4
+    P13 -- "barangay-scoped report" --> E5
+
+    %% 14.0 Impact Measurement (quantitative + qualitative + 6mo / 12mo follow-ups)
+    E3 -- "case studies, qualitative narrative, follow-ups (6mo / 12mo)" --> P14
+    E2 -- "quantitative indicators (beneficiaries, hours, materials, trainings)" --> P14
+    D9 -- "program data" --> P14
+    D6 -- "pre/post survey data (compare endpoint)" --> P14
+    P14 -- "impact + qualitative + staged follow-ups" --> D12
+    P14 -- "impact summary" --> D11
+    P14 -- "impact report" --> E1
+
+    %% 15.0 Communication (incl. AI Chatbot — email, SMS, in-app, forum)
+    E1 -- "announcements" --> P15
+    E2 -- "forum threads, posts" --> P15
+    E3 -- "chatbot query" --> P15
+    E7 -- "forum reply, notification prefs, chatbot query" --> P15
+    EAny -- "chatbot query (any role)" --> P15
+    ES -- "twice-yearly profiling reminder (cron)" --> P15
+    D13 -- "user prefs, threads" --> P15
+    P15 -- "notifications + threads + posts + prefs" --> D13
+    P15 -- "role-tailored chatbot response" --> EAny
+    P15 -- "email / SMS / in-app notice" --> E7
+    P15 -- "email / SMS / in-app notice" --> E4
+    P15 -- "email / SMS / in-app notice" --> E5
+
+    classDef entity fill:#F5F0E8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef process fill:#E8D5A8,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;
+    classDef store fill:#FFFFFF,stroke:#6B5B3E,stroke-width:1.5px,color:#2C2416;

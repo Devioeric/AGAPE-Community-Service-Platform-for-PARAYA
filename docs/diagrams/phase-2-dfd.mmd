@@ -1,0 +1,19 @@
+flowchart LR
+  Partner[Non-login Partner/Proponent] -->|documents or referral outside system| PARAYA[PARAYA staff]
+  PARAYA --> Registry[Partner Registry]
+  Registry --> Terms[Agreement and renewal records]
+  PARAYA --> History[Historical Program Intake]
+  History --> Review[Human provenance and quality review]
+  Researcher[Researcher] -->|confirms evidence| Proposal[Structured Proposal]
+  Associate[Associate] --> Proposal
+  Finance[Finance] -->|return or clear exact budget revision| Proposal
+  Director[Director] -->|return, approve, or reject| Proposal
+  Proposal -->|one approved proposal, idempotent handoff| Program[Operational Program]
+  Associate --> Actuals[Expenditures and liquidation preparation]
+  Researcher --> Actuals
+  Finance -->|verify or return; never edit| Actuals
+  Actuals --> Program
+  Registry --> Aggregate[Quality-aware aggregate DTOs]
+  History --> Aggregate
+  Program --> Aggregate
+  Aggregate -. no AI connection in Phase 2 .-> FutureAI[Future advisory AI]

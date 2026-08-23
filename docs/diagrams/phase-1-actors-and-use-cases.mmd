@@ -1,0 +1,29 @@
+flowchart TB
+  R[PARAYA Researcher] --> R1[Configure cycles, samples and sitios]
+  R --> R2[Resolve escalated duplicates]
+  R --> R3[Apply versioned lifecycle corrections]
+  R --> R4[Complete cycle]
+
+  ML[Mother Leader] --> M1[Select assigned sample unit]
+  ML --> M2[Save household/resident draft]
+  ML --> M3[Record refusal or unavailable outcome]
+  ML --> M4[Import and correct staged packages]
+  ML --> M5[Submit or resubmit package]
+
+  S[Barangay Secretary] --> S1[Review details and consent]
+  S --> S2[Approve or return with reason]
+  S --> S3[Resolve same-barangay duplicates]
+
+  C[Barangay Captain] --> C1[View approved own-barangay detail]
+  C --> C2[View aggregates]
+  C --> C3[Endorse completed cycle]
+
+  D[Director / Associate] --> D1[View suppressed aggregates only]
+  A[System Admin] --> A1[Manage infrastructure, users and audit]
+  F[Finance] --> F1[No profiling access]
+  V[Volunteer] --> V1[No profiling access]
+  L[Historical institutional login] --> L1[Read historical proposal/program summaries only]
+
+%% Target login roles are Director, Associate, Researcher, Finance, Captain,
+%% Secretary, Mother Leader, Volunteer, and System Admin. paraya_officer and
+%% barangay_official must be mapped or suspended before release.

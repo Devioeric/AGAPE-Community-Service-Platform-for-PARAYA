@@ -1,0 +1,3331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — System Administrator Wireframes</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --side-bg: #f3f3f3;
+    --side-active: #dadada;
+    --red: #d32f2f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  .board-wrap { padding: 24px; background: var(--board-bg); min-height: calc(100vh - 40px); }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  /* Click any arrow to bring it to the front layer. .arrow-hit is an
+     invisible wide path that catches clicks near the visible stroke. */
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-hit:hover ~ .arrow-line,
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  .slot { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 660px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 13px;
+  }
+  .slot-index {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; z-index: 4;
+  }
+
+  /* Tile shell */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-meta {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-meta .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-meta .id { font-size: 10px; color: var(--ink-mute); }
+
+  /* The page shell: sidebar + (header + body) */
+  .page {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 620px;
+  }
+  .page-side {
+    background: var(--side-bg);
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column;
+    font-size: 10.5px;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .side-logo {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--ink-mute);
+  }
+  .side-brand-title { font-weight: 700; font-size: 12px; }
+  .side-brand-sub { font-size: 8px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .side-nav { flex: 1; overflow: hidden; padding: 8px 6px; }
+  .side-nav ul { list-style: none; margin: 0; padding: 0; }
+  .side-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    line-height: 1.2;
+  }
+  .side-item:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-item.active { background: rgba(0,0,0,0.06); color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+  .side-item .ico {
+    width: 12px; height: 12px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .side-item.group { font-weight: 500; }
+  .side-item.group::after { content: "▾"; margin-left: auto; font-size: 9px; color: var(--ink-mute); }
+  .side-item.group.collapsed::after { content: "▸"; }
+  .side-children {
+    list-style: none; margin: 1px 0 4px 0; padding: 0 0 0 18px;
+    border-left: 1px solid var(--line-soft);
+    margin-left: 13px;
+  }
+  .side-child {
+    padding: 4px 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-child::before { content: "•"; color: var(--ink-mute); font-size: 9px; }
+  .side-child:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-child.active { color: var(--ink); font-weight: 600; background: rgba(0,0,0,0.05); }
+  .side-divider { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+  .side-user {
+    padding: 8px 10px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .side-user .row { display: flex; align-items: center; gap: 6px; }
+  .side-user .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-soft);
+  }
+  .side-user .name { font-size: 10px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .side-user .email { font-size: 9px; color: var(--ink-mute); line-height: 1.1; }
+  .side-user .signout {
+    margin-top: 2px; padding: 4px 6px; font-size: 9px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    color: var(--ink-soft); cursor: pointer; background: #fff;
+    text-align: left;
+  }
+  .side-user .signout:hover { background: #f6f6f6; }
+
+  .page-main { display: flex; flex-direction: column; min-width: 0; }
+  .page-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page-title .crumb { font-weight: 400; color: var(--ink-mute); font-size: 11px; margin-right: 4px; }
+  .page-header .spacer { flex: 1; }
+  .page-header .iconbtn {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    position: relative;
+  }
+  .page-header .iconbtn.avatar {
+    border-radius: 50%;
+    font-size: 9px; font-weight: 700;
+    background: var(--box);
+  }
+  .page-header .iconbtn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 13px; height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Header dropdowns (notifications + profile) */
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 20;
+    font-size: 10px;
+  }
+  .notif-dropdown { right: 38px; width: 240px; }
+  .profile-dropdown { right: 8px; width: 168px; }
+
+  .dropdown-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafafa;
+  }
+  .dropdown-title { font-weight: 700; font-size: 11px; }
+  .dropdown-action {
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 9.5px;
+    text-decoration: underline;
+  }
+  .dropdown-action:hover { color: var(--ink); }
+
+  .dropdown-body { max-height: 200px; overflow-y: auto; }
+  .notif-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    display: flex; gap: 6px;
+    cursor: pointer;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafafa; }
+  .notif-item.unread { background: #ececec; border-left: 3px solid #1a1a1a; }
+  .notif-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: #fff;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-size: 10px; font-weight: 700; line-height: 1.2; }
+  .notif-item:not(.unread) .notif-title { font-weight: 500; color: var(--ink-soft); }
+  .notif-msg { font-size: 9px; color: var(--ink-mute); margin-top: 2px; line-height: 1.3; }
+  .notif-time { font-size: 8px; color: var(--ink-mute); margin-top: 3px; }
+  .notif-dot {
+    width: 6px; height: 6px;
+    background: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  .dropdown-foot {
+    padding: 7px 10px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+  }
+  .dropdown-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .dropdown-link:hover { color: var(--ink); }
+
+  .dropdown-user { padding: 8px 10px; }
+  .dropdown-user-name { font-size: 11px; font-weight: 700; }
+  .dropdown-user-email { font-size: 9px; color: var(--ink-mute); margin-top: 1px; }
+  .dropdown-sep { height: 1px; background: var(--line-soft); }
+  .dropdown-item {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .dropdown-item:hover { background: #fafafa; color: var(--ink); }
+  .dropdown-item.danger { color: #2a2a2a; font-style: italic; }
+  .dropdown-item.danger:hover { background: #f0f0f0; }
+
+  .page-body {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 13px; color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Wireframe primitives inside the page body */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .kpi .kpi-label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .kpi-value { font-size: 18px; font-weight: 700; }
+  .kpi .kpi-sub { font-size: 9px; color: var(--ink-mute); }
+
+  .panel-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .panel-row.r-2-1 { grid-template-columns: 2fr 1fr; }
+  .panel-row.r-1-2 { grid-template-columns: 1fr 2fr; }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fafafa;
+  }
+  .panel-head .ttl { font-size: 11px; font-weight: 700; }
+  .panel-head .lnk { font-size: 10px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .panel-body { padding: 10px; }
+  .panel-body.dense { padding: 8px 10px; }
+
+  /* Bar chart placeholder */
+  .barchart {
+    height: 150px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 8px 12px;
+  }
+  .barchart .bar {
+    flex: 1;
+    background: #6e6e6e;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+  }
+  .barchart .axis {
+    position: absolute;
+    bottom: -16px;
+    left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--ink-mute);
+  }
+
+  .sdg-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sdg-row .label { font-size: 10px; color: var(--ink-soft); }
+  .sdg-row .val { font-size: 11px; font-weight: 700; }
+  .sdg-row .bar {
+    grid-column: 1 / -1;
+    height: 5px; background: var(--box-soft); border-radius: 3px;
+    overflow: hidden;
+  }
+  .sdg-row .bar > div { height: 100%; background: var(--ink-soft); }
+
+  .brgy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+  .brgy-row .rank { width: 14px; color: var(--ink-mute); }
+  .brgy-row .name { flex: 1; }
+  .brgy-row .pct { width: 60px; height: 4px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .brgy-row .pct > div { height: 100%; background: var(--ink-soft); }
+  .brgy-row .count { color: var(--ink); font-weight: 600; min-width: 18px; text-align: right; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl th, .tbl td { padding: 5px 6px; text-align: left; border-bottom: 1px solid var(--box-soft); }
+  .tbl th { color: var(--ink-mute); font-weight: 500; background: #fafafa; }
+  .tbl td { color: var(--ink-soft); }
+  .tbl .pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-soft); font-size: 9px; color: var(--ink-soft);
+    background: #fff;
+  }
+
+  /* Stub page body (used by placeholder screens) */
+  .stub {
+    height: 100%;
+    min-height: 480px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 12px;
+    padding: 30px 24px;
+    border: 1px dashed var(--line-soft);
+    border-radius: 6px;
+    background: #fafafa;
+    color: var(--ink-soft);
+  }
+  .stub .stub-route { font-family: ui-monospace, "Courier New", monospace; font-size: 12px; color: var(--ink-mute); }
+  .stub .stub-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .stub .stub-desc { font-size: 12px; max-width: 360px; line-height: 1.5; color: var(--ink-soft); }
+  .stub .stub-tag {
+    margin-top: 6px;
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-size: 10px; color: var(--ink-mute); background: #fff;
+  }
+
+  /* Login / "public" pages: no sidebar, no top header. Centered content. */
+  .page.chromeless { grid-template-columns: 1fr; background: #ffffff; }
+  .page.chromeless .page-main { display: flex; align-items: center; justify-content: center; }
+  .page.chromeless .page-body { width: 100%; display: flex; align-items: center; justify-content: center; padding: 30px 24px; min-height: 540px; }
+
+  /* Login wireframe primitives (copied from auth.html). */
+  .wf { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+  .wf-card {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer; user-select: none;
+    min-height: 32px; display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-btn {
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    padding: 9px 12px; text-align: center;
+    background: #f0f0f0; font-size: 12px; font-weight: 600;
+    cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft); text-decoration: underline;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+
+  /* ── Partnership management primitives ─────────────────────────── */
+  .partner-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .map-area {
+    height: 180px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, var(--box-soft) 30px 31px),
+      repeating-linear-gradient(90deg, transparent 0 40px, var(--box-soft) 40px 41px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 4px;
+    position: relative;
+  }
+  .map-marker {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker.active   { background: #2a2a2a; }
+  .map-marker.inactive { background: #ffffff; border-color: #2a2a2a; }
+  .map-toggle {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  .map-toggle .opt {
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .map-toggle .opt.active {
+    background: var(--ink); color: #fff; font-weight: 600;
+  }
+
+  .partner-tools {
+    display: flex; gap: 6px;
+    margin: 8px 0 4px 0;
+  }
+  .partner-search {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px; color: var(--ink-mute);
+    background: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .partner-filter, .partner-add-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .partner-filter-wrap { position: relative; }
+  .status-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 108px;
+    font-size: 10px;
+  }
+  .status-filter-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .status-filter-item:hover { background: #fafafa; color: var(--ink); }
+  .status-filter-item.active { font-weight: 700; color: var(--ink); background: #f4f4f4; }
+  .partner-add-btn { background: #2a2a2a; color: #fff; border-color: #2a2a2a; font-weight: 600; }
+  .partner-add-btn:hover { background: #1a1a1a; }
+
+  .tbl-actions { width: 18px; text-align: center; cursor: pointer; color: var(--ink-mute); }
+  .tbl-actions:hover { color: var(--ink); }
+  .status-pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; border: 1px solid; }
+  .status-pill.active { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .status-pill.inactive { background: #f5f5f5; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+
+  /* Row action menu (the "⋯" dropdown) */
+  .row-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 138px;
+    font-size: 10px;
+  }
+  .row-menu-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .row-menu-item:hover { background: #fafafa; color: var(--ink); }
+  .row-menu-item.danger { color: #2a2a2a; font-style: italic; }
+  .row-menu-item.danger:hover { background: #f0f0f0; }
+  .row-menu-sep { height: 1px; background: var(--line-soft); }
+
+  /* Sheet overlay (slide-in side panel) */
+  .sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.30);
+    z-index: 14;
+  }
+  .sheet-panel {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 62%;
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    display: flex; flex-direction: column;
+  }
+  .sheet-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 13px; font-weight: 700; }
+  .sheet-close {
+    width: 20px; height: 20px;
+    border: 1px solid var(--line-soft); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 11px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+  }
+  .sheet-foot {
+    padding: 9px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: flex-end; gap: 6px;
+    background: #fafafa;
+  }
+  .sheet-section { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-section-title {
+    font-size: 9px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .sheet-field { display: flex; flex-direction: column; gap: 2px; }
+  .sheet-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-label { font-size: 10px; color: var(--ink-soft); }
+  .sheet-label .req { color: #1a1a1a; font-weight: 700; }
+  .sheet-input, .sheet-select {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    color: var(--ink-mute);
+    background: #fff;
+    min-height: 26px;
+    display: flex; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .sheet-input.filled, .sheet-select.filled { color: var(--ink); background: #f6f6f6; }
+  .sheet-select::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  .sheet-hint { font-size: 9px; color: var(--ink-mute); line-height: 1.4; }
+  .sheet-hint .auto {
+    color: #1a1a1a; font-weight: 700;
+  }
+
+  /* ── Project Proposals primitives ─────────────────────────────── */
+  .proposal-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .phase-rollup-card { margin-bottom: 10px; }
+  .phase-bar {
+    display: flex; height: 7px;
+    background: var(--box-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .phase-seg { height: 100%; }
+  .phase-seg.diagnostic { background: #8a8a8a; }
+  .phase-seg.research   { background: #6a6a6a; }
+  .phase-seg.filing     { background: #4a4a4a; }
+  .phase-seg.execution  { background: #2a2a2a; }
+  .phase-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .phase-card {
+    display: flex; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .phase-card .label-row {
+    font-size: 9px; color: var(--ink-mute);
+  }
+  .phase-card .count {
+    font-size: 14px; font-weight: 700; line-height: 1.1;
+  }
+
+  /* Pipeline stepper (inside row, also detail) */
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .stepper-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 600;
+  }
+  .stepper-chip.done { background: #2a2a2a; color: #fff; }
+  .stepper-chip.current { background: #fff; color: #1a1a1a; border: 1px solid #1a1a1a; }
+  .stepper-chip.upcoming { background: var(--box-soft); color: var(--ink-mute); }
+  .stepper-arrow { color: var(--ink-mute); font-size: 7px; }
+  .stepper-rejected, .stepper-revising {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    color: #2a2a2a;
+  }
+  .stepper-rejected { text-decoration: line-through; }
+  .stepper-revising { font-style: italic; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 600;
+    border: 1px solid;
+    text-transform: capitalize;
+  }
+  .status-badge.draft           { background: #ececec; color: #6a6a6a; border-color: #c0c0c0; }
+  .status-badge.submitted       { background: #e2e2e2; color: #1a1a1a; border-color: #8a8a8a; }
+  .status-badge.pre_screening,
+  .status-badge.sdg_review,
+  .status-badge.finance_review  { background: #d4d4d4; color: #1a1a1a; border-color: #6a6a6a; }
+  .status-badge.approved        { background: #2a2a2a; color: #ffffff; border-color: #1a1a1a; }
+  .status-badge.rejected        { background: #f5f5f5; color: #6a6a6a; border-color: #6a6a6a; border-style: dashed; }
+  .status-badge.revisions_requested { background: #ececec; color: #1a1a1a; border-color: #4a4a4a; border-style: dashed; }
+
+  /* SDG chips */
+  .sdg-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 2px;
+  }
+  .sdg-chip.sdg-4  { background: #2a2a2a; }
+  .sdg-chip.sdg-9  { background: #4a4a4a; }
+  .sdg-chip.sdg-11 { background: #6a6a6a; }
+  .sdg-chip.sdg-17 { background: #1a1a1a; }
+
+  /* SDG selector buttons in Create sheet */
+  .sdg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sdg-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sdg-btn.selected { box-shadow: 0 0 0 2px currentColor inset; }
+  .sdg-btn .head { display: flex; align-items: center; gap: 4px; }
+  .sdg-btn .lbl  { font-size: 9.5px; color: var(--ink); font-weight: 500; margin-top: 3px; }
+
+  /* Income-generating gate */
+  .income-gate {
+    border: 1px solid var(--line);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .income-gate .gate-check {
+    width: 13px; height: 13px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .income-gate .gate-text {
+    font-size: 9.5px; color: var(--ink); line-height: 1.4;
+  }
+  .income-gate .gate-text strong { font-weight: 700; }
+  .income-gate .gate-text .sub { color: var(--ink-mute); display: block; margin-top: 2px; font-size: 9px; }
+
+  /* Detail-sheet specific blocks */
+  .detail-field { font-size: 11px; }
+  .detail-field .lbl {
+    font-size: 9px; font-weight: 700;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-field .val { margin-top: 2px; color: var(--ink); line-height: 1.4; }
+  .detail-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
+
+  .review-item {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .review-item-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+  }
+  .review-item-stage { font-weight: 700; text-transform: capitalize; font-size: 10px; }
+  .review-item-notes { color: var(--ink-mute); font-size: 9.5px; line-height: 1.4; }
+  .review-item-meta  { color: var(--ink-mute); font-size: 9px; margin-top: 3px; }
+
+  /* Inline notice blocks (validation, finance, revisions) */
+  .notice {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .notice.warning { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.success { background: #ececec; border-color: #4a4a4a; color: #1a1a1a; }
+  .notice.info    { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.accent  { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; border-style: dashed; }
+  .notice-row { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+  /* Action button group in detail sheet */
+  .detail-actions-row { display: flex; gap: 5px; }
+  .detail-actions-row .icon-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    width: 28px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .detail-actions-row .icon-btn.danger { border-color: var(--line); color: var(--ink-soft); border-style: dashed; }
+  .detail-actions-row .icon-btn.accent { border-color: var(--line); color: var(--ink-soft); }
+
+  .ppf-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 9px;
+    color: var(--ink-soft);
+    background: #f5f5f5;
+    cursor: pointer;
+  }
+
+  /* ── Community Needs Assessment primitives ─────────────────────── */
+
+  /* Donut chart placeholder for distributions (income, etc.) */
+  .donut-chart {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#1a1a1a 0% 40%, #4a4a4a 40% 65%, #8a8a8a 65% 85%, #c0c0c0 85% 100%);
+    position: relative;
+    margin: 4px auto;
+  }
+  .donut-chart::after {
+    content: ""; position: absolute;
+    inset: 30%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .donut-legend { font-size: 9px; color: var(--ink-soft); margin-top: 6px; text-align: center; }
+  .donut-legend-item { display: inline-flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Key indicator tiles (extended profile) */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ind-tile {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 7px 10px;
+  }
+  .ind-tile .lbl { font-size: 9px; color: var(--ink-mute); }
+  .ind-tile .val { font-size: 16px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .ind-tile .val .pct { font-size: 9px; color: var(--ink-mute); font-weight: 400; margin-left: 3px; }
+
+  /* Need pills (health/economic/environmental/social) */
+  .need-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink);
+    margin-right: 3px;
+  }
+
+  /* Builder tab strip */
+  .builder-tabs {
+    display: flex; gap: 1px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    padding: 2px;
+    font-size: 10px;
+    width: fit-content;
+  }
+  .builder-tab {
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .builder-tab.active {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Builder section + question blocks */
+  .builder-section {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .builder-section-head {
+    padding: 6px 10px;
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .builder-question {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .builder-question:last-child { border-bottom: none; }
+  .builder-q-handle { color: var(--ink-mute); font-size: 11px; cursor: grab; }
+  .builder-q-body { flex: 1; min-width: 0; }
+  .builder-q-text { font-weight: 600; color: var(--ink); }
+  .builder-q-type {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--box-soft);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .builder-q-required {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+  .builder-q-options { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Create-survey choice modal cards */
+  .choice-modal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.30);
+    z-index: 15;
+    padding: 20px;
+  }
+  .choice-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .choice-card .ttl { font-size: 14px; font-weight: 700; }
+  .choice-card .sub { font-size: 10px; color: var(--ink-mute); margin-top: 3px; }
+  .choice-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .choice-option {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+  }
+  .choice-option:hover { background: #f5f5f5; }
+  .choice-option .ic { font-size: 18px; margin-bottom: 4px; }
+  .choice-option .nm { font-size: 11px; font-weight: 700; }
+  .choice-option .ds { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Compare grid (Pre/Post) */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+  .compare-cell {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+  .compare-cell .lbl { color: var(--ink-mute); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .compare-cell .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .compare-cell .delta { font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Survey-selector card list */
+  .selector-list {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+  .selector-row {
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .selector-row:hover { background: #f5f5f5; }
+  .selector-row.selected { background: #1a1a1a; color: #fff; }
+
+  /* Theme/code chips for qualitative analysis */
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: #fff;
+    margin: 2px 2px 0 0;
+    cursor: pointer;
+  }
+  .theme-chip:hover { background: #f5f5f5; }
+  .theme-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  /* Bar chart (horizontal) for "Primary Needs Frequency" */
+  .h-barchart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 24px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .h-barchart-row .lbl { color: var(--ink-soft); }
+  .h-barchart-row .bar { height: 8px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .h-barchart-row .bar > div { height: 100%; background: #2a2a2a; }
+  .h-barchart-row .num { text-align: right; font-weight: 700; }
+
+  /* ── Volunteer Management primitives ───────────────────────────── */
+
+  /* Avatar circle */
+  .vol-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--box);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .vol-avatar.lg { width: 36px; height: 36px; font-size: 12px; }
+
+  /* Pending logs warning card */
+  .pending-banner {
+    border: 1px solid #4a4a4a;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .pending-banner .head {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .pending-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .pending-log-row .body { flex: 1; min-width: 0; }
+  .pending-log-row .name { font-weight: 700; color: var(--ink); font-size: 10px; }
+  .pending-log-row .desc { color: var(--ink-mute); line-height: 1.3; margin-top: 1px; }
+  .pending-log-row .meta { color: var(--ink-mute); font-size: 8.5px; margin-top: 2px; }
+  .pending-log-row .actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .pending-log-row .btn-ico {
+    width: 24px; height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .pending-log-row .btn-ico.accept { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .pending-log-row .btn-ico.reject { background: #fff; color: #2a2a2a; border-style: dashed; }
+
+  /* Activity selector (attendance left pane) */
+  .activity-list {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .activity-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: #fafafa; }
+  .activity-item.active {
+    background: #f4f4f4;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 7px;
+  }
+  .activity-item .title-row { display: flex; align-items: center; justify-content: space-between; }
+  .activity-item .title { font-weight: 700; color: var(--ink); }
+  .activity-item .prog { color: var(--ink-mute); font-size: 9px; margin-top: 1px; }
+  .activity-item .meta {
+    display: flex; justify-content: space-between;
+    font-size: 8.5px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* OTP block */
+  .otp-display {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-align: center;
+    padding: 12px 8px;
+    background: #f4f4f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .otp-empty {
+    padding: 16px 8px;
+    text-align: center;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink-mute);
+  }
+  .otp-meta {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* QR placeholder */
+  .qr-block {
+    width: 130px; height: 130px;
+    background:
+      conic-gradient(from 0deg at 50% 50%, #1a1a1a 0% 8%, #fff 8% 16%, #1a1a1a 16% 24%, #fff 24% 32%, #1a1a1a 32% 40%, #fff 40% 48%, #1a1a1a 48% 56%, #fff 56% 64%, #1a1a1a 64% 72%, #fff 72% 80%, #1a1a1a 80% 88%, #fff 88% 100%),
+      #fff;
+    background-blend-mode: normal;
+    border: 4px solid #fff;
+    outline: 1px solid var(--line);
+    margin: 0 auto;
+    position: relative;
+  }
+  /* Cheap QR-ish look via tiled radial gradients */
+  .qr-block {
+    background:
+      radial-gradient(circle, #1a1a1a 25%, transparent 26%) 0 0 / 10px 10px,
+      radial-gradient(circle, #1a1a1a 22%, transparent 23%) 5px 5px / 10px 10px,
+      #fff;
+  }
+  .qr-block::before, .qr-block::after {
+    content: ""; position: absolute;
+    width: 28px; height: 28px;
+    border: 5px solid #1a1a1a;
+    background: #fff;
+  }
+  .qr-block::before { top: 4px; left: 4px; }
+  .qr-block::after { top: 4px; right: 4px; }
+
+  .qr-empty {
+    width: 130px; height: 130px;
+    background: #fafafa;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--ink-mute);
+  }
+
+  /* Roster list */
+  .roster-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+  }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-row .body { flex: 1; min-width: 0; }
+  .roster-row .name { font-weight: 600; color: var(--ink); }
+  .roster-row .email { color: var(--ink-mute); font-size: 9px; }
+  .roster-row .method {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 8.5px;
+    font-weight: 600;
+  }
+  .roster-row .method.qr     { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .roster-row .method.otp    { background: #f4f4f4; color: var(--ink); border-color: var(--line); }
+  .roster-row .method.manual { background: #fff; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+  .roster-row .time { font-size: 9px; color: var(--ink-mute); white-space: nowrap; }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+<aside style="padding:12px 18px;background:#fffbeb;border-bottom:2px solid #b45309;color:#451a03;font:14px/1.4 system-ui,sans-serif">
+  <strong>Current scope:</strong> System Admin is infrastructure-only and has no routine operational or resident-detail access. Institutional partner roles shown in historical tables are read-only migration identities and cannot be invited or activated.
+</aside>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role:</label>
+    <select id="rolePicker" disabled style="opacity: 0.7;">
+      <option value="admin">System Administrator (full account + audit + backup access)</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE INFO (for sidebar user block)
+   ============================================================ */
+const ROLE_INFO = {
+  admin: { label: "System Administrator", name: "Mr. F. Tan", email: "ftan@dyci.edu.ph", org: "DYCI IT" },
+};
+let currentRole = "admin";
+
+/* ============================================================
+   ADMIN SIDEBAR NAV (mirrors adminNav in Sidebar.tsx)
+   Account-management surface only — admins exist to provision
+   accounts, audit activity, and recover from incidents.
+   ============================================================ */
+const PARTNER_NAV = [
+  { key: "dashboard",  label: "Dashboard",            screen: "dashboard" },
+  {
+    key: "usermgmt_grp", label: "User Management", group: true,
+    children: [
+      { key: "users",      label: "Users",              screen: "users"      },
+      { key: "audit_logs", label: "Audit Logs",         screen: "audit_logs" },
+      { key: "backup",     label: "Backup & Recovery",  screen: "backup"     },
+    ],
+  },
+];
+
+// Pinned at the bottom of the sidebar.
+const SIDEBAR_PINNED = [
+  { key: "chatbot",       label: "AI Assistant",  screen: "chatbot"       },
+  { key: "notifications", label: "Notifications", screen: "notifications" },
+];
+
+// (Admin accounts are created via the DB — admin is excluded from
+//  ASSIGNABLE_ROLES. Once provisioned they have unrestricted account
+//  permissions but no operational role in PARAYA / Barangay / Partner
+//  workflows. Sensitive actions — set password, delete user — require
+//  the admin to re-enter their own password, verified via a throwaway
+//  non-persisting Supabase client so the live session is untouched.)
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   route   — path string for tile header
+   title   — page title shown in the in-tile header
+   navKey  — which sidebar item should be highlighted
+   caption — 1-2 sentence description shown below the tile
+   render  — returns HTML for the page body
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN (entry point) ---------- */
+  login: {
+    route:     "/login",
+    title:     "Sign In",
+    navKey:    "login",
+    chromeless: true,
+    caption:   "Entry point. Email/password sign-in via Supabase Auth. On success, middleware reads the user's role from the users table and forwards to the matching dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input ${s.email ? "filled" : ""}" data-action="fill" data-field="email">${s.email ? "officer@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input ${s.password ? "filled" : ""}" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>
+    `,
+  },
+
+  /* ---------- ADMIN DASHBOARD ---------- */
+  dashboard: {
+    route:   "/admin",
+    title:   "Admin Dashboard",
+    navKey:  "dashboard",
+    caption: "Admin landing page. 4 KPIs (Total Users, Pending Invites, Active Users, Security Events) + role distribution chart + recent audit logs panel. All numbers are sourced from /api/admin/stats.",
+    render:  () => {
+      const roles = [
+        { label: "Volunteers",          n: 124, color: "#1a1a1a" },
+        { label: "PARAYA Staff",        n: 8,   color: "#444"     },
+        { label: "Barangay Roles",      n: 32,  color: "#777"     },
+        { label: "Partner Accounts",    n: 11,  color: "#999"     },
+        { label: "Finance Officers",    n: 2,   color: "#bbb"     },
+        { label: "Admins",              n: 3,   color: "#666"     },
+      ];
+      const total = roles.reduce((s, r) => s + r.n, 0);
+      // Build a stacked horizontal bar in lieu of pie
+      let cum = 0;
+      const segs = roles.map((r) => {
+        const start = (cum / total) * 100;
+        cum += r.n;
+        const w = (r.n / total) * 100;
+        return `<div style="position: absolute; left: ${start}%; width: ${w}%; height: 100%; background: ${r.color};" title="${r.label} (${r.n})"></div>`;
+      }).join("");
+      return `
+        <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="kpi" data-action="go:users"><span class="kpi-label">👤 Total Users</span><span class="kpi-value">${total}</span><span class="kpi-sub">${total - 4} active</span></div>
+          <div class="kpi" data-action="go:users"><span class="kpi-label">📧 Pending Invites</span><span class="kpi-value">4</span><span class="kpi-sub">Awaiting acceptance</span></div>
+          <div class="kpi" data-action="go:audit_logs"><span class="kpi-label">⚠ Security Events</span><span class="kpi-value">3</span><span class="kpi-sub">Last 24h</span></div>
+          <div class="kpi" data-action="go:backup"><span class="kpi-label">💾 Last Backup</span><span class="kpi-value" style="font-size: 14px;">3h ago</span><span class="kpi-sub" style="font-weight: 600;">Supabase managed</span></div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 10px;">
+          <div class="panel-head"><span class="ttl">🥧 Role Distribution</span><span style="font-size: 9.5px; color: var(--ink-mute);">${total} accounts total</span></div>
+          <div class="panel-body dense">
+            <div style="position: relative; height: 18px; background: #f0f0f0; border-radius: 3px; overflow: hidden; margin-bottom: 8px;">${segs}</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+              ${roles.map((r) => `
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 9.5px;">
+                  <span style="width: 10px; height: 10px; background: ${r.color}; border-radius: 2px; flex-shrink: 0;"></span>
+                  <span>${r.label}:</span>
+                  <strong>${r.n}</strong>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head" style="display: flex; justify-content: space-between;">
+            <span class="ttl">📋 Recent Audit Activity</span>
+            <span class="wf-link" data-action="go:audit_logs">View all →</span>
+          </div>
+          <div class="panel-body" style="padding: 0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+              <thead>
+                <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+                  <th style="text-align: left; padding: 7px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">User</th>
+                  <th style="text-align: left; padding: 7px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Action</th>
+                  <th style="text-align: left; padding: 7px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Level</th>
+                  <th style="text-align: left; padding: 7px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${[
+                  { user: "ftan@dyci.edu.ph",         action: "Set password for mcruz@dyci.edu.ph",         level: "Warning", time: "10m ago" },
+                  { user: "ryanga@dyci.edu.ph",       action: "Advanced proposal to 'approved'",            level: "Info",    time: "1h ago"  },
+                  { user: "ftan@dyci.edu.ph",         action: "Sent invite to jbautista@dyci.edu.ph",       level: "Info",    time: "2h ago"  },
+                  { user: "anonymous",                 action: "Failed login (3 attempts) — mcruz@…",       level: "Error",   time: "5h ago"  },
+                  { user: "rdomingo@dyci.edu.ph",     action: "Marked finance_cleared on Literacy Drive",  level: "Info",    time: "5h ago"  },
+                  { user: "ftan@dyci.edu.ph",         action: "Triggered manual backup",                    level: "Info",    time: "1d ago"  },
+                ].map((l) => `
+                  <tr style="border-bottom: 1px solid var(--line-soft);">
+                    <td style="padding: 8px 10px; color: var(--ink); font-weight: 600;">${l.user}</td>
+                    <td style="padding: 8px 10px; color: var(--ink-mute);">${l.action}</td>
+                    <td style="padding: 8px 10px;"><span class="status-badge ${l.level === "Error" ? "rejected" : l.level === "Warning" ? "revisions_requested" : "submitted"}" style="font-size: 8.5px;">${l.level}</span></td>
+                    <td style="padding: 8px 10px; color: var(--ink-mute);">${l.time}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    },
+  },
+
+};
+
+
+/* ---------- USERS (CRUD + invite + reset password) ---------- */
+
+const SAMPLE_USERS = [
+  { id: 0, name: "Rosa Yanga",             email: "ryanga@dyci.edu.ph",       role: "paraya_director",    status: "active",    brgy: "—",                 created: "Aug 12, 2023" },
+  { id: 1, name: "Marco Cruz",              email: "mcruz_o@dyci.edu.ph",      role: "paraya_associate",   status: "active",    brgy: "—",                 created: "Sep 03, 2023" },
+  { id: 2, name: "Jamie Bautista",          email: "jbautista@dyci.edu.ph",    role: "paraya_researcher",  status: "active",    brgy: "—",                 created: "Sep 10, 2023" },
+  { id: 3, name: "Rachel Domingo",          email: "rdomingo@dyci.edu.ph",     role: "finance_officer",    status: "active",    brgy: "—",                 created: "Oct 15, 2023" },
+  { id: 4, name: "Maria S. Cruz",           email: "mcruz@dyci.edu.ph",        role: "volunteer",          status: "active",    brgy: "Brgy. Lolomboy",    created: "Jan 18, 2025" },
+  { id: 5, name: "Jose B. Reyes",           email: "jreyes@dyci.edu.ph",       role: "volunteer",          status: "active",    brgy: "Brgy. Lolomboy",    created: "Jan 22, 2025" },
+  { id: 6, name: "Anna L. Bautista",        email: "abautista@dyci.edu.ph",    role: "volunteer",          status: "pending",   brgy: "—",                 created: "May 12, 2025" },
+  { id: 7, name: "Cap. P. Reyes",           email: "preyes@brgy.gov.ph",       role: "barangay_captain",   status: "active",    brgy: "Brgy. Lolomboy",    created: "Aug 22, 2023" },
+  { id: 8, name: "Sec. A. Cruz",            email: "acruz@brgy.gov.ph",        role: "barangay_secretary", status: "active",    brgy: "Brgy. Lolomboy",    created: "Aug 22, 2023" },
+  { id: 9, name: "ML L. Bautista",          email: "lbautista@brgy.gov.ph",    role: "barangay_mother_leader", status: "active", brgy: "Brgy. Antipona",   created: "Sep 01, 2023" },
+  { id: 10, name: "OSAS Coordinator",       email: "osas@dyci.edu.ph",         role: "office",             status: "active",    brgy: "—",                 created: "Mar 04, 2024" },
+  { id: 11, name: "CSG President",          email: "csg@dyci.edu.ph",          role: "student_org",        status: "active",    brgy: "—",                 created: "Aug 15, 2024" },
+  { id: 12, name: "CICS Chair",             email: "cics@dyci.edu.ph",         role: "department",         status: "active",    brgy: "—",                 created: "Aug 15, 2024" },
+  { id: 13, name: "Felix Tan",              email: "ftan@dyci.edu.ph",         role: "admin",              status: "active",    brgy: "—",                 created: "Aug 01, 2023" },
+  { id: 14, name: "Patricia Lim",           email: "plim@dyci.edu.ph",         role: "volunteer",          status: "suspended", brgy: "Brgy. Antipona",    created: "Feb 10, 2025" },
+];
+
+const ROLE_FILTERS = [
+  { key: "all",                    label: "All Roles"              },
+  { key: "paraya_director",        label: "PARAYA — Director"      },
+  { key: "paraya_associate",       label: "PARAYA — Associate"     },
+  { key: "paraya_researcher",      label: "PARAYA — Researcher"    },
+  { key: "finance_officer",        label: "Finance Officer"        },
+  { key: "volunteer",              label: "Volunteers"             },
+  { key: "barangay_captain",       label: "Barangay — Captain"     },
+  { key: "barangay_secretary",     label: "Barangay — Secretary"   },
+  { key: "barangay_mother_leader", label: "Barangay — Mother Leader" },
+  { key: "office",                 label: "Office"                 },
+  { key: "student_org",            label: "Student Org"            },
+  { key: "department",             label: "Department"             },
+  { key: "admin",                  label: "Admins"                 },
+];
+
+const STATUS_FILTERS = [
+  { key: "all",       label: "All Status" },
+  { key: "active",    label: "Active"     },
+  { key: "pending",   label: "Pending"    },
+  { key: "suspended", label: "Suspended"  },
+];
+
+const ROLE_LABEL = {
+  paraya_director: "PARAYA Director", paraya_associate: "PARAYA Associate", paraya_researcher: "PARAYA Researcher",
+  finance_officer: "Finance Officer", volunteer: "Volunteer",
+  barangay_captain: "Barangay Captain", barangay_secretary: "Barangay Secretary", barangay_mother_leader: "Mother Leader",
+  office: "Office", student_org: "Student Org", department: "Department",
+  admin: "Admin",
+};
+
+function renderUsersPage(state) {
+  const search = state.users_search ?? "";
+  const roleF  = state.users_role_filter ?? "all";
+  const statF  = state.users_status_filter ?? "all";
+  const rows = SAMPLE_USERS
+    .filter((u) => roleF === "all" ? true : u.role === roleF)
+    .filter((u) => statF === "all" ? true : u.status === statF)
+    .filter((u) => !search ? true : u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+  const filters_active = search || roleF !== "all" || statF !== "all";
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">👤 Users</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+          Manage every account in the system — invite new users, edit role / status / barangay / per-module permissions, reset passwords. Admin accounts are not editable here (created via DB).
+        </div>
+      </div>
+      <span class="wf-btn primary" data-action="users-invite" style="padding: 5px 12px;">+ Invite User</span>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <div class="sheet-input" data-action="users-search" style="flex: 1; max-width: 280px; padding: 4px 10px; font-size: 9.5px; cursor: text;">🔍 Search name or email…</div>
+      <div class="sheet-input" data-action="users-open-role-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 170px;">Role: ${ROLE_FILTERS.find((r) => r.key === roleF)?.label ?? "All"} ▾</div>
+      <div class="sheet-input" data-action="users-open-status-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 130px;">Status: ${STATUS_FILTERS.find((s) => s.key === statF)?.label ?? "All"} ▾</div>
+      ${filters_active ? `<span class="wf-link" data-action="users-clear-filters" style="font-size: 9.5px; align-self: center;">Clear filters</span>` : ""}
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="ttl">${rows.length} user${rows.length === 1 ? "" : "s"}</span></div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Name</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Email</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Role</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Status</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Barangay</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Created</th>
+              <th style="text-align: right; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((u) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);">
+                <td style="padding: 9px 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="vol-avatar" style="width: 26px; height: 26px; font-size: 10px;">${u.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("")}</div>
+                    <div style="font-weight: 600;">${u.name}</div>
+                  </div>
+                </td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${u.email}</td>
+                <td style="padding: 9px 10px;"><span class="status-badge submitted" style="font-size: 8.5px;">${ROLE_LABEL[u.role] ?? u.role}</span></td>
+                <td style="padding: 9px 10px;"><span class="status-badge ${u.status === "active" ? "approved" : u.status === "pending" ? "pre_screening" : "rejected"}" style="font-size: 8.5px; text-transform: capitalize;">${u.status}</span></td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${u.brgy}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${u.created}</td>
+                <td style="padding: 6px 10px; text-align: right;"><span class="wf-btn" data-action="users-open-menu" data-row="${u.id}" style="padding: 3px 9px; font-size: 9.5px;">⋯</span></td>
+              </tr>
+            `).join("")}
+            ${rows.length === 0 ? `<tr><td colspan="7" style="padding: 24px 10px; text-align: center; color: var(--ink-mute);">No users match your filters.</td></tr>` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderRoleFilterMenu() {
+  return `
+    <div style="position: absolute; top: 100px; right: 260px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 220px; max-height: 320px; overflow-y: auto; z-index: 14;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa; position: sticky; top: 0;">Filter by role</div>
+      ${ROLE_FILTERS.map((r) => `
+        <div data-action="users-set-role:${r.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${r.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderStatusFilterMenu() {
+  return `
+    <div style="position: absolute; top: 100px; right: 120px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 160px; z-index: 14;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by status</div>
+      ${STATUS_FILTERS.map((s) => `
+        <div data-action="users-set-status:${s.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${s.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderUserRowMenu(state) {
+  const u = SAMPLE_USERS[state.users_row ?? 0];
+  return `
+    <div class="sheet-backdrop" data-action="users-menu-cancel-backdrop"></div>
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); width: 240px; z-index: 15; overflow: hidden;">
+      <div style="padding: 10px 12px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">
+        <div style="font-weight: 700; font-size: 11px;">${u.name}</div>
+        <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${u.email}</div>
+      </div>
+      <div data-action="users-edit" data-row="${u.id}" style="padding: 9px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">✎ Edit user</div>
+      <div data-action="users-reset-pw" data-row="${u.id}" style="padding: 9px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">🔐 Reset password</div>
+      <div data-action="users-suspend" data-row="${u.id}" style="padding: 9px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft); color: ${u.status === "suspended" ? "#1a1a1a" : "#c33"};">${u.status === "suspended" ? "✓ Reactivate" : "⏸ Suspend"}</div>
+      <div data-action="users-resend-invite" data-row="${u.id}" style="padding: 9px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">📧 Resend invite</div>
+      <div data-action="users-delete" data-row="${u.id}" style="padding: 9px 12px; font-size: 10px; cursor: pointer; color: #c33;">🗑 Delete user</div>
+    </div>
+  `;
+}
+
+function renderInviteDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="users-invite-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">📧 Invite New User</span>
+        <span class="sheet-close" data-action="users-invite-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="background: #fafafa; border: 1px solid var(--line-soft); padding: 8px 12px; border-radius: 4px; font-size: 9.5px; line-height: 1.5; margin-bottom: 12px;">
+          ℹ A magic-link invite is sent to the email below. The recipient lands on <code>/accept-invite</code> to set their password. The account is created with status='pending' until they complete signup.
+        </div>
+        <div class="sheet-field"><span class="sheet-label">Email <span class="req">*</span></span><div class="sheet-input">name@dyci.edu.ph</div></div>
+        <div class="sheet-field"><span class="sheet-label">Full name <span class="req">*</span></span><div class="sheet-input">Maria Santos</div></div>
+        <div class="sheet-field"><span class="sheet-label">Role <span class="req">*</span></span><div class="sheet-input" data-action="users-invite-pick-role" style="cursor: pointer;">— Pick from ASSIGNABLE_ROLES — ▾</div></div>
+        <div class="sheet-field"><span class="sheet-label">Assigned Barangay <span style="color: var(--ink-mute);">(optional — only used by some roles)</span></span><div class="sheet-input" data-action="users-invite-pick-brgy" style="cursor: pointer;">— Select barangay — ▾</div></div>
+        <div class="sheet-field"><span class="sheet-label">Organization name <span style="color: var(--ink-mute);">(partners only — e.g. OSAS, CICS, CSG)</span></span><div class="sheet-input">e.g. CICS</div></div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="users-invite-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="users-invite-send">📤 Send Invite</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderEditUserDialog(state) {
+  const u = SAMPLE_USERS[state.users_row ?? 0];
+  return `
+    <div class="sheet-backdrop" data-action="users-edit-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">✎ Edit User</span>
+        <span class="sheet-close" data-action="users-edit-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+          <div class="vol-avatar lg" style="width: 44px; height: 44px; font-size: 15px;">${u.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("")}</div>
+          <div>
+            <div style="font-weight: 700; font-size: 12px;">${u.name}</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">${u.email}</div>
+          </div>
+        </div>
+
+        <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${u.name}</div></div>
+        <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${u.email}</div></div>
+        <div class="sheet-field"><span class="sheet-label">Role</span><div class="sheet-input" data-action="users-edit-pick-role" style="cursor: pointer;">${ROLE_LABEL[u.role] ?? u.role} ▾</div></div>
+        <div class="sheet-field"><span class="sheet-label">Status</span>
+          <div style="display: flex; gap: 12px; padding: 6px 0;">
+            ${["active","pending","suspended"].map((s) => `
+              <label style="font-size: 10px; display: flex; align-items: center; gap: 4px;"><input type="radio" name="status" ${u.status === s ? "checked" : ""} disabled> ${s}</label>
+            `).join("")}
+          </div>
+        </div>
+        <div class="sheet-field"><span class="sheet-label">Assigned Barangay</span><div class="sheet-input" data-action="users-edit-pick-brgy" style="cursor: pointer;">${u.brgy === "—" ? "— None —" : u.brgy} ▾</div></div>
+
+        <div class="sheet-section" style="margin-top: 14px;">
+          <div class="sheet-section-title">Per-module permissions</div>
+          ${[
+            { k: "proposals", label: "Project Proposals" },
+            { k: "programs",  label: "Program Tracking"  },
+            { k: "surveys",   label: "Surveys"           },
+            { k: "donations", label: "Donations"         },
+            { k: "analytics", label: "Analytics"         },
+            { k: "reports",   label: "Reports"           },
+          ].map((m, i) => `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 4px;" data-action="users-edit-perm:${m.k}">
+              <span style="font-size: 10px;">${m.label}</span>
+              <div style="width: 32px; height: 18px; background: ${i % 2 === 0 ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative;">
+                <div style="position: absolute; top: 2px; ${i % 2 === 0 ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="users-edit-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="users-edit-save">💾 Save Changes</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderResetPasswordDialog(state) {
+  const u = SAMPLE_USERS[state.users_row ?? 0];
+  const mode = state.reset_mode ?? "email";
+  return `
+    <div class="sheet-backdrop" data-action="users-reset-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 520px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px;">🔐 Reset Password</span>
+        <span class="sheet-close" data-action="users-reset-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-size: 10px; margin-bottom: 6px;">Resetting password for:</div>
+        <div style="font-weight: 700; font-size: 12px; margin-bottom: 12px;">${u.name} <span style="font-weight: 400; color: var(--ink-mute); font-size: 10px;">${u.email}</span></div>
+
+        <div style="display: flex; gap: 4px; margin-bottom: 12px; padding: 3px; background: #f5f5f5; border-radius: 4px;">
+          <div data-action="users-reset-mode:email" style="flex: 1; padding: 6px 8px; font-size: 10px; text-align: center; cursor: pointer; border-radius: 3px; background: ${mode === "email" ? "#fff" : "transparent"}; font-weight: ${mode === "email" ? "700" : "400"}; border: 1px solid ${mode === "email" ? "var(--line)" : "transparent"};">📧 Send Reset Email</div>
+          <div data-action="users-reset-mode:direct" style="flex: 1; padding: 6px 8px; font-size: 10px; text-align: center; cursor: pointer; border-radius: 3px; background: ${mode === "direct" ? "#fff" : "transparent"}; font-weight: ${mode === "direct" ? "700" : "400"}; border: 1px solid ${mode === "direct" ? "var(--line)" : "transparent"};">🔑 Set New Password</div>
+        </div>
+
+        ${mode === "email" ? `
+          <div style="font-size: 10px; line-height: 1.5; color: var(--ink-mute);">
+            A password-reset link is sent via <code>auth.resetPasswordForEmail()</code> to ${u.email}. The user clicks the link and chooses a new password themselves.
+          </div>
+        ` : `
+          <div class="sheet-field"><span class="sheet-label">New password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm new password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="font-size: 9.5px; color: var(--ink-mute); padding: 6px 0;">
+            Uses <code>auth.admin.updateUserById()</code> via service-role client. The user is not notified — share the new password through a secure channel.
+          </div>
+        `}
+
+        <div class="sheet-section" style="margin-top: 14px;">
+          <div class="sheet-section-title">Confirm your identity</div>
+          <div class="sheet-field"><span class="sheet-label">Your admin password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div style="font-size: 9px; color: var(--ink-mute); padding: 4px 0;">
+            Verified via a throwaway non-persisting Supabase client — your live session is untouched.
+          </div>
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="users-reset-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="users-reset-confirm">${mode === "email" ? "📧 Send Reset Email" : "🔑 Set New Password"}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSuspendDialog(state) {
+  const u = SAMPLE_USERS[state.users_row ?? 0];
+  const reactivating = u.status === "suspended";
+  return `
+    <div class="sheet-backdrop" data-action="users-suspend-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px;">${reactivating ? "✓ Reactivate User?" : "⏸ Suspend User?"}</span>
+        <span class="sheet-close" data-action="users-suspend-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">${u.name}</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 12px;">${u.email}</div>
+        <div style="font-size: 10.5px; line-height: 1.55; margin-bottom: 12px;">
+          ${reactivating
+            ? `Reactivating restores the user's ability to sign in and use the platform. Their previous role, barangay, and permissions remain unchanged.`
+            : `Suspending blocks the user from signing in (any active sessions are revoked). Their data is preserved — you can reactivate at any time. Use this for HR / disciplinary cases or before deleting.`
+          }
+        </div>
+        <div class="sheet-field"><span class="sheet-label">Reason <span style="color: var(--ink-mute);">(audit log)</span></span><div class="sheet-input">Optional note for the audit trail</div></div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="users-suspend-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="users-suspend-confirm" style="background: ${reactivating ? "" : "#c33"};">${reactivating ? "✓ Reactivate" : "⏸ Suspend"}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderDeleteDialog(state) {
+  const u = SAMPLE_USERS[state.users_row ?? 0];
+  return `
+    <div class="sheet-backdrop" data-action="users-delete-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 460px; background: #fff; border: 1.5px solid #c33; border-radius: 8px; box-shadow: 0 12px 40px rgba(195,51,51,0.25); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid #fcc; background: #fff5f5; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px; color: #c33;">🗑 Delete User?</span>
+        <span class="sheet-close" data-action="users-delete-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; margin-bottom: 4px;">${u.name}</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 12px;">${u.email}</div>
+        <div style="font-size: 10.5px; line-height: 1.55; margin-bottom: 12px;">
+          This is <strong style="color: #c33;">permanent and cannot be undone</strong>. The user's auth record is deleted; their data rows are preserved (FKs set to NULL or kept for audit), but they will never be able to sign in or be invited again with the same email.
+        </div>
+        <div style="background: #fff5f5; border: 1px solid #fcc; padding: 8px 10px; border-radius: 4px; font-size: 9.5px; line-height: 1.5; margin-bottom: 12px;">
+          💡 Prefer <strong>Suspend</strong> for HR cases — Delete should be reserved for cleaning up test accounts, duplicate signups, or compliance erasure requests.
+        </div>
+        <div class="sheet-field"><span class="sheet-label">Type <code>DELETE ${u.email}</code> to confirm <span class="req">*</span></span><div class="sheet-input">Type the confirmation phrase exactly</div></div>
+        <div class="sheet-field"><span class="sheet-label">Your admin password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="users-delete-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="users-delete-confirm" style="background: #c33;">🗑 Delete Permanently</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.users = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "User table — search, role filter (13 roles + 'all'), status filter (active/pending/suspended/all). Per-row ⋯ menu with: Edit, Reset Password, Suspend/Reactivate, Resend invite, Delete. Top-right + Invite User CTA.",
+  render:  (s) => renderUsersPage(s),
+};
+
+SCREENS.users_role_filter = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Role filter dropdown. 13 roles grouped by organization (PARAYA staff / Finance / Volunteers / Barangay / Partner / Admin). Picking one re-filters the table.",
+  render:  (s) => `${renderUsersPage(s)}${renderRoleFilterMenu()}`,
+};
+
+SCREENS.users_status_filter = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Status filter dropdown (Active / Pending / Suspended / All). Use 'Pending' to find users who never accepted their invite.",
+  render:  (s) => `${renderUsersPage(s)}${renderStatusFilterMenu()}`,
+};
+
+SCREENS.users_filtered = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Users table with role and/or status filters applied. 'Clear filters' link returns to the full list.",
+  render:  (s) => renderUsersPage(s),
+};
+
+SCREENS.users_row_menu = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Per-row action menu (⋯). Shows: Edit user, Reset password, Suspend/Reactivate, Resend invite, Delete user. Each option opens its own dialog.",
+  render:  (s) => `${renderUsersPage(s)}${renderUserRowMenu(s)}`,
+};
+
+SCREENS.users_invite = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Invite new user sheet. Required: email, full name, role (ASSIGNABLE_ROLES — admin excluded). Optional: barangay assignment, organization name for partners. POSTs /api/admin/invite which uses Supabase admin API to send the magic link.",
+  render:  () => `${renderUsersPage({})}${renderInviteDialog()}`,
+};
+
+SCREENS.users_edit = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Edit user sheet. Editable: full name, role, status, barangay assignment, per-module permissions (proposals/programs/surveys/donations/analytics/reports). PATCHes /api/users/[id] via admin client.",
+  render:  (s) => `${renderUsersPage(s)}${renderEditUserDialog(s)}`,
+};
+
+SCREENS.users_reset_password = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Reset password dialog. Two modes: Send Reset Email (default — auth.resetPasswordForEmail) or Set New Password directly (admin.updateUserById). Both require re-entry of the admin's own password, verified via a throwaway non-persisting client.",
+  render:  (s) => `${renderUsersPage(s)}${renderResetPasswordDialog(s)}`,
+};
+
+SCREENS.users_suspend = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Suspend / Reactivate confirmation. Suspending revokes sessions + blocks sign-in; reactivating restores access. Reason is logged to audit_logs. Reactivation is single-click — only Suspend needs a reason.",
+  render:  (s) => `${renderUsersPage(s)}${renderSuspendDialog(s)}`,
+};
+
+SCREENS.users_delete = {
+  route:   "/admin/users",
+  title:   "Users",
+  navKey:  "users",
+  caption: "Delete user — destructive, permanent. Requires typing 'DELETE <email>' exactly plus re-entering the admin password. UI nudges toward Suspend instead. Reserved for test accounts, duplicates, or compliance erasure.",
+  render:  (s) => `${renderUsersPage(s)}${renderDeleteDialog(s)}`,
+};
+
+/* ---------- AUDIT LOGS ---------- */
+
+const SAMPLE_AUDIT = [
+  { user: "ftan@dyci.edu.ph",      action: "Set password for mcruz@dyci.edu.ph",       resource: "users/3a4f…", level: "Warning", time: "May 20, 2026 · 09:42" },
+  { user: "ryanga@dyci.edu.ph",    action: "Advanced proposal to 'approved'",          resource: "proposals/a8…", level: "Info",    time: "May 20, 2026 · 09:08" },
+  { user: "ftan@dyci.edu.ph",      action: "Sent invite to jbautista@dyci.edu.ph",     resource: "users/—",      level: "Info",    time: "May 20, 2026 · 08:22" },
+  { user: "anonymous",              action: "Failed login (3 attempts) — mcruz@…",     resource: "auth.users",   level: "Error",   time: "May 20, 2026 · 05:11" },
+  { user: "rdomingo@dyci.edu.ph",  action: "Marked finance_cleared on Literacy Drive", resource: "proposals/52…", level: "Info",    time: "May 20, 2026 · 04:53" },
+  { user: "ftan@dyci.edu.ph",      action: "Triggered manual backup",                  resource: "system",       level: "Info",    time: "May 19, 2026 · 22:00" },
+  { user: "mcruz_o@dyci.edu.ph",   action: "Updated program activity (Literacy Drive)", resource: "program_activities/19", level: "Info",   time: "May 19, 2026 · 18:14" },
+  { user: "preyes@brgy.gov.ph",    action: "Approved community need #41",              resource: "community_needs/41", level: "Info", time: "May 19, 2026 · 16:30" },
+  { user: "ftan@dyci.edu.ph",      action: "Suspended user plim@dyci.edu.ph",          resource: "users/7c…",    level: "Warning", time: "May 18, 2026 · 11:05" },
+  { user: "anonymous",              action: "Failed login — abautista@…",              resource: "auth.users",   level: "Warning", time: "May 18, 2026 · 09:50" },
+];
+
+const AUDIT_LEVELS = [
+  { key: "all",     label: "All Levels" },
+  { key: "Info",    label: "Info"       },
+  { key: "Warning", label: "Warning"    },
+  { key: "Error",   label: "Error"      },
+];
+
+function renderAuditLogsPage(state) {
+  const search = state.audit_search ?? "";
+  const lvlF = state.audit_level_filter ?? "all";
+  const rows = SAMPLE_AUDIT
+    .filter((r) => lvlF === "all" ? true : r.level === lvlF)
+    .filter((r) => !search ? true : r.user.toLowerCase().includes(search.toLowerCase()) || r.action.toLowerCase().includes(search.toLowerCase()));
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">📋 Audit Logs</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+          Append-only audit trail of sensitive actions: password resets, role changes, suspensions, manual backups, failed logins, finance clearances, proposal advances. Sourced from /api/admin/audit-logs.
+        </div>
+      </div>
+      <div style="display: flex; gap: 4px;">
+        <span class="wf-btn" data-action="audit-export-csv" style="padding: 4px 10px; font-size: 9.5px;">⬇ CSV</span>
+        <span class="wf-btn" data-action="audit-export-xlsx" style="padding: 4px 10px; font-size: 9.5px;">⬇ Excel</span>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <div class="sheet-input" data-action="audit-search" style="flex: 1; max-width: 320px; padding: 4px 10px; font-size: 9.5px; cursor: text;">🔍 Search user, action, or resource…</div>
+      <div class="sheet-input" data-action="audit-open-level-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 130px;">Level: ${AUDIT_LEVELS.find((l) => l.key === lvlF)?.label ?? "All"} ▾</div>
+      <div class="sheet-input" data-action="audit-pick-range" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 140px;">📅 Last 7 days ▾</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="ttl">${rows.length} event${rows.length === 1 ? "" : "s"}</span></div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">When</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">User</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Action</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Resource</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Level</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);" data-action="audit-open-row">
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${r.time}</td>
+                <td style="padding: 9px 10px; font-weight: 600;">${r.user}</td>
+                <td style="padding: 9px 10px;">${r.action}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute); font-family: ui-monospace,Menlo,monospace; font-size: 9.5px;">${r.resource}</td>
+                <td style="padding: 9px 10px;"><span class="status-badge ${r.level === "Error" ? "rejected" : r.level === "Warning" ? "revisions_requested" : "submitted"}" style="font-size: 8.5px;">${r.level}</span></td>
+              </tr>
+            `).join("")}
+            ${rows.length === 0 ? `<tr><td colspan="5" style="padding: 24px 10px; text-align: center; color: var(--ink-mute);">No events match your filters.</td></tr>` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderAuditLevelMenu() {
+  return `
+    <div style="position: absolute; top: 100px; right: 140px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 160px; z-index: 14;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by level</div>
+      ${AUDIT_LEVELS.map((l) => `
+        <div data-action="audit-set-level:${l.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${l.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+SCREENS.audit_logs = {
+  route:   "/admin/audit-logs",
+  title:   "Audit Logs",
+  navKey:  "audit_logs",
+  caption: "Append-only audit log table. Filters: free-text search, level (Info/Warning/Error), date range. Exports as CSV or Excel. Sensitive actions auto-emit: password resets, role changes, suspensions, finance clearances, proposal advances, failed logins.",
+  render:  (s) => renderAuditLogsPage(s),
+};
+
+SCREENS.audit_logs_level_filter = {
+  route:   "/admin/audit-logs",
+  title:   "Audit Logs",
+  navKey:  "audit_logs",
+  caption: "Level filter dropdown (Info / Warning / Error / All). Use 'Error' to find failed logins, RLS denials, and 500s; 'Warning' for sensitive but expected actions (password resets, suspensions).",
+  render:  (s) => `${renderAuditLogsPage(s)}${renderAuditLevelMenu()}`,
+};
+
+SCREENS.audit_logs_filtered = {
+  route:   "/admin/audit-logs",
+  title:   "Audit Logs",
+  navKey:  "audit_logs",
+  caption: "Audit log table with level filter and/or search applied. The active filter is reflected in the dropdown chip; the table re-renders with matching rows only.",
+  render:  (s) => renderAuditLogsPage(s),
+};
+
+/* ---------- BACKUP & RECOVERY ---------- */
+
+function renderBackupPage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">💾 Backup & Recovery</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Supabase manages automatic daily backups with 7-day point-in-time recovery (PITR). This page surfaces the backup status, per-table row counts (sourced from /api/admin/backup-info), and on-demand actions.
+      </div>
+    </div>
+
+    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 10px;">
+      <div class="kpi"><span class="kpi-label">⏰ Last Auto Backup</span><span class="kpi-value" style="font-size: 14px;">3h ago</span><span class="kpi-sub">May 20, 2026 · 06:00 UTC</span></div>
+      <div class="kpi"><span class="kpi-label">📆 Retention</span><span class="kpi-value" style="font-size: 14px;">7 days</span><span class="kpi-sub">PITR enabled</span></div>
+      <div class="kpi"><span class="kpi-label">💽 DB Size</span><span class="kpi-value" style="font-size: 14px;">428 MB</span><span class="kpi-sub">of 500 MB tier limit</span></div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">⚡ Manual Actions</span>
+      </div>
+      <div class="panel-body dense">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="padding: 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff;">
+            <div style="font-weight: 700; font-size: 11px; margin-bottom: 4px;">📥 Download Snapshot</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 8px; line-height: 1.4;">Compressed JSON export of all tables, suitable for offline analysis or migration prep.</div>
+            <span class="wf-btn primary" data-action="backup-download" style="padding: 4px 10px; font-size: 9.5px;">⬇ Download (JSON)</span>
+          </div>
+          <div style="padding: 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff;">
+            <div style="font-weight: 700; font-size: 11px; margin-bottom: 4px;">↩ Restore from Backup</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute); margin-bottom: 8px; line-height: 1.4;">PITR restore via the Supabase dashboard (link out). Cannot be performed in-app for safety.</div>
+            <span class="wf-btn" data-action="backup-open-restore" style="padding: 4px 10px; font-size: 9.5px;">↗ Open Supabase Console</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="ttl">📊 Per-Table Row Counts</span></div>
+      <div class="panel-body" style="padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+          <thead>
+            <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Table</th>
+              <th style="text-align: right; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Rows</th>
+              <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Last Modified</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${[
+              { name: "users",                rows: 180,  mod: "12m ago" },
+              { name: "auth.users",           rows: 180,  mod: "12m ago" },
+              { name: "project_proposals",    rows: 38,   mod: "2h ago"  },
+              { name: "programs",             rows: 21,   mod: "5h ago"  },
+              { name: "program_activities",   rows: 84,   mod: "3h ago"  },
+              { name: "program_budgets",      rows: 65,   mod: "5h ago"  },
+              { name: "program_signups",      rows: 142,  mod: "1h ago"  },
+              { name: "activity_logs",        rows: 358,  mod: "30m ago" },
+              { name: "community_needs",      rows: 91,   mod: "1d ago"  },
+              { name: "surveys",              rows: 14,   mod: "2d ago"  },
+              { name: "survey_responses",     rows: 412,  mod: "2h ago"  },
+              { name: "barangays",            rows: 19,   mod: "5d ago"  },
+              { name: "audit_logs",           rows: 4218, mod: "3m ago"  },
+              { name: "notifications",        rows: 902,  mod: "12m ago" },
+            ].map((t) => `
+              <tr style="border-bottom: 1px solid var(--line-soft);">
+                <td style="padding: 9px 10px; font-family: ui-monospace,Menlo,monospace; font-size: 9.5px;">${t.name}</td>
+                <td style="padding: 9px 10px; text-align: right; color: var(--ink-mute);">${t.rows.toLocaleString()}</td>
+                <td style="padding: 9px 10px; color: var(--ink-mute);">${t.mod}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderRestoreDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="backup-restore-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px;">↗ Open Supabase Console</span>
+        <span class="sheet-close" data-action="backup-restore-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-size: 10.5px; line-height: 1.6; margin-bottom: 12px;">
+          Restoring from a backup is a <strong>destructive</strong> operation that replaces all current data. To prevent accidents, in-app restore is disabled — you'll need to:
+        </div>
+        <ol style="font-size: 10px; line-height: 1.6; padding-left: 18px; color: var(--ink);">
+          <li>Open the Supabase project dashboard.</li>
+          <li>Navigate to <strong>Database → Backups</strong>.</li>
+          <li>Pick a recovery point within the 7-day window.</li>
+          <li>Confirm in the dashboard (requires SSO + 2FA).</li>
+        </ol>
+        <div style="background: #fff5f5; border: 1px solid #fcc; padding: 8px 10px; border-radius: 4px; font-size: 9.5px; line-height: 1.5; margin-top: 12px;">
+          ⚠ <strong>This is the last resort.</strong> Coordinate with PARAYA Director before initiating — every operation between the backup point and now will be lost.
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="backup-restore-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="backup-restore-open">↗ Open Console</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.backup = {
+  route:   "/admin/backup",
+  title:   "Backup & Recovery",
+  navKey:  "backup",
+  caption: "Read-only backup status (Supabase-managed daily backups + 7-day PITR) + per-table row counts. On-demand actions: 📥 Download JSON snapshot, ↗ Open Supabase Console for restore (linked out for safety).",
+  render:  () => renderBackupPage(),
+};
+
+SCREENS.backup_restore_dialog = {
+  route:   "/admin/backup",
+  title:   "Backup & Recovery",
+  navKey:  "backup",
+  caption: "Restore confirmation — in-app restore is disabled by design. The dialog explains the destructive nature and walks the admin through doing it from the Supabase dashboard with SSO + 2FA.",
+  render:  () => `${renderBackupPage()}${renderRestoreDialog()}`,
+};
+
+
+/* ---------- CHATBOT, NOTIFICATIONS, PROFILE (shared semantics) ---------- */
+
+const SUGGESTED_PROMPTS_B = [
+  "How do I invite a Finance Officer?",
+  "Show failed login attempts in the last 24 hours",
+  "What's the difference between Suspend and Delete?",
+  "How can I export the audit logs to Excel?",
+  "When was the last backup, and how do I restore from one?",
+];
+
+function renderChatbot(state) {
+  const active = state.chat_active;
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100%;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center;">✨</div>
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">AGAPE Assistant</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">AI-powered platform guide · Claude</div>
+          </div>
+        </div>
+        ${active ? `<span class="wf-btn" data-action="chat-new" style="padding: 3px 8px; font-size: 9.5px;">↻ New chat</span>` : ""}
+      </div>
+      <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel-body" style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; ${active ? "" : "justify-content: center; align-items: center; text-align: center;"}">
+          ${!active ? `
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">Hi! I'm AGAPE Assistant.</div>
+              <div style="font-size: 10px; color: var(--ink-mute); margin-top: 4px; max-width: 280px;">
+                Ask me anything about needs, surveys, programs, or how to use the platform.
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; margin-top: 6px;">
+              ${SUGGESTED_PROMPTS_B.map((p, i) => `
+                <span class="wf-btn" data-action="chat-prompt:${i}" style="text-align: left; padding: 7px 12px; font-size: 10px; font-weight: 400;">${p}</span>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="background: #1a1a1a; color: #fff; max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; font-size: 10.5px; line-height: 1.5;">
+                What's the difference between Suspend and Delete?
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-start;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 12px;">🤖</div>
+              <div style="background: #fafafa; border: 1px solid var(--line-soft); max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; font-size: 10.5px; line-height: 1.55;">
+<strong>⏸ Suspend</strong> — flips <code>status</code> to <em>suspended</em>. Active sessions are revoked and the user can't sign in, but every row they own (logs, proposals, signups) stays intact and you can reactivate at any time. Use for HR / disciplinary cases, lost devices, or before deletion.
+
+<strong>🗑 Delete</strong> — permanent. Removes the auth row; data rows are preserved (FKs nulled or kept for audit). The email becomes available for re-invite. Use only for test accounts, duplicate signups, or compliance erasure (GDPR-style requests).
+
+Both require re-entering your admin password. Both emit a Warning-level audit log row.
+
+When in doubt, <strong>Suspend first</strong>. You can always delete later, but you can't undo a delete.
+              </div>
+            </div>
+          `}
+        </div>
+        <div style="border-top: 1px solid var(--line-soft); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end;">
+          <div class="sheet-input" style="flex: 1; min-height: 36px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Ask me anything…</div>
+          <span class="wf-btn primary" data-action="chat-send" style="padding: 7px 12px;">▶</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 8.5px; color: var(--ink-mute); margin-top: 6px;">
+        AGAPE Assistant is AI-powered and may make mistakes. Do not rely on it for official decisions.
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.chatbot = {
+  route:   "/admin/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Empty-state chatbot with 5 admin-scoped suggested prompts (account ops, audit queries, suspend vs delete, exports, backup/restore). Click a prompt or type a question → routes to the active conversation view.",
+  render:  (s) => renderChatbot(s),
+};
+
+SCREENS.chatbot_active = {
+  route:   "/admin/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Active conversation. AI is given admin context — user counts, recent audit events, pending invites — and can fall back to tool-use to query /api/admin/stats and /api/admin/audit-logs for live numbers.",
+  render:  (s) => renderChatbot({ chat_active: true }),
+};
+
+const NOTIF_FILTER_LABEL = { all: "All notifications", unread: "Unread only", read: "Read only" };
+const SAMPLE_BARANGAY_NOTIFS = [
+  { id: 0, type: "warning", icon: "⚠", title: "Failed-login spike detected",            message: "3 failed login attempts for mcruz@dyci.edu.ph in the last 30 min. Check the audit log for IP + UA fingerprint.",  time: "20m ago", read: false },
+  { id: 1, type: "info",    icon: "ℹ", title: "4 invites pending acceptance",            message: "jbautista@…, asantos@…, hcastro@…, dlim@… haven't accepted yet. Consider resending if it's been > 7 days.",       time: "1h ago",  read: false },
+  { id: 2, type: "success", icon: "✓", title: "Automatic daily backup completed",        message: "May 20, 06:00 UTC — DB size 428 MB. Next backup in 21 hours.",                                                       time: "5h ago",  read: false },
+  { id: 3, type: "warning", icon: "⚠", title: "User suspended by another admin",         message: "Felix Tan suspended plim@dyci.edu.ph (reason: 'duplicate of patricia.lim@…'). Logged in audit.",                  time: "2d ago",  read: true  },
+  { id: 4, type: "info",    icon: "ℹ", title: "Tier limit warning — DB approaching cap",  message: "Database is at 428 MB of 500 MB tier limit. Consider archiving old activity_logs or upgrading the project tier.", time: "3d ago",  read: true  },
+];
+const NOTIF_TYPE_BADGE = { info: "submitted", success: "approved", warning: "revisions_requested", error: "rejected" };
+
+function renderNotificationsPage(state) {
+  const filter         = state.notif_filter ?? "all";
+  const filterMenuOpen = state.notif_filter_open;
+  let rows = SAMPLE_BARANGAY_NOTIFS;
+  if (filter === "unread") rows = rows.filter((n) => !n.read);
+  if (filter === "read")   rows = rows.filter((n) =>  n.read);
+  const unread = SAMPLE_BARANGAY_NOTIFS.filter((n) => !n.read).length;
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          🔔 Notifications
+          ${unread > 0 ? `<span class="status-badge approved" style="font-size: 8.5px;">${unread} unread</span>` : ""}
+        </div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+          In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <div class="partner-filter-wrap">
+          <div class="partner-filter" data-action="notif-open-filter">${NOTIF_FILTER_LABEL[filter]} ▾</div>
+          ${filterMenuOpen ? `
+            <div class="status-filter-menu" style="min-width: 140px;">
+              ${Object.entries(NOTIF_FILTER_LABEL).map(([k, lbl]) => `
+                <div class="status-filter-item ${filter === k ? "active" : ""}" data-action="notif-set-filter:${k}">${lbl}</div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <span class="wf-btn" data-action="notif-mark-all" style="padding: 4px 10px; font-size: 9.5px;">✓ Mark all read</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${rows.map((n, i) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); background: ${!n.read ? "#fafafa" : "#fff"};">
+            <div style="width: 30px; height: 30px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${n.icon}</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 10.5px;">${n.title}</span>
+                <span class="status-badge ${NOTIF_TYPE_BADGE[n.type]}" style="font-size: 8px;">${n.type}</span>
+                ${!n.read ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a;"></span>' : ""}
+                <span style="margin-left: auto; font-size: 9px; color: var(--ink-mute);">${n.time}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; line-height: 1.4;">${n.message}</div>
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <span class="wf-link" data-action="notif-open" data-row="${i}" style="font-size: 9.5px;">View ↗</span>
+                ${!n.read ? `<span class="wf-link" data-action="notif-mark-one" data-row="${i}" style="font-size: 9.5px;">Mark read</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.notifications = {
+  route:   "/admin/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Admin notifications. Triggered by: failed-login spikes, pending invites past N days, completed automatic backups, suspensions by other admins, tier-limit warnings, and other system events.",
+  render:  (s) => renderNotificationsPage(s),
+};
+
+SCREENS.notifications_filter = {
+  route:   "/admin/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Filter dropdown — All / Unread / Read. Scopes the list; the unread badge in the header always shows the full unread count.",
+  render:  (s) => renderNotificationsPage({ ...s, notif_filter_open: true }),
+};
+
+function renderProfile() {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("");
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">👤 Profile Information</span></div>
+        <div class="panel-body dense">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div class="vol-avatar lg" style="width: 56px; height: 56px; font-size: 18px;">${initials}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 13px;">${info.name}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute);">${info.email}</div>
+              <span class="status-badge approved" style="font-size: 8.5px; margin-top: 4px; display: inline-block;">${info.label}</span>
+            </div>
+            <span class="wf-btn" data-action="profile-change-photo" style="padding: 4px 10px; font-size: 9.5px;">📷 Change photo</span>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${info.name}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.email}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Organization <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.org} — ${info.label}</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <span class="wf-btn primary" data-action="profile-save" style="padding: 5px 14px;">💾 Save Profile</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔔 Notification Preferences</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field" style="margin-bottom: 10px;">
+            <span class="sheet-label">📞 Phone (for SMS)</span>
+            <div class="sheet-input">+63 9XX XXX XXXX</div>
+            <div class="sheet-hint">Required if you turn SMS on. SMS is dispatched via Semaphore.</div>
+          </div>
+          ${[
+            { key: "in_app", icon: "💬", label: "In-app notifications", desc: "Show in the bell dropdown and on the Notifications page", on: true },
+            { key: "email",  icon: "📧", label: "Email notifications",  desc: "Forward important messages to your email address",       on: true },
+            { key: "sms",    icon: "📱", label: "SMS notifications",    desc: "Send urgent items as SMS (e.g. captain approvals)",       on: false },
+          ].map((p) => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;" data-action="profile-toggle:${p.key}">
+              <span style="font-size: 16px;">${p.icon}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 10.5px;">${p.label}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.desc}</div>
+              </div>
+              <div style="width: 32px; height: 18px; background: ${p.on ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative; flex-shrink: 0;">
+                <div style="position: absolute; top: 2px; ${p.on ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-notifs" style="padding: 5px 14px;">💾 Save Preferences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔐 Change Password</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Current Password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div class="sheet-field"><span class="sheet-label">New Password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm New Password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-password" style="padding: 5px 14px;">🔐 Update Password</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.profile = {
+  route:   "/admin/profile",
+  title:   "My Profile",
+  navKey:  "profile",
+  caption: "Admin's own profile settings. Same form as other roles: name + email (read-only) + phone + password change + 3 channel toggles. Admin can edit their own name freely; role + status remain pinned to admin/active.",
+  render:  () => renderProfile(),
+};
+
+
+/* ============================================================
+   Auto-generate placeholder stub screens for every admin nav
+   destination that doesn't already have a custom render above.
+   ============================================================ */
+const ROUTE_FOR_SCREEN = {
+  users:          ["/admin/users",          "Users"           ],
+  audit_logs:     ["/admin/audit-logs",     "Audit Logs"      ],
+  backup:         ["/admin/backup",         "Backup & Recovery"],
+  chatbot:        ["/admin/chatbot",        "AI Assistant"    ],
+  notifications:  ["/admin/notifications",  "Notifications"   ],
+  profile:        ["/admin/profile",        "My Profile"      ],
+};
+
+const STUB_CAPTIONS = {
+  users:         "User table — search, role + status filters, per-row ⋯ menu (Edit / Reset Password / Suspend / Resend invite / Delete). + Invite User CTA opens a sheet for email + role assignment.",
+  audit_logs:    "Append-only audit trail — sensitive actions across all roles. Filters: search, level (Info/Warning/Error), date range. CSV + Excel export.",
+  backup:        "Supabase-managed daily backups + 7-day PITR. Per-table row counts. Manual JSON snapshot download. Restore is linked out to the Supabase dashboard for safety.",
+  chatbot:       "Role-aware AI assistant. Admin-account context (user counts, recent audit events, pending invites).",
+  notifications: "In-app notifications: failed-login spikes, pending invites past N days, completed backups, suspensions by other admins, tier-limit warnings.",
+  profile:       "Admin's own profile: name, email (read-only), organization (DYCI IT), phone, password change, channel toggles.",
+};
+
+for (const [screenId, [route, title]] of Object.entries(ROUTE_FOR_SCREEN)) {
+  if (SCREENS[screenId]) continue;
+  SCREENS[screenId] = {
+    route, title,
+    navKey: screenId,
+    caption: STUB_CAPTIONS[screenId] ?? "Placeholder wireframe — full content to be designed.",
+    render: () => `
+      <div class="stub">
+        <div class="stub-route">${route}</div>
+        <div class="stub-title">${title}</div>
+        <div class="stub-desc">${STUB_CAPTIONS[screenId] ?? ""}</div>
+        <div class="stub-tag">Placeholder — wireframe pending</div>
+      </div>
+    `,
+  };
+}
+
+/* ============================================================
+   SIDEBAR RENDERING
+   ============================================================ */
+function getActiveNavKey(screenId) {
+  const def = SCREENS[screenId];
+  return def?.navKey ?? screenId;
+}
+
+function isNavItemActive(item, activeKey) {
+  if (item.key === activeKey) return true;
+  if (item.children) return item.children.some((c) => c.key === activeKey);
+  return false;
+}
+
+function renderSidebar(activeKey, state) {
+  const role = currentRole;
+  const nav = PARTNER_NAV;
+  const info = ROLE_INFO[role];
+  const expandedGroup = state?.expandedGroup;
+
+  const items = nav.map((item) => {
+    if (item.group) {
+      const childActive = isNavItemActive(item, activeKey);
+      const manuallyExpanded = expandedGroup === item.key;
+      const expanded = childActive || manuallyExpanded;
+      const collapsed = !expanded;
+      // Filter children by role allowlist
+      const children = item.children.filter((c) => !c.roles || c.roles.includes(role));
+      if (children.length === 0) return "";
+      const groupCls = `side-item group${collapsed ? " collapsed" : ""}${childActive ? " active" : ""}`;
+      return `
+        <li>
+          <div class="${groupCls}" data-action="toggle-group:${item.key}">
+            <span class="ico"></span>${item.label}
+          </div>
+          ${collapsed ? "" : `
+            <ul class="side-children">
+              ${children.map((c) => `
+                <li class="side-child ${c.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${c.screen}">${c.label}</li>
+              `).join("")}
+            </ul>
+          `}
+        </li>`;
+    }
+    const cls = `side-item${item.key === activeKey ? " active" : ""}`;
+    return `<li><div class="${cls}" data-action="nav" data-screen="${item.screen}"><span class="ico"></span>${item.label}</div></li>`;
+  }).join("");
+
+  // AI Assistant + Notifications pinned at the bottom for all roles.
+  const pinned = `
+    <div class="side-divider"></div>
+    ${SIDEBAR_PINNED.map((p) => `
+      <div class="side-item ${p.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${p.screen}"><span class="ico"></span>${p.label}</div>
+    `).join("")}
+  `;
+
+  return `
+    <div class="page-side">
+      <div class="side-brand">
+        <div class="side-logo">LOGO</div>
+        <div>
+          <div class="side-brand-title">AGAPE</div>
+          <div class="side-brand-sub">PARAYA · DYCI</div>
+        </div>
+      </div>
+      <div class="side-nav">
+        <ul>${items}</ul>
+        ${pinned}
+      </div>
+      <div class="side-user">
+        <div class="row">
+          <div class="avatar">${info.name.charAt(0)}</div>
+          <div style="min-width: 0;">
+            <div class="name">${info.name}</div>
+            <div class="email">${info.email}</div>
+          </div>
+        </div>
+        <button class="signout" data-action="signout">↩ Sign out</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader(title, route, state) {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const notifDropdown = state.bellOpen ? `
+    <div class="dropdown notif-dropdown">
+      <div class="dropdown-head">
+        <span class="dropdown-title">Notifications</span>
+        <span class="dropdown-action" data-action="mark-read">✓ Mark all read</span>
+      </div>
+      <div class="dropdown-body">
+        <div class="notif-item unread">
+          <div class="notif-icon">!</div>
+          <div class="notif-content">
+            <div class="notif-title">New proposal awaiting pre-screen</div>
+            <div class="notif-msg">"Reading Caravan — Brgy. Lolomboy" submitted by CSG</div>
+            <div class="notif-time">5m ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon">i</div>
+          <div class="notif-content">
+            <div class="notif-title">3 new survey responses</div>
+            <div class="notif-msg">Health needs assessment — Brgy. Bunducan</div>
+            <div class="notif-time">1h ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon">✓</div>
+          <div class="notif-content">
+            <div class="notif-title">Activity report approved</div>
+            <div class="notif-msg">Literacy Camp — May 14</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-foot">
+        <span class="dropdown-link" data-action="nav" data-screen="notifications">View all notifications →</span>
+      </div>
+    </div>
+  ` : "";
+
+  const profileDropdown = state.profileOpen ? `
+    <div class="dropdown profile-dropdown">
+      <div class="dropdown-user">
+        <div class="dropdown-user-name">${info.name}</div>
+        <div class="dropdown-user-email">${info.email}</div>
+      </div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" data-action="nav" data-screen="profile">Profile Settings</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item danger" data-action="signout">Sign out</div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="page-header">
+      <div class="page-title"><span class="crumb">${route} ·</span> ${title}</div>
+      <div class="spacer"></div>
+      <div class="iconbtn bell" data-action="toggle:bell" title="Notifications">
+        🔔<span class="badge">2</span>
+      </div>
+      <div class="iconbtn avatar" data-action="toggle:profile" title="${info.name}">${initials}</div>
+      ${notifDropdown}
+      ${profileDropdown}
+    </div>
+  `;
+}
+
+/* ============================================================
+   BOARD STATE — same FIFO mechanics as auth.html
+   ============================================================ */
+let nextInstanceId = 1;
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey, initialState) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  let target;
+  if (initialState) {
+    target = makeInstance(screenId);
+    target.state = { ...initialState };
+    board.push(target);
+  } else {
+    const existing = board.find((b) => b.screenId === screenId);
+    if (existing) {
+      target = existing;
+    } else {
+      target = makeInstance(screenId);
+      board.push(target);
+    }
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  // Record what changed so undo can reverse it. We always push an entry when
+  // pushScreen is called from an interactive context, even if no tile was
+  // added (so the user can also undo "click that just re-highlighted").
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   Resolve a stored action-key back to the element that was clicked.
+   "nav" actions are special because the data-action is shared across
+   many sidebar items + the header icons; we disambiguate via data-screen.
+   ============================================================ */
+function findClickedElement(root, key) {
+  if (!key) return null;
+  if (key.startsWith("nav:")) {
+    const screen = key.slice(4);
+    return root.querySelector(`[data-action="nav"][data-screen="${screen}"]`);
+  }
+  // CSS.escape protects against keys containing characters like ":" or "/"
+  return root.querySelector(`[data-action="${CSS.escape(key)}"]`);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const meta = document.createElement("div");
+    meta.className = "tile-meta";
+    meta.innerHTML = `<span class="route">${def.route}</span><span class="id">screen: ${entry.screenId}</span>`;
+
+    const page = document.createElement("div");
+    page.className = "page" + (def.chromeless ? " chromeless" : "");
+    if (def.chromeless) {
+      page.innerHTML = `
+        <div class="page-main">
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    } else {
+      const activeKey = getActiveNavKey(entry.screenId);
+      page.innerHTML = `
+        ${renderSidebar(activeKey, entry.state)}
+        <div class="page-main">
+          ${renderHeader(def.title, def.route, entry.state)}
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    }
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = def.caption;
+
+    tile.appendChild(meta);
+    tile.appendChild(page);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every [data-action] inside this tile
+    tile.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        if (action === "nav") {
+          pushScreen(el.dataset.screen, entry, "nav:" + el.dataset.screen);
+          return;
+        }
+        if (action.startsWith("toggle-group:")) {
+          // Spawn a new tile with this sidebar group expanded so the children
+          // become visible and clickable. Click the same group again to collapse.
+          const key = action.slice("toggle-group:".length);
+          const wasExpanded = entry.state.expandedGroup === key;
+          pushScreen(entry.screenId, entry, action, {
+            ...entry.state,
+            expandedGroup: wasExpanded ? null : key,
+          });
+          return;
+        }
+        if (action === "toggle:bell") {
+          // Spawn a NEW tile showing the same page with the notif dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:bell", { bellOpen: true });
+          return;
+        }
+        if (action === "toggle:profile") {
+          // Spawn a NEW tile showing the same page with the profile dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:profile", { profileOpen: true });
+          return;
+        }
+        if (action === "mark-read") {
+          // Cosmetic — would PATCH /api/notifications in the real app.
+          entry.clickedActionKey = "mark-read";
+          render();
+          return;
+        }
+        if (action === "signout") {
+          // Now that login is in scope, sign-out closes the loop back to it.
+          pushScreen("login", entry, "signout");
+          return;
+        }
+        // Dashboard cards: "go:<screen>"
+        if (action.startsWith("go:")) {
+          const screen = action.slice(3);
+          pushScreen(screen, entry, action);
+          return;
+        }
+        // Login form: input toggle + submit
+        if (action === "fill") {
+          entry.state[el.dataset.field] = !entry.state[el.dataset.field];
+          entry.clickedActionKey = "fill";
+          render();
+          return;
+        }
+        if (action === "signin") {
+          pushScreen("dashboard", entry, "signin");
+          return;
+        }
+        if (action === "forgot" || action === "signup") {
+          // Out of scope for the officer wireframe — auth.html maps these.
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- USERS PAGE filters + row actions ---------- */
+        if (action === "users-search") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "users-open-role-filter") {
+          pushScreen("users_role_filter", entry, action);
+          return;
+        }
+        if (action === "users-open-status-filter") {
+          pushScreen("users_status_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("users-set-role:")) {
+          const r = action.slice("users-set-role:".length);
+          pushScreen("users_filtered", entry, action, { ...entry.state, users_role_filter: r });
+          return;
+        }
+        if (action.startsWith("users-set-status:")) {
+          const s = action.slice("users-set-status:".length);
+          pushScreen("users_filtered", entry, action, { ...entry.state, users_status_filter: s });
+          return;
+        }
+        if (action === "users-clear-filters") {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action === "users-open-menu") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("users_row_menu", entry, action, { users_row: row });
+          return;
+        }
+        if (
+          action === "users-menu-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action === "users-invite") {
+          pushScreen("users_invite", entry, action);
+          return;
+        }
+        if (action === "users-edit") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("users_edit", entry, action, { users_row: row });
+          return;
+        }
+        if (action === "users-reset-pw") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("users_reset_password", entry, action, { users_row: row, reset_mode: "email" });
+          return;
+        }
+        if (action === "users-suspend") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("users_suspend", entry, action, { users_row: row });
+          return;
+        }
+        if (action === "users-delete") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("users_delete", entry, action, { users_row: row });
+          return;
+        }
+        if (action === "users-resend-invite") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "users-invite-cancel" ||
+          action === "users-invite-cancel-x" ||
+          action === "users-invite-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action === "users-invite-pick-role" || action === "users-invite-pick-brgy") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "users-invite-send") {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (
+          action === "users-edit-cancel" ||
+          action === "users-edit-cancel-x" ||
+          action === "users-edit-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (
+          action === "users-edit-pick-role" ||
+          action === "users-edit-pick-brgy" ||
+          action.startsWith("users-edit-perm:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "users-edit-save") {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (
+          action === "users-reset-cancel" ||
+          action === "users-reset-cancel-x" ||
+          action === "users-reset-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action.startsWith("users-reset-mode:")) {
+          const m = action.slice("users-reset-mode:".length);
+          pushScreen("users_reset_password", entry, action, { ...entry.state, reset_mode: m });
+          return;
+        }
+        if (action === "users-reset-confirm") {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (
+          action === "users-suspend-cancel" ||
+          action === "users-suspend-cancel-x" ||
+          action === "users-suspend-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action === "users-suspend-confirm") {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (
+          action === "users-delete-cancel" ||
+          action === "users-delete-cancel-x" ||
+          action === "users-delete-cancel-backdrop"
+        ) {
+          pushScreen("users", entry, action);
+          return;
+        }
+        if (action === "users-delete-confirm") {
+          pushScreen("users", entry, action);
+          return;
+        }
+
+        /* ---------- AUDIT LOGS filters + export ---------- */
+        if (action === "audit-search" || action === "audit-pick-range") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "audit-open-level-filter") {
+          pushScreen("audit_logs_level_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("audit-set-level:")) {
+          const l = action.slice("audit-set-level:".length);
+          pushScreen("audit_logs_filtered", entry, action, { audit_level_filter: l });
+          return;
+        }
+        if (action === "audit-export-csv" || action === "audit-export-xlsx") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "audit-open-row") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- BACKUP & RECOVERY ---------- */
+        if (action === "backup-download") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "backup-open-restore") {
+          pushScreen("backup_restore_dialog", entry, action);
+          return;
+        }
+        if (
+          action === "backup-restore-cancel" ||
+          action === "backup-restore-cancel-x" ||
+          action === "backup-restore-cancel-backdrop"
+        ) {
+          pushScreen("backup", entry, action);
+          return;
+        }
+        if (action === "backup-restore-open") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- CHATBOT ---------- */
+        if (action.startsWith("chat-prompt:")) {
+          const idx = parseInt(action.slice("chat-prompt:".length), 10);
+          pushScreen("chatbot_active", entry, action, { chat_active: true, chat_prompt_idx: idx });
+          return;
+        }
+        if (action === "chat-send") {
+          pushScreen("chatbot_active", entry, action, { chat_active: true });
+          return;
+        }
+        if (action === "chat-new") {
+          pushScreen("chatbot", entry, action);
+          return;
+        }
+
+        /* ---------- NOTIFICATIONS PAGE ---------- */
+        if (action === "notif-open-filter") {
+          pushScreen("notifications_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("notif-set-filter:")) {
+          const f = action.slice("notif-set-filter:".length);
+          pushScreen("notifications", entry, action, { notif_filter: f });
+          return;
+        }
+        if (
+          action === "notif-mark-all" ||
+          action === "notif-mark-one" ||
+          action === "notif-open"
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROFILE ---------- */
+        if (
+          action === "profile-change-photo" ||
+          action === "profile-save" ||
+          action === "profile-save-notifs" ||
+          action === "profile-save-password" ||
+          action.startsWith("profile-toggle:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+      });
+    });
+
+    // Highlight the most-recently-clicked control on this tile
+    if (entry.clickedActionKey) {
+      const clickedEl = findClickedElement(tile, entry.clickedActionKey);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting through
+  // the page content next to the button.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = findClickedElement(fromTile, t.fromActionKey);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    return { t, a, aBox, b };
+  });
+
+  // Pass 2: pick exit + entry side per transition based on the dominant axis
+  // between source tile center and destination tile center.
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const dx = (d.b.left + d.b.width / 2) - (d.aBox.left + d.aBox.width / 2);
+    const dy = (d.b.top  + d.b.height / 2) - (d.aBox.top  + d.aBox.height / 2);
+    const horizontal = Math.abs(dx) * 1.2 >= Math.abs(dy);
+    let exit, entry;
+    if (horizontal) {
+      exit  = dx > 0 ? "R" : "L";
+      entry = dx > 0 ? "L" : "R";
+    } else {
+      exit  = dy > 0 ? "B" : "T";
+      entry = dy > 0 ? "T" : "B";
+    }
+    d.exit = exit; d.entry = entry;
+    const arrKey = `${d.t.toInstanceId}:${entry}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${exit}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw. The arrow exits the clicked element on the chosen side and
+  // enters the destination tile on the opposite-facing side, so it never cuts
+  // across unrelated content.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, b, exit, entry } = d;
+
+    const arrGroup    = arrivals[`${t.toInstanceId}:${entry}`];
+    const arrPos      = arrGroup.indexOf(idx);
+    const arrN        = arrGroup.length;
+    const arrAlongLen = (entry === "L" || entry === "R") ? b.height : b.width;
+    const arrSpread   = Math.min(arrAlongLen * 0.7, 28 * arrN);
+    const arrFrac     = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const arrOffset   = arrSpread * (arrFrac - 0.5);
+
+    const depGroup    = departures[`${t.fromInstanceId}:${t.fromActionKey}:${exit}`];
+    const depPos      = depGroup.indexOf(idx);
+    const depN        = depGroup.length;
+    const depOffset   = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+
+    let sx, sy, tx, ty;
+    if (exit === "R")      { sx = a.right;             sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "L") { sx = a.left;              sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "B") { sx = a.left + a.width/2 + depOffset; sy = a.bottom; }
+    else                   { sx = a.left + a.width/2 + depOffset; sy = a.top;    }
+
+    if (entry === "L")      { tx = b.left;              ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "R") { tx = b.right;             ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "T") { tx = b.left + b.width/2 + arrOffset; ty = b.top;    }
+    else                    { tx = b.left + b.width/2 + arrOffset; ty = b.bottom; }
+
+    // Base positions (auto-computed). User-applied offsets shift the
+    // endpoints; the offsets persist per-transition and survive re-renders.
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    // Cubic bezier whose tangents respect the chosen exit/entry sides.
+    const dist  = Math.hypot(x2 - x1, y2 - y1);
+    const reach = Math.max(40, Math.min(220, dist * 0.45));
+    let cp1x = x1, cp1y = y1, cp2x = x2, cp2y = y2;
+    if (exit === "R")      cp1x = x1 + reach;
+    else if (exit === "L") cp1x = x1 - reach;
+    else if (exit === "B") cp1y = y1 + reach;
+    else                   cp1y = y1 - reach;
+    if (entry === "L")      cp2x = x2 - reach;
+    else if (entry === "R") cp2x = x2 + reach;
+    else if (entry === "T") cp2y = y2 - reach;
+    else                    cp2y = y2 + reach;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+    // Wide invisible hit-area path — makes the arrow easy to click without
+    // forcing the visible stroke to be fat.
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode so they don't clutter
+    // the board for screenshots. Stable transition index identifies each.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — let the user reposition the source/dest endpoint
+   of any arrow. Offsets are stored on the transition object and
+   re-applied on every drawArrows() call.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow (its wide hit-area path) to bring it to the front layer.
+// Move that transition to the end of the array so it draws last on top.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  // Wipe any user-applied endpoint offsets but keep the tiles in place.
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-admin-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+resetBoard("login");
+</script>
+</body>
+</html>

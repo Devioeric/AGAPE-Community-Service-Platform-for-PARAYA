@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { authorizeCapability } from "@/lib/auth/authorize";
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){const auth=await authorizeCapability("survey.manage");if(!auth.ok)return NextResponse.json({error:auth.error},{status:auth.status});const parsed=z.object({expected_status:z.enum(["draft","published"]),status:z.enum(["published","closed"])}).strict().safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:"Invalid survey transition"},{status:400});const{id}=await params;const{data,error}=await auth.supabase.rpc("phase1_transition_survey_status",{p_survey_id:id,p_expected_status:parsed.data.expected_status,p_status:parsed.data.status});if(error)return NextResponse.json({error:error.message},{status:error.code==="40001"?409:422});return NextResponse.json({data:{row_version:data}});}

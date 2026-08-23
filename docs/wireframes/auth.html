@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — Auth Wireframes</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --red: #d32f2f;
+    --red-soft: #f7d5d5;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  /* Controls bar — kept narrow at top, easy to crop out of screenshots */
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  /* Board area */
+  .board-wrap {
+    padding: 24px;
+    background: var(--board-bg);
+    min-height: calc(100vh - 40px);
+  }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  /* Slot wrapper */
+  .slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 540px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute);
+    font-size: 13px;
+  }
+  .slot-index {
+    position: absolute;
+    top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    z-index: 4;
+  }
+
+  /* Tile (a wireframe screen) */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-header .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-header .id { font-size: 10px; color: var(--ink-mute); }
+  .tile-body {
+    flex: 1;
+    padding: 28px 40px;
+    display: flex; align-items: flex-start; justify-content: center;
+    background: var(--tile-bg);
+    min-height: 460px;
+  }
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 14px; color: var(--ink-soft);
+    line-height: 1.55;
+  }
+
+  /* Wireframe primitives */
+  .wf {
+    width: 100%; max-width: 380px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+
+  .wf-card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 22px 22px;
+    display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer;
+    user-select: none;
+    min-height: 32px;
+    display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-input.error-state { border-color: var(--red); }
+  .wf-select::after { content: " ▾"; color: var(--ink-mute); margin-left: auto; }
+  .wf-btn {
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    padding: 9px 12px;
+    text-align: center;
+    background: #f0f0f0;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+  .wf-error { font-size: 10px; color: var(--red); margin-top: 2px; }
+  .wf-banner {
+    border: 1px solid var(--red);
+    background: var(--red-soft);
+    border-radius: 4px;
+    padding: 8px 10px;
+    color: var(--red);
+    font-size: 11px;
+  }
+  .wf-icon-box {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--box-soft);
+    margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-mute);
+  }
+  .wf-h2 { font-size: 18px; font-weight: 700; text-align: center; }
+  .wf-p { font-size: 12px; color: var(--ink-soft); text-align: center; line-height: 1.5; }
+  .wf-loading {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 40px 0;
+  }
+  .wf-spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--box); border-top-color: var(--ink-soft);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 3px;
+    border-radius: 6px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Dashboard tile is intentionally sparse */
+  .wf-dash {
+    width: 100%; max-width: 420px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .wf-dash-bar {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    height: 36px; display: flex; align-items: center;
+    padding: 0 12px; font-size: 11px; color: var(--ink-soft);
+    background: #fafafa;
+  }
+  .wf-dash-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .wf-dash-kpi {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .wf-dash-kpi .label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; }
+  .wf-dash-kpi .val { font-size: 18px; font-weight: 700; }
+  .wf-dash-chart {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    height: 130px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 11px;
+  }
+  .wf-dash-list {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .wf-dash-list-item {
+    padding: 8px 12px; border-bottom: 1px solid var(--box-soft);
+    font-size: 11px; color: var(--ink-soft);
+  }
+  .wf-dash-list-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<aside style="padding:12px 18px;background:#fffbeb;border-bottom:2px solid #b45309;color:#451a03;font:14px/1.4 system-ui,sans-serif">
+  <strong>Current scope:</strong> public registration is Volunteer-only. Office, Student Organization, Department, <code>paraya_officer</code>, and <code>barangay_official</code> options shown in this historical mock are not assignable login roles and must not be implemented.
+</aside>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role (mock):</label>
+    <select id="rolePicker">
+      <optgroup label="PARAYA Staff (→ /officer)">
+        <option value="paraya_director">PARAYA Director</option>
+        <option value="paraya_associate">PARAYA Associate</option>
+        <option value="paraya_researcher">PARAYA Researcher</option>
+      </optgroup>
+      <optgroup label="Finance (→ /officer)">
+        <option value="finance_officer">Finance Officer</option>
+      </optgroup>
+      <option value="volunteer">Student Volunteer (→ /volunteer)</option>
+      <optgroup label="Barangay (→ /barangay)">
+        <option value="barangay_captain">Barangay Captain</option>
+        <option value="barangay_secretary">Barangay Secretary</option>
+        <option value="barangay_mother_leader">Mother Leader</option>
+      </optgroup>
+      <optgroup label="Partner (→ /partner)">
+        <option value="office">Office</option>
+        <option value="student_org">Student Organization</option>
+        <option value="department">Department</option>
+      </optgroup>
+      <option value="admin">System Administrator (→ /admin)</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="openInvite" type="button">Open Accept-Invite flow</button>
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9"
+                refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- 4 slot containers, populated by JS -->
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE → DASHBOARD ROUTE MAP (mirrors src/lib/auth/roles.ts)
+   ============================================================ */
+const ROLE_INFO = {
+  paraya_director:        { label: "PARAYA Director",       segment: "officer"    },
+  paraya_associate:       { label: "PARAYA Associate",      segment: "officer"    },
+  paraya_researcher:      { label: "PARAYA Researcher",     segment: "officer"    },
+  finance_officer:        { label: "Finance Officer",       segment: "officer"    },
+  volunteer:              { label: "Student Volunteer",     segment: "volunteer"  },
+  barangay_captain:       { label: "Barangay Captain",      segment: "barangay"   },
+  barangay_secretary:     { label: "Barangay Secretary",    segment: "barangay"   },
+  barangay_mother_leader: { label: "Mother Leader",         segment: "barangay"   },
+  office:                 { label: "Office (Partner)",      segment: "partner"    },
+  student_org:            { label: "Student Org (Partner)", segment: "partner"    },
+  department:             { label: "Department (Partner)",  segment: "partner"    },
+  admin:                  { label: "System Administrator",  segment: "admin"      },
+};
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   Each entry:
+     route   — path label shown in the tile header
+     caption — 1-2 sentence description shown below the tile
+     render(tileState) — returns wireframe HTML
+     actions — map of data-action -> handler({ from, action, state })
+              handler returns the next screen id (string), or null to stay.
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN ---------- */
+  login: {
+    route: "/login",
+    caption: "Email/password sign-in. Routes to the dashboard matching the user's role. Forgot-password and Sign-up links live here.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input" data-action="fill" data-field="email">${s.email ? "user@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>`,
+    actions: {
+      fill:   ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      forgot: () => "forgot",
+      signup: () => "signup",
+      signin: ({ state }) => (state.email && state.password) ? "dashboard" : "login_error",
+    },
+  },
+
+  /* ---------- LOGIN (validation error variant) ---------- */
+  login_error: {
+    route: "/login",
+    caption: "Validation-error state. Inline red errors appear under any empty required field. Same controls as the base Login screen.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input error-state" data-action="fill" data-field="email">${s.email ? "user@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+            ${s.email ? "" : `<div class="wf-error">Enter a valid email address</div>`}
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input error-state" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+            ${s.password ? "" : `<div class="wf-error">Password must be at least 6 characters</div>`}
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>`,
+    actions: {
+      fill:   ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      forgot: () => "forgot",
+      signup: () => "signup",
+      signin: ({ state }) => (state.email && state.password) ? "dashboard" : "login_error",
+    },
+  },
+
+  /* ---------- SIGNUP ---------- */
+  signup: {
+    route: "/signup",
+    caption: "Self-registration. Creates a pending account that an admin must approve. Role dropdown is the same grouped list used by Admin → Users.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Create Account</div>
+          <div class="wf-sub">Join the PARAYA platform</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Full name</div>
+            <div class="wf-input" data-action="fill" data-field="name">${s.name ? "Juan dela Cruz" : "Full name"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input" data-action="fill" data-field="email">${s.email ? "juan@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Role</div>
+            <div class="wf-input wf-select" data-action="fill" data-field="role">${s.role ? "Student Volunteer" : "Select your role"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Password</div>
+            <div class="wf-input" data-action="fill" data-field="password">${s.password ? "••••••••" : "Min. 8 characters"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Confirm password</div>
+            <div class="wf-input" data-action="fill" data-field="confirm">${s.confirm ? "••••••••" : "Repeat password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="create">Create Account</div>
+          <div class="wf-footer">Already have an account? <span class="wf-link" data-action="goto_login">Sign in</span></div>
+        </div>
+      </div>`,
+    actions: {
+      fill:       ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      goto_login: () => "login",
+      create:     ({ state }) => {
+        const ok = state.name && state.email && state.role && state.password && state.confirm;
+        return ok ? "signup_success" : "signup_error";
+      },
+    },
+  },
+
+  /* ---------- SIGNUP (error) ---------- */
+  signup_error: {
+    route: "/signup",
+    caption: "Validation-error state. Highlights every empty required field with red text; submit is re-enabled once filled.",
+    render: (s) => {
+      const f = (name, label, placeholder, filled) => `
+        <div class="wf-field">
+          <div class="wf-label">${label}</div>
+          <div class="wf-input ${s[name] ? "" : "error-state"}" data-action="fill" data-field="${name}">${s[name] ? filled : placeholder}</div>
+          ${s[name] ? "" : `<div class="wf-error">This field is required</div>`}
+        </div>`;
+      return `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Create Account</div>
+          <div class="wf-sub">Join the PARAYA platform</div>
+        </div>
+        <div class="wf-card">
+          ${f("name",     "Full name",        "Full name",         "Juan dela Cruz")}
+          ${f("email",    "Email address",    "you@dyci.edu.ph",   "juan@dyci.edu.ph")}
+          ${f("role",     "Role",             "Select your role",  "Student Volunteer")}
+          ${f("password", "Password",         "Min. 8 characters", "••••••••")}
+          ${f("confirm",  "Confirm password", "Repeat password",   "••••••••")}
+          <div class="wf-btn primary" data-action="create">Create Account</div>
+          <div class="wf-footer">Already have an account? <span class="wf-link" data-action="goto_login">Sign in</span></div>
+        </div>
+      </div>`;
+    },
+    actions: {
+      fill:       ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      goto_login: () => "login",
+      create:     ({ state }) => {
+        const ok = state.name && state.email && state.role && state.password && state.confirm;
+        return ok ? "signup_success" : "signup_error";
+      },
+    },
+  },
+
+  /* ---------- SIGNUP SUCCESS ---------- */
+  signup_success: {
+    route: "/signup → submitted",
+    caption: "Post-submit confirmation. New accounts are pending until an admin activates them. Single CTA returns to Login.",
+    render: () => `
+      <div class="wf" style="text-align: center; gap: 18px;">
+        <div class="wf-icon-box">✓</div>
+        <div class="wf-h2">Account Submitted</div>
+        <div class="wf-p">Your registration is pending admin approval. You'll receive an email once your account is activated.</div>
+        <div style="margin-top: 8px;">
+          <span class="wf-link" data-action="back_login">Return to Sign In</span>
+        </div>
+      </div>`,
+    actions: { back_login: () => "login" },
+  },
+
+  /* ---------- FORGOT PASSWORD ---------- */
+  forgot: {
+    route: "/forgot-password",
+    caption: "Single-field form to request a password-reset email via Supabase Auth. Errors surface as inline red text; success swaps to the sent-confirmation state.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Reset Password</div>
+          <div class="wf-sub">Enter your email and we'll send a reset link</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input" data-action="fill" data-field="email">${s.email ? "user@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="send">Send Reset Link</div>
+          <div class="wf-footer"><span class="wf-link" data-action="back_login">Back to Sign In</span></div>
+        </div>
+      </div>`,
+    actions: {
+      fill:       ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      back_login: () => "login",
+      send:       ({ state }) => state.email ? "forgot_sent" : "forgot_error",
+    },
+  },
+
+  /* ---------- FORGOT PASSWORD ERROR ---------- */
+  forgot_error: {
+    route: "/forgot-password",
+    caption: "Same form, validation failed (empty / malformed email). Inline error text mirrors the Zod schema message.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Reset Password</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input error-state" data-action="fill" data-field="email">${s.email ? "user@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+            ${s.email ? "" : `<div class="wf-error">Enter a valid email address</div>`}
+          </div>
+          <div class="wf-btn primary" data-action="send">Send Reset Link</div>
+          <div class="wf-footer"><span class="wf-link" data-action="back_login">Back to Sign In</span></div>
+        </div>
+      </div>`,
+    actions: {
+      fill:       ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      back_login: () => "login",
+      send:       ({ state }) => state.email ? "forgot_sent" : "forgot_error",
+    },
+  },
+
+  /* ---------- FORGOT PASSWORD — SENT ---------- */
+  forgot_sent: {
+    route: "/forgot-password → sent",
+    caption: "Confirmation after a reset email is dispatched. No re-send button — user follows the email link, which lands them on the Supabase-hosted recovery flow.",
+    render: () => `
+      <div class="wf" style="text-align: center; gap: 18px;">
+        <div class="wf-icon-box">✉</div>
+        <div class="wf-h2">Check your email</div>
+        <div class="wf-p">We sent a password reset link to your email address.</div>
+        <div style="margin-top: 8px;">
+          <span class="wf-link" data-action="back_login">Back to Sign In</span>
+        </div>
+      </div>`,
+    actions: { back_login: () => "login" },
+  },
+
+  /* ---------- ACCEPT-INVITE — VERIFYING ---------- */
+  invite_verifying: {
+    route: "/accept-invite",
+    caption: "Loading state while the Supabase invite token in the URL hash is processed. A 10-second timeout fallback routes to the 'Expired' screen.",
+    render: () => `
+      <div class="wf" style="text-align: center;">
+        <div class="wf-loading">
+          <div class="wf-spinner"></div>
+          <div class="wf-p">Verifying your invitation…</div>
+        </div>
+        <div class="wf-footer" style="margin-top: 24px;">
+          <span class="wf-link" data-action="loaded">[ simulate: token valid ]</span>
+          &nbsp; · &nbsp;
+          <span class="wf-link" data-action="timeout">[ simulate: timeout ]</span>
+        </div>
+      </div>`,
+    actions: {
+      loaded:  () => "invite_form",
+      timeout: () => "invite_expired",
+    },
+  },
+
+  /* ---------- ACCEPT-INVITE — FORM ---------- */
+  invite_form: {
+    route: "/accept-invite",
+    caption: "Invited users set their full name + password to activate their account. On submit, redirects them straight to their role's dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Complete Your Account</div>
+          <div class="wf-sub">You've been invited to join AGAPE</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Full name</div>
+            <div class="wf-input" data-action="fill" data-field="name">${s.name ? "Juan dela Cruz" : "Full name"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Set password</div>
+            <div class="wf-input" data-action="fill" data-field="password">${s.password ? "••••••••" : "Min. 8 characters"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label">Confirm password</div>
+            <div class="wf-input" data-action="fill" data-field="confirm">${s.confirm ? "••••••••" : "Repeat password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="activate">Activate Account</div>
+        </div>
+      </div>`,
+    actions: {
+      fill:     ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      activate: ({ state }) => (state.name && state.password && state.confirm) ? "invite_done" : "invite_error",
+    },
+  },
+
+  /* ---------- ACCEPT-INVITE — VALIDATION ERROR ---------- */
+  invite_error: {
+    route: "/accept-invite",
+    caption: "Same form, validation failed. Fields rendered with red error text; only blocks submit, doesn't bounce the invite token.",
+    render: (s) => {
+      const f = (name, label, placeholder, filled) => `
+        <div class="wf-field">
+          <div class="wf-label">${label}</div>
+          <div class="wf-input ${s[name] ? "" : "error-state"}" data-action="fill" data-field="${name}">${s[name] ? filled : placeholder}</div>
+          ${s[name] ? "" : `<div class="wf-error">This field is required</div>`}
+        </div>`;
+      return `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">Complete Your Account</div>
+        </div>
+        <div class="wf-card">
+          ${f("name",     "Full name",         "Full name",         "Juan dela Cruz")}
+          ${f("password", "Set password",      "Min. 8 characters", "••••••••")}
+          ${f("confirm",  "Confirm password",  "Repeat password",   "••••••••")}
+          <div class="wf-btn primary" data-action="activate">Activate Account</div>
+        </div>
+      </div>`;
+    },
+    actions: {
+      fill:     ({ state, evt }) => { state[evt.field] = !state[evt.field]; return { stay: true }; },
+      activate: ({ state }) => (state.name && state.password && state.confirm) ? "invite_done" : "invite_error",
+    },
+  },
+
+  /* ---------- ACCEPT-INVITE — DONE ---------- */
+  invite_done: {
+    route: "/accept-invite → done",
+    caption: "Activation succeeded. Briefly shows a confirmation, then auto-redirects to the role's dashboard (simulated here via the 'Continue' link).",
+    render: () => `
+      <div class="wf" style="text-align: center; gap: 18px;">
+        <div class="wf-icon-box">✓</div>
+        <div class="wf-h2">Account Ready!</div>
+        <div class="wf-p">Your account has been set up. Redirecting you to the dashboard…</div>
+        <div style="margin-top: 8px;">
+          <span class="wf-link" data-action="continue">[ simulate redirect → Dashboard ]</span>
+        </div>
+      </div>`,
+    actions: { continue: () => "dashboard" },
+  },
+
+  /* ---------- ACCEPT-INVITE — EXPIRED ---------- */
+  invite_expired: {
+    route: "/accept-invite (error)",
+    caption: "Shown when the invite link's hash includes error_code=otp_expired (or the 10s timeout fires). Only exit is back to Login.",
+    render: () => `
+      <div class="wf" style="text-align: center; gap: 18px;">
+        <div class="wf-icon-box">!</div>
+        <div class="wf-h2">Invitation Expired</div>
+        <div class="wf-p">This invitation link is invalid or has expired. Please ask your administrator to send a new invitation.</div>
+        <div style="margin-top: 8px;">
+          <div class="wf-btn primary" data-action="back_login" style="display: inline-block; min-width: 140px;">Back to Login</div>
+        </div>
+      </div>`,
+    actions: { back_login: () => "login" },
+  },
+
+  /* ---------- DASHBOARD (post-auth destination, role-dependent) ---------- */
+  dashboard: {
+    route: () => `/${ROLE_INFO[currentRole].segment}`,
+    caption: () => `Post-auth destination for "${ROLE_INFO[currentRole].label}". The dashboard layout reads user role from middleware-injected headers (x-user-role) — no second auth round-trip.`,
+    render: () => `
+      <div class="wf-dash">
+        <div class="wf-dash-bar">
+          <span style="font-weight: 600; margin-right: auto;">AGAPE — ${ROLE_INFO[currentRole].label}</span>
+          <span style="color: var(--ink-mute);">[avatar]</span>
+        </div>
+        <div class="wf-dash-row">
+          <div class="wf-dash-kpi"><span class="label">KPI A</span><span class="val">000</span></div>
+          <div class="wf-dash-kpi"><span class="label">KPI B</span><span class="val">000</span></div>
+          <div class="wf-dash-kpi"><span class="label">KPI C</span><span class="val">000</span></div>
+        </div>
+        <div class="wf-dash-chart">[ chart placeholder ]</div>
+        <div class="wf-dash-list">
+          <div class="wf-dash-list-item">List row · placeholder</div>
+          <div class="wf-dash-list-item">List row · placeholder</div>
+          <div class="wf-dash-list-item">List row · placeholder</div>
+          <div class="wf-dash-list-item">List row · placeholder</div>
+        </div>
+        <div style="font-size: 11px; color: var(--ink-mute); text-align: center;">
+          Auth flow ends here. Route: <strong>/${ROLE_INFO[currentRole].segment}</strong>
+        </div>
+      </div>`,
+    actions: {},
+  },
+};
+
+/* ============================================================
+   BOARD STATE
+   - board: [ {screenId, instanceId, state, clickedActionKey}, ... ]
+     length 0..4. FIFO — when 5th opened, slot 0 is evicted.
+   - transitions: [ {fromInstance, toInstance, fromActionKey} ]
+   ============================================================ */
+let nextInstanceId = 1;
+let currentRole = "paraya_director";
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  // If the screen is already on the board, reuse it (don't duplicate).
+  const existing = board.find((b) => b.screenId === screenId);
+  let target;
+  if (existing) {
+    target = existing;
+  } else {
+    target = makeInstance(screenId);
+    board.push(target);
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function resolveStr(val) { return typeof val === "function" ? val() : val; }
+
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const header = document.createElement("div");
+    header.className = "tile-header";
+    header.innerHTML = `<span class="route">${resolveStr(def.route)}</span>
+                        <span class="id">screen: ${entry.screenId}</span>`;
+
+    const body = document.createElement("div");
+    body.className = "tile-body";
+    body.innerHTML = def.render(entry.state);
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = resolveStr(def.caption);
+
+    tile.appendChild(header);
+    tile.appendChild(body);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every element with [data-action].
+    body.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        const evt = { ...el.dataset };
+        const handler = def.actions[action];
+        if (!handler) return;
+        const result = handler({ state: entry.state, evt, from: entry });
+        if (result && result.stay) {
+          // Field toggle — just re-render this tile.
+          render();
+          return;
+        }
+        if (typeof result === "string") {
+          pushScreen(result, entry, action);
+        }
+      });
+    });
+
+    // Apply red highlight to the most-recently-clicked control on this tile.
+    if (entry.clickedActionKey) {
+      const clickedEl = body.querySelector(`[data-action="${entry.clickedActionKey}"]`);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  // Arrows are drawn after layout settles.
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting across.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = fromTile.querySelector(`[data-action="${t.fromActionKey}"]`);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    const goingRight = (b.left + b.width / 2) > (aBox.left + aBox.width / 2);
+    return { t, a, aBox, b, goingRight };
+  });
+
+  // Pass 2: bucket by (destination tile + arrival side) and by (source element + departure side).
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const arrKey = `${d.t.toInstanceId}:${d.goingRight ? "L" : "R"}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${d.goingRight ? "R" : "L"}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw with spread offsets so arrows landing on the same edge don't stack.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, aBox, b, goingRight } = d;
+
+    const arrKey   = `${t.toInstanceId}:${goingRight ? "L" : "R"}`;
+    const arrGroup = arrivals[arrKey];
+    const arrPos   = arrGroup.indexOf(idx);
+    const arrN     = arrGroup.length;
+    // Minimum 28px between arrival points so the 9-px arrowhead has visible gap.
+    const arrSpread = Math.min(b.height * 0.7, 28 * arrN);
+    const arrFrac   = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const ty        = (b.top + b.height / 2) + arrSpread * (arrFrac - 0.5);
+
+    const depKey   = `${t.fromInstanceId}:${t.fromActionKey}:${goingRight ? "R" : "L"}`;
+    const depGroup = departures[depKey];
+    const depPos   = depGroup.indexOf(idx);
+    const depN     = depGroup.length;
+    const depOffset = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+    const sy        = (a.top + a.height / 2) + depOffset;
+
+    // Arrow tail anchors to the clicked element itself (overlays the button)
+    // so the connection from source control → destination tile is visible.
+    const sx = goingRight ? a.right : a.left;
+    const tx = goingRight ? b.left  : b.right;
+
+    // Base positions + user-applied offsets (drag handles persist these).
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    const dx = (x2 - x1);
+    const cp1x = x1 + dx * 0.4;
+    const cp2x = x2 - dx * 0.4;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`;
+
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — reposition source/dest endpoints.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow to bring it to the front layer.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("openInvite").addEventListener("click", () => {
+  // Start a fresh flow from the invite verifying state.
+  resetBoard("invite_verifying");
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-auth-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+/* Initial load: just the Login screen in slot 1. */
+resetBoard("login");
+</script>
+</body>
+</html>

@@ -1,0 +1,3617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1900" />
+<title>AGAPE — Student Volunteer Wireframes</title>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --board-bg: #ffffff;
+    --tile-bg: #ffffff;
+    --line: #8a8a8a;
+    --line-soft: #bdbdbd;
+    --ink: #1f1f1f;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
+    --box: #dcdcdc;
+    --box-soft: #eaeaea;
+    --side-bg: #f3f3f3;
+    --side-active: #dadada;
+    --red: #d32f2f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 14px; background: #2a2a2a; color: #fff;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .controls .group { display: flex; align-items: center; gap: 8px; }
+  .controls label { color: #d0d0d0; }
+  .controls select, .controls button {
+    background: #3a3a3a; color: #fff; border: 1px solid #555; border-radius: 4px;
+    padding: 4px 8px; font-size: 12px; cursor: pointer;
+  }
+  .controls button:hover { background: #4a4a4a; }
+  .controls .spacer { flex: 1; }
+  .controls .note { color: #bdbdbd; font-style: italic; }
+
+  .board-wrap { padding: 24px; background: var(--board-bg); min-height: calc(100vh - 40px); }
+  .board {
+    position: relative;
+    width: 1820px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content;
+    gap: 28px;
+  }
+  .arrows-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+  .arrow-handle {
+    pointer-events: all;
+    cursor: grab;
+    transition: r 0.15s ease, fill 0.15s ease;
+  }
+  .arrow-handle:hover { fill: #ffe5e5; }
+  .arrow-handle.dragging { cursor: grabbing; fill: #ffd0d0; }
+  /* Click any arrow to bring it to the front layer. .arrow-hit is an
+     invisible wide path that catches clicks near the visible stroke. */
+  .arrow-hit { pointer-events: stroke; cursor: pointer; }
+  .arrow-hit:hover ~ .arrow-line,
+  .arrow-line:hover { stroke-width: 3 !important; }
+
+  .slot { position: relative; display: flex; flex-direction: column; align-items: stretch; }
+  .slot.empty {
+    border: 2px dashed #c8c8c8;
+    border-radius: 12px;
+    min-height: 660px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 13px;
+  }
+  .slot-index {
+    position: absolute; top: -10px; left: -10px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #2a2a2a; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; z-index: 4;
+  }
+
+  /* Tile shell */
+  .tile {
+    background: var(--tile-bg);
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .tile-meta {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 11px; color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tile-meta .route { font-family: ui-monospace, "Courier New", monospace; }
+  .tile-meta .id { font-size: 10px; color: var(--ink-mute); }
+
+  /* The page shell: sidebar + (header + body) */
+  .page {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    min-height: 620px;
+  }
+  .page-side {
+    background: var(--side-bg);
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column;
+    font-size: 10.5px;
+  }
+  .side-brand {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .side-logo {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--ink-mute);
+  }
+  .side-brand-title { font-weight: 700; font-size: 12px; }
+  .side-brand-sub { font-size: 8px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .side-nav { flex: 1; overflow: hidden; padding: 8px 6px; }
+  .side-nav ul { list-style: none; margin: 0; padding: 0; }
+  .side-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+    line-height: 1.2;
+  }
+  .side-item:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-item.active { background: rgba(0,0,0,0.06); color: var(--ink); border-left-color: var(--ink); font-weight: 600; }
+  .side-item .ico {
+    width: 12px; height: 12px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .side-item.group { font-weight: 500; }
+  .side-item.group::after { content: "▾"; margin-left: auto; font-size: 9px; color: var(--ink-mute); }
+  .side-item.group.collapsed::after { content: "▸"; }
+  .side-children {
+    list-style: none; margin: 1px 0 4px 0; padding: 0 0 0 18px;
+    border-left: 1px solid var(--line-soft);
+    margin-left: 13px;
+  }
+  .side-child {
+    padding: 4px 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 10px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .side-child::before { content: "•"; color: var(--ink-mute); font-size: 9px; }
+  .side-child:hover { background: rgba(0,0,0,0.04); color: var(--ink); }
+  .side-child.active { color: var(--ink); font-weight: 600; background: rgba(0,0,0,0.05); }
+  .side-divider { height: 1px; background: var(--line-soft); margin: 6px 4px; }
+  .side-user {
+    padding: 8px 10px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .side-user .row { display: flex; align-items: center; gap: 6px; }
+  .side-user .avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: var(--ink-soft);
+  }
+  .side-user .name { font-size: 10px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .side-user .email { font-size: 9px; color: var(--ink-mute); line-height: 1.1; }
+  .side-user .signout {
+    margin-top: 2px; padding: 4px 6px; font-size: 9px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    color: var(--ink-soft); cursor: pointer; background: #fff;
+    text-align: left;
+  }
+  .side-user .signout:hover { background: #f6f6f6; }
+
+  .page-main { display: flex; flex-direction: column; min-width: 0; }
+  .page-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #fafafa;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .page-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page-title .crumb { font-weight: 400; color: var(--ink-mute); font-size: 11px; margin-right: 4px; }
+  .page-header .spacer { flex: 1; }
+  .page-header .iconbtn {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--ink-soft);
+    cursor: pointer;
+    position: relative;
+  }
+  .page-header .iconbtn.avatar {
+    border-radius: 50%;
+    font-size: 9px; font-weight: 700;
+    background: var(--box);
+  }
+  .page-header .iconbtn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 13px; height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Header dropdowns (notifications + profile) */
+  .dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 20;
+    font-size: 10px;
+  }
+  .notif-dropdown { right: 38px; width: 240px; }
+  .profile-dropdown { right: 8px; width: 168px; }
+
+  .dropdown-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #fafafa;
+  }
+  .dropdown-title { font-weight: 700; font-size: 11px; }
+  .dropdown-action {
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 9.5px;
+    text-decoration: underline;
+  }
+  .dropdown-action:hover { color: var(--ink); }
+
+  .dropdown-body { max-height: 200px; overflow-y: auto; }
+  .notif-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    display: flex; gap: 6px;
+    cursor: pointer;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafafa; }
+  .notif-item.unread { background: #ececec; border-left: 3px solid #1a1a1a; }
+  .notif-icon {
+    width: 14px; height: 14px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; background: #fff;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-size: 10px; font-weight: 700; line-height: 1.2; }
+  .notif-item:not(.unread) .notif-title { font-weight: 500; color: var(--ink-soft); }
+  .notif-msg { font-size: 9px; color: var(--ink-mute); margin-top: 2px; line-height: 1.3; }
+  .notif-time { font-size: 8px; color: var(--ink-mute); margin-top: 3px; }
+  .notif-dot {
+    width: 6px; height: 6px;
+    background: var(--ink);
+    border-radius: 50%;
+    flex-shrink: 0; align-self: flex-start; margin-top: 3px;
+  }
+
+  .dropdown-foot {
+    padding: 7px 10px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+  }
+  .dropdown-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .dropdown-link:hover { color: var(--ink); }
+
+  .dropdown-user { padding: 8px 10px; }
+  .dropdown-user-name { font-size: 11px; font-weight: 700; }
+  .dropdown-user-email { font-size: 9px; color: var(--ink-mute); margin-top: 1px; }
+  .dropdown-sep { height: 1px; background: var(--line-soft); }
+  .dropdown-item {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .dropdown-item:hover { background: #fafafa; color: var(--ink); }
+  .dropdown-item.danger { color: #2a2a2a; font-style: italic; }
+  .dropdown-item.danger:hover { background: #f0f0f0; }
+
+  .page-body {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+    background: #fff;
+    position: relative;
+  }
+
+  .tile-caption {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line-soft);
+    background: #fafafa;
+    font-size: 13px; color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* Wireframe primitives inside the page body */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 4px;
+    padding: 8px 10px;
+    background: #fff;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .kpi .kpi-label { font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.6px; }
+  .kpi .kpi-value { font-size: 18px; font-weight: 700; }
+  .kpi .kpi-sub { font-size: 9px; color: var(--ink-mute); }
+
+  .panel-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .panel-row.r-2-1 { grid-template-columns: 2fr 1fr; }
+  .panel-row.r-1-2 { grid-template-columns: 1fr 2fr; }
+
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fafafa;
+  }
+  .panel-head .ttl { font-size: 11px; font-weight: 700; }
+  .panel-head .lnk { font-size: 10px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .panel-body { padding: 10px; }
+  .panel-body.dense { padding: 8px 10px; }
+
+  /* Bar chart placeholder */
+  .barchart {
+    height: 150px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 24px, var(--box-soft) 24px 25px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 8px 12px;
+  }
+  .barchart .bar {
+    flex: 1;
+    background: #6e6e6e;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.85;
+  }
+  .barchart .axis {
+    position: absolute;
+    bottom: -16px;
+    left: 12px; right: 12px;
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--ink-mute);
+  }
+
+  .sdg-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .sdg-row .label { font-size: 10px; color: var(--ink-soft); }
+  .sdg-row .val { font-size: 11px; font-weight: 700; }
+  .sdg-row .bar {
+    grid-column: 1 / -1;
+    height: 5px; background: var(--box-soft); border-radius: 3px;
+    overflow: hidden;
+  }
+  .sdg-row .bar > div { height: 100%; background: var(--ink-soft); }
+
+  .brgy-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+  .brgy-row .rank { width: 14px; color: var(--ink-mute); }
+  .brgy-row .name { flex: 1; }
+  .brgy-row .pct { width: 60px; height: 4px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .brgy-row .pct > div { height: 100%; background: var(--ink-soft); }
+  .brgy-row .count { color: var(--ink); font-weight: 600; min-width: 18px; text-align: right; }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 10px; }
+  .tbl th, .tbl td { padding: 5px 6px; text-align: left; border-bottom: 1px solid var(--box-soft); }
+  .tbl th { color: var(--ink-mute); font-weight: 500; background: #fafafa; }
+  .tbl td { color: var(--ink-soft); }
+  .tbl .pill {
+    display: inline-block; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line-soft); font-size: 9px; color: var(--ink-soft);
+    background: #fff;
+  }
+
+  /* Stub page body (used by placeholder screens) */
+  .stub {
+    height: 100%;
+    min-height: 480px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 12px;
+    padding: 30px 24px;
+    border: 1px dashed var(--line-soft);
+    border-radius: 6px;
+    background: #fafafa;
+    color: var(--ink-soft);
+  }
+  .stub .stub-route { font-family: ui-monospace, "Courier New", monospace; font-size: 12px; color: var(--ink-mute); }
+  .stub .stub-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .stub .stub-desc { font-size: 12px; max-width: 360px; line-height: 1.5; color: var(--ink-soft); }
+  .stub .stub-tag {
+    margin-top: 6px;
+    display: inline-block; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 3px;
+    font-size: 10px; color: var(--ink-mute); background: #fff;
+  }
+
+  /* Login / "public" pages: no sidebar, no top header. Centered content. */
+  .page.chromeless { grid-template-columns: 1fr; background: #ffffff; }
+  .page.chromeless .page-main { display: flex; align-items: center; justify-content: center; }
+  .page.chromeless .page-body { width: 100%; display: flex; align-items: center; justify-content: center; padding: 30px 24px; min-height: 540px; }
+
+  /* Login wireframe primitives (copied from auth.html). */
+  .wf { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; }
+  .wf-brand { text-align: center; margin-bottom: 4px; }
+  .wf-logo {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--box); border: 1px solid var(--line);
+    margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute); font-size: 10px;
+  }
+  .wf-title { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; }
+  .wf-sub { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .wf-tag { font-size: 12px; color: var(--ink-soft); font-style: italic; margin-top: 6px; }
+  .wf-card {
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff;
+  }
+  .wf-field { display: flex; flex-direction: column; gap: 4px; }
+  .wf-label { font-size: 11px; color: var(--ink-soft); font-weight: 500; }
+  .wf-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .wf-input {
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 8px 10px; background: #fff;
+    font-size: 12px; color: var(--ink-mute);
+    cursor: pointer; user-select: none;
+    min-height: 32px; display: flex; align-items: center;
+  }
+  .wf-input.filled { color: var(--ink); background: #f6f6f6; }
+  .wf-btn {
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    padding: 9px 12px; text-align: center;
+    background: #f0f0f0; font-size: 12px; font-weight: 600;
+    cursor: pointer; user-select: none; color: var(--ink);
+  }
+  .wf-btn.primary { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .wf-btn:hover { background: #e0e0e0; }
+  .wf-btn.primary:hover { background: #1a1a1a; }
+  .wf-link {
+    color: var(--ink-soft); text-decoration: underline;
+    font-size: 11px; cursor: pointer; user-select: none;
+  }
+  .wf-link:hover { color: var(--ink); }
+  .wf-footer { text-align: center; font-size: 11px; color: var(--ink-mute); }
+
+  /* ── Partnership management primitives ─────────────────────────── */
+  .partner-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .map-area {
+    height: 180px;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 30px, var(--box-soft) 30px 31px),
+      repeating-linear-gradient(90deg, transparent 0 40px, var(--box-soft) 40px 41px),
+      #fff;
+    border: 1px dashed var(--line-soft);
+    border-radius: 4px;
+    position: relative;
+  }
+  .map-marker {
+    position: absolute;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .map-marker.active   { background: #2a2a2a; }
+  .map-marker.inactive { background: #ffffff; border-color: #2a2a2a; }
+  .map-toggle {
+    display: flex; gap: 2px;
+    padding: 2px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    font-size: 9px;
+  }
+  .map-toggle .opt {
+    padding: 3px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .map-toggle .opt.active {
+    background: var(--ink); color: #fff; font-weight: 600;
+  }
+
+  .partner-tools {
+    display: flex; gap: 6px;
+    margin: 8px 0 4px 0;
+  }
+  .partner-search {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px; color: var(--ink-mute);
+    background: #fff;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .partner-filter, .partner-add-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .partner-filter-wrap { position: relative; }
+  .status-filter-menu {
+    position: absolute;
+    top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 108px;
+    font-size: 10px;
+  }
+  .status-filter-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .status-filter-item:hover { background: #fafafa; color: var(--ink); }
+  .status-filter-item.active { font-weight: 700; color: var(--ink); background: #f4f4f4; }
+  .partner-add-btn { background: #2a2a2a; color: #fff; border-color: #2a2a2a; font-weight: 600; }
+  .partner-add-btn:hover { background: #1a1a1a; }
+
+  .tbl-actions { width: 18px; text-align: center; cursor: pointer; color: var(--ink-mute); }
+  .tbl-actions:hover { color: var(--ink); }
+  .status-pill { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 9px; border: 1px solid; }
+  .status-pill.active { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .status-pill.inactive { background: #f5f5f5; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+
+  /* Row action menu (the "⋯" dropdown) */
+  .row-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    min-width: 138px;
+    font-size: 10px;
+  }
+  .row-menu-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .row-menu-item:hover { background: #fafafa; color: var(--ink); }
+  .row-menu-item.danger { color: #2a2a2a; font-style: italic; }
+  .row-menu-item.danger:hover { background: #f0f0f0; }
+  .row-menu-sep { height: 1px; background: var(--line-soft); }
+
+  /* Sheet overlay (slide-in side panel) */
+  .sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.30);
+    z-index: 14;
+  }
+  .sheet-panel {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 62%;
+    background: #fff;
+    border-left: 1px solid var(--line);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.10);
+    z-index: 15;
+    display: flex; flex-direction: column;
+  }
+  .sheet-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    background: #fafafa;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 13px; font-weight: 700; }
+  .sheet-close {
+    width: 20px; height: 20px;
+    border: 1px solid var(--line-soft); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; font-size: 11px;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+  }
+  .sheet-foot {
+    padding: 9px 14px;
+    border-top: 1px solid var(--line-soft);
+    display: flex; justify-content: flex-end; gap: 6px;
+    background: #fafafa;
+  }
+  .sheet-section { display: flex; flex-direction: column; gap: 6px; }
+  .sheet-section-title {
+    font-size: 9px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+  }
+  .sheet-field { display: flex; flex-direction: column; gap: 2px; }
+  .sheet-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet-label { font-size: 10px; color: var(--ink-soft); }
+  .sheet-label .req { color: #1a1a1a; font-weight: 700; }
+  .sheet-input, .sheet-select {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 10px;
+    color: var(--ink-mute);
+    background: #fff;
+    min-height: 26px;
+    display: flex; align-items: center;
+    cursor: pointer; user-select: none;
+  }
+  .sheet-input.filled, .sheet-select.filled { color: var(--ink); background: #f6f6f6; }
+  .sheet-select::after { content: "▾"; margin-left: auto; color: var(--ink-mute); }
+  .sheet-hint { font-size: 9px; color: var(--ink-mute); line-height: 1.4; }
+  .sheet-hint .auto {
+    color: #1a1a1a; font-weight: 700;
+  }
+
+  /* ── Project Proposals primitives ─────────────────────────────── */
+  .proposal-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+
+  .phase-rollup-card { margin-bottom: 10px; }
+  .phase-bar {
+    display: flex; height: 7px;
+    background: var(--box-soft);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 6px 0 8px;
+  }
+  .phase-seg { height: 100%; }
+  .phase-seg.diagnostic { background: #8a8a8a; }
+  .phase-seg.research   { background: #6a6a6a; }
+  .phase-seg.filing     { background: #4a4a4a; }
+  .phase-seg.execution  { background: #2a2a2a; }
+  .phase-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .phase-card {
+    display: flex; gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    align-items: flex-start;
+  }
+  .phase-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 3px; flex-shrink: 0;
+  }
+  .phase-card .label-row {
+    font-size: 9px; color: var(--ink-mute);
+  }
+  .phase-card .count {
+    font-size: 14px; font-weight: 700; line-height: 1.1;
+  }
+
+  /* Pipeline stepper (inside row, also detail) */
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+  .stepper-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 999px;
+    font-size: 8.5px; font-weight: 600;
+  }
+  .stepper-chip.done { background: #2a2a2a; color: #fff; }
+  .stepper-chip.current { background: #fff; color: #1a1a1a; border: 1px solid #1a1a1a; }
+  .stepper-chip.upcoming { background: var(--box-soft); color: var(--ink-mute); }
+  .stepper-arrow { color: var(--ink-mute); font-size: 7px; }
+  .stepper-rejected, .stepper-revising {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    color: #2a2a2a;
+  }
+  .stepper-rejected { text-decoration: line-through; }
+  .stepper-revising { font-style: italic; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 600;
+    border: 1px solid;
+    text-transform: capitalize;
+  }
+  .status-badge.draft           { background: #ececec; color: #6a6a6a; border-color: #c0c0c0; }
+  .status-badge.submitted       { background: #e2e2e2; color: #1a1a1a; border-color: #8a8a8a; }
+  .status-badge.pre_screening,
+  .status-badge.sdg_review,
+  .status-badge.finance_review  { background: #d4d4d4; color: #1a1a1a; border-color: #6a6a6a; }
+  .status-badge.approved        { background: #2a2a2a; color: #ffffff; border-color: #1a1a1a; }
+  .status-badge.rejected        { background: #f5f5f5; color: #6a6a6a; border-color: #6a6a6a; border-style: dashed; }
+  .status-badge.revisions_requested { background: #ececec; color: #1a1a1a; border-color: #4a4a4a; border-style: dashed; }
+
+  /* SDG chips */
+  .sdg-chip {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #fff;
+    margin-right: 2px;
+  }
+  .sdg-chip.sdg-4  { background: #2a2a2a; }
+  .sdg-chip.sdg-9  { background: #4a4a4a; }
+  .sdg-chip.sdg-11 { background: #6a6a6a; }
+  .sdg-chip.sdg-17 { background: #1a1a1a; }
+
+  /* SDG selector buttons in Create sheet */
+  .sdg-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .sdg-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+  }
+  .sdg-btn.selected { box-shadow: 0 0 0 2px currentColor inset; }
+  .sdg-btn .head { display: flex; align-items: center; gap: 4px; }
+  .sdg-btn .lbl  { font-size: 9.5px; color: var(--ink); font-weight: 500; margin-top: 3px; }
+
+  /* Income-generating gate */
+  .income-gate {
+    border: 1px solid var(--line);
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    display: flex; align-items: flex-start; gap: 7px;
+  }
+  .income-gate .gate-check {
+    width: 13px; height: 13px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .income-gate .gate-text {
+    font-size: 9.5px; color: var(--ink); line-height: 1.4;
+  }
+  .income-gate .gate-text strong { font-weight: 700; }
+  .income-gate .gate-text .sub { color: var(--ink-mute); display: block; margin-top: 2px; font-size: 9px; }
+
+  /* Detail-sheet specific blocks */
+  .detail-field { font-size: 11px; }
+  .detail-field .lbl {
+    font-size: 9px; font-weight: 700;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .detail-field .val { margin-top: 2px; color: var(--ink); line-height: 1.4; }
+  .detail-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .detail-sep { height: 1px; background: var(--line-soft); margin: 4px 0; }
+
+  .review-item {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+  .review-item-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2px;
+  }
+  .review-item-stage { font-weight: 700; text-transform: capitalize; font-size: 10px; }
+  .review-item-notes { color: var(--ink-mute); font-size: 9.5px; line-height: 1.4; }
+  .review-item-meta  { color: var(--ink-mute); font-size: 9px; margin-top: 3px; }
+
+  /* Inline notice blocks (validation, finance, revisions) */
+  .notice {
+    border: 1px solid;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .notice.warning { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.success { background: #ececec; border-color: #4a4a4a; color: #1a1a1a; }
+  .notice.info    { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; }
+  .notice.accent  { background: #f5f5f5; border-color: #8a8a8a; color: #2a2a2a; border-style: dashed; }
+  .notice-row { display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+  /* Action button group in detail sheet */
+  .detail-actions-row { display: flex; gap: 5px; }
+  .detail-actions-row .icon-btn {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    width: 28px;
+    background: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .detail-actions-row .icon-btn.danger { border-color: var(--line); color: var(--ink-soft); border-style: dashed; }
+  .detail-actions-row .icon-btn.accent { border-color: var(--line); color: var(--ink-soft); }
+
+  .ppf-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 9px;
+    color: var(--ink-soft);
+    background: #f5f5f5;
+    cursor: pointer;
+  }
+
+  /* ── Community Needs Assessment primitives ─────────────────────── */
+
+  /* Donut chart placeholder for distributions (income, etc.) */
+  .donut-chart {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#1a1a1a 0% 40%, #4a4a4a 40% 65%, #8a8a8a 65% 85%, #c0c0c0 85% 100%);
+    position: relative;
+    margin: 4px auto;
+  }
+  .donut-chart::after {
+    content: ""; position: absolute;
+    inset: 30%;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .donut-legend { font-size: 9px; color: var(--ink-soft); margin-top: 6px; text-align: center; }
+  .donut-legend-item { display: inline-flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .legend-sw { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* Key indicator tiles (extended profile) */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .ind-tile {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 7px 10px;
+  }
+  .ind-tile .lbl { font-size: 9px; color: var(--ink-mute); }
+  .ind-tile .val { font-size: 16px; font-weight: 700; margin-top: 2px; line-height: 1.1; }
+  .ind-tile .val .pct { font-size: 9px; color: var(--ink-mute); font-weight: 400; margin-left: 3px; }
+
+  /* Need pills (health/economic/environmental/social) */
+  .need-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink);
+    margin-right: 3px;
+  }
+
+  /* Builder tab strip */
+  .builder-tabs {
+    display: flex; gap: 1px;
+    background: var(--box-soft);
+    border-radius: 4px;
+    padding: 2px;
+    font-size: 10px;
+    width: fit-content;
+  }
+  .builder-tab {
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .builder-tab.active {
+    background: #fff;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  /* Builder section + question blocks */
+  .builder-section {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .builder-section-head {
+    padding: 6px 10px;
+    background: #f4f4f4;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+  .builder-question {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .builder-question:last-child { border-bottom: none; }
+  .builder-q-handle { color: var(--ink-mute); font-size: 11px; cursor: grab; }
+  .builder-q-body { flex: 1; min-width: 0; }
+  .builder-q-text { font-weight: 600; color: var(--ink); }
+  .builder-q-type {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--box-soft);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .builder-q-required {
+    display: inline-block;
+    padding: 1px 5px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 8.5px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+  .builder-q-options { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Create-survey choice modal cards */
+  .choice-modal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.30);
+    z-index: 15;
+    padding: 20px;
+  }
+  .choice-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .choice-card .ttl { font-size: 14px; font-weight: 700; }
+  .choice-card .sub { font-size: 10px; color: var(--ink-mute); margin-top: 3px; }
+  .choice-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .choice-option {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+  }
+  .choice-option:hover { background: #f5f5f5; }
+  .choice-option .ic { font-size: 18px; margin-bottom: 4px; }
+  .choice-option .nm { font-size: 11px; font-weight: 700; }
+  .choice-option .ds { font-size: 9px; color: var(--ink-mute); margin-top: 3px; }
+
+  /* Compare grid (Pre/Post) */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+  .compare-cell {
+    border: 1px solid var(--line-soft);
+    background: #fafafa;
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+  .compare-cell .lbl { color: var(--ink-mute); font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .compare-cell .val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+  .compare-cell .delta { font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Survey-selector card list */
+  .selector-list {
+    display: flex; flex-direction: column; gap: 4px;
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 4px;
+    background: #fff;
+  }
+  .selector-row {
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .selector-row:hover { background: #f5f5f5; }
+  .selector-row.selected { background: #1a1a1a; color: #fff; }
+
+  /* Theme/code chips for qualitative analysis */
+  .theme-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 9.5px;
+    color: var(--ink-soft);
+    background: #fff;
+    margin: 2px 2px 0 0;
+    cursor: pointer;
+  }
+  .theme-chip:hover { background: #f5f5f5; }
+  .theme-chip.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  /* Bar chart (horizontal) for "Primary Needs Frequency" */
+  .h-barchart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 24px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .h-barchart-row .lbl { color: var(--ink-soft); }
+  .h-barchart-row .bar { height: 8px; background: var(--box-soft); border-radius: 2px; overflow: hidden; }
+  .h-barchart-row .bar > div { height: 100%; background: #2a2a2a; }
+  .h-barchart-row .num { text-align: right; font-weight: 700; }
+
+  /* ── Volunteer Management primitives ───────────────────────────── */
+
+  /* Avatar circle */
+  .vol-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--box);
+    border: 1px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-weight: 700;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+  }
+  .vol-avatar.lg { width: 36px; height: 36px; font-size: 12px; }
+
+  /* Pending logs warning card */
+  .pending-banner {
+    border: 1px solid #4a4a4a;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+  .pending-banner .head {
+    display: flex; align-items: center; gap: 5px;
+    font-weight: 700; font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .pending-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-size: 9.5px;
+  }
+  .pending-log-row .body { flex: 1; min-width: 0; }
+  .pending-log-row .name { font-weight: 700; color: var(--ink); font-size: 10px; }
+  .pending-log-row .desc { color: var(--ink-mute); line-height: 1.3; margin-top: 1px; }
+  .pending-log-row .meta { color: var(--ink-mute); font-size: 8.5px; margin-top: 2px; }
+  .pending-log-row .actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .pending-log-row .btn-ico {
+    width: 24px; height: 24px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .pending-log-row .btn-ico.accept { background: #2a2a2a; color: #fff; border-color: #2a2a2a; }
+  .pending-log-row .btn-ico.reject { background: #fff; color: #2a2a2a; border-style: dashed; }
+
+  /* Activity selector (attendance left pane) */
+  .activity-list {
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    background: #fff;
+  }
+  .activity-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--box-soft);
+    cursor: pointer;
+    font-size: 10px;
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: #fafafa; }
+  .activity-item.active {
+    background: #f4f4f4;
+    border-left: 3px solid #1a1a1a;
+    padding-left: 7px;
+  }
+  .activity-item .title-row { display: flex; align-items: center; justify-content: space-between; }
+  .activity-item .title { font-weight: 700; color: var(--ink); }
+  .activity-item .prog { color: var(--ink-mute); font-size: 9px; margin-top: 1px; }
+  .activity-item .meta {
+    display: flex; justify-content: space-between;
+    font-size: 8.5px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* OTP block */
+  .otp-display {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-align: center;
+    padding: 12px 8px;
+    background: #f4f4f4;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+    color: #1a1a1a;
+  }
+  .otp-empty {
+    padding: 16px 8px;
+    text-align: center;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--ink-mute);
+  }
+  .otp-meta {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* QR placeholder */
+  .qr-block {
+    width: 130px; height: 130px;
+    background:
+      conic-gradient(from 0deg at 50% 50%, #1a1a1a 0% 8%, #fff 8% 16%, #1a1a1a 16% 24%, #fff 24% 32%, #1a1a1a 32% 40%, #fff 40% 48%, #1a1a1a 48% 56%, #fff 56% 64%, #1a1a1a 64% 72%, #fff 72% 80%, #1a1a1a 80% 88%, #fff 88% 100%),
+      #fff;
+    background-blend-mode: normal;
+    border: 4px solid #fff;
+    outline: 1px solid var(--line);
+    margin: 0 auto;
+    position: relative;
+  }
+  /* Cheap QR-ish look via tiled radial gradients */
+  .qr-block {
+    background:
+      radial-gradient(circle, #1a1a1a 25%, transparent 26%) 0 0 / 10px 10px,
+      radial-gradient(circle, #1a1a1a 22%, transparent 23%) 5px 5px / 10px 10px,
+      #fff;
+  }
+  .qr-block::before, .qr-block::after {
+    content: ""; position: absolute;
+    width: 28px; height: 28px;
+    border: 5px solid #1a1a1a;
+    background: #fff;
+  }
+  .qr-block::before { top: 4px; left: 4px; }
+  .qr-block::after { top: 4px; right: 4px; }
+
+  .qr-empty {
+    width: 130px; height: 130px;
+    background: #fafafa;
+    border: 2px dashed var(--line-soft);
+    border-radius: 4px;
+    margin: 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--ink-mute);
+  }
+
+  /* Roster list */
+  .roster-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--box-soft);
+    font-size: 10px;
+  }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-row .body { flex: 1; min-width: 0; }
+  .roster-row .name { font-weight: 600; color: var(--ink); }
+  .roster-row .email { color: var(--ink-mute); font-size: 9px; }
+  .roster-row .method {
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 8.5px;
+    font-weight: 600;
+  }
+  .roster-row .method.qr     { background: #2a2a2a; color: #fff; border-color: #1a1a1a; }
+  .roster-row .method.otp    { background: #f4f4f4; color: var(--ink); border-color: var(--line); }
+  .roster-row .method.manual { background: #fff; color: var(--ink-soft); border-color: var(--line); border-style: dashed; }
+  .roster-row .time { font-size: 9px; color: var(--ink-mute); white-space: nowrap; }
+
+  /* Highlighted (just-clicked) control */
+  .wf-clicked {
+    outline: 2.5px solid var(--red) !important;
+    outline-offset: 2px;
+    border-radius: 4px;
+    position: relative;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="group">
+    <label for="rolePicker">Signed-in role:</label>
+    <select id="rolePicker" disabled style="opacity: 0.7;">
+      <option value="volunteer">Student Volunteer (DYCI student account)</option>
+    </select>
+  </div>
+  <div class="group">
+    <button id="reset" type="button">Reset to Login</button>
+    <button id="undo" type="button" title="Undo last click (Ctrl+Z)">↶ Undo</button>
+    <button id="editArrows" type="button">✎ Edit arrows</button>
+    <button id="resetArrows" type="button">↺ Reset arrows</button>
+    <button id="downloadPng" type="button">⬇ Download PNG</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="note">Controls bar — crop above this line for clean screenshots.</div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board">
+    <svg class="arrows-svg" id="arrows" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- userSpaceOnUse keeps the arrowhead a fixed 9x9 regardless of stroke width -->
+        <marker id="arrowhead" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L9,4.5 L0,9 Z" fill="#d32f2f"/>
+        </marker>
+      </defs>
+    </svg>
+    <!-- slots generated by JS based on board state -->
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   ROLE INFO (for sidebar user block)
+   ============================================================ */
+const ROLE_INFO = {
+  volunteer: { label: "Student Volunteer", name: "Maria S. Cruz", email: "mcruz@dyci.edu.ph", org: "CICS — BSCS 3" },
+};
+let currentRole = "volunteer";
+
+/* ============================================================
+   VOLUNTEER SIDEBAR NAV (mirrors volunteerNav in Sidebar.tsx)
+   ============================================================ */
+const PARTNER_NAV = [
+  { key: "dashboard",   label: "Dashboard",             screen: "dashboard"   },
+  { key: "my_barangay", label: "Partnership Management", screen: "my_barangay" },
+  {
+    key: "volmgmt_grp", label: "Volunteer Management", group: true,
+    children: [
+      { key: "programs",     label: "Available Programs", screen: "programs"     },
+      { key: "schedule",     label: "My Schedule",        screen: "schedule"     },
+      { key: "checkin",      label: "Check In",           screen: "checkin"      },
+      { key: "log_activity", label: "Log Activity",       screen: "log_activity" },
+      { key: "hours",        label: "My Hours",           screen: "hours"        },
+    ],
+  },
+  {
+    key: "cna_grp", label: "Community Needs Assessment", group: true,
+    children: [
+      { key: "surveys", label: "Beneficiary Surveys", screen: "surveys" },
+    ],
+  },
+  {
+    key: "comm_grp", label: "Communication", group: true,
+    children: [
+      { key: "forum", label: "Discussion Forum", screen: "forum" },
+    ],
+  },
+];
+
+// Pinned at the bottom of the sidebar.
+const SIDEBAR_PINNED = [
+  { key: "chatbot",       label: "AI Assistant",  screen: "chatbot"       },
+  { key: "notifications", label: "Notifications", screen: "notifications" },
+];
+
+/* ============================================================
+   SCREEN DEFINITIONS
+   route   — path string for tile header
+   title   — page title shown in the in-tile header
+   navKey  — which sidebar item should be highlighted
+   caption — 1-2 sentence description shown below the tile
+   render  — returns HTML for the page body
+   ============================================================ */
+const SCREENS = {
+
+  /* ---------- LOGIN (entry point) ---------- */
+  login: {
+    route:     "/login",
+    title:     "Sign In",
+    navKey:    "login",
+    chromeless: true,
+    caption:   "Entry point. Email/password sign-in via Supabase Auth. On success, middleware reads the user's role from the users table and forwards to the matching dashboard.",
+    render: (s) => `
+      <div class="wf">
+        <div class="wf-brand">
+          <div class="wf-logo">LOGO</div>
+          <div class="wf-title">AGAPE</div>
+          <div class="wf-sub">PARAYA — DYCI</div>
+          <div class="wf-tag">"Empowering Communities Through Service"</div>
+        </div>
+        <div class="wf-card">
+          <div class="wf-field">
+            <div class="wf-label">Email address</div>
+            <div class="wf-input ${s.email ? "filled" : ""}" data-action="fill" data-field="email">${s.email ? "officer@dyci.edu.ph" : "you@dyci.edu.ph"}</div>
+          </div>
+          <div class="wf-field">
+            <div class="wf-label-row">
+              <span class="wf-label">Password</span>
+              <span class="wf-link" data-action="forgot">Forgot password?</span>
+            </div>
+            <div class="wf-input ${s.password ? "filled" : ""}" data-action="fill" data-field="password">${s.password ? "••••••••" : "Password"}</div>
+          </div>
+          <div class="wf-btn primary" data-action="signin">Sign In</div>
+          <div class="wf-footer">Don't have an account? <span class="wf-link" data-action="signup">Sign up</span></div>
+        </div>
+      </div>
+    `,
+  },
+
+  /* ---------- VOLUNTEER DASHBOARD ---------- */
+  dashboard: {
+    route:   "/volunteer",
+    title:   "Volunteer Dashboard",
+    navKey:  "dashboard",
+    caption: "Volunteer landing page (data-backed via /api/volunteer/dashboard). 3 KPIs (Total Hours since semester start, Activities Joined, Upcoming Events) plus an Announcements feed and Recent Activity Log table. Each KPI links to its source page.",
+    render:  () => `
+      <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="kpi" data-action="go:hours"><span class="kpi-label">⏱ Total Hours</span><span class="kpi-value">42.5</span><span class="kpi-sub">Since semester start (Jan 1)</span></div>
+        <div class="kpi" data-action="go:programs"><span class="kpi-label">⚡ Activities Joined</span><span class="kpi-value">4</span><span class="kpi-sub">Active signups</span></div>
+        <div class="kpi" data-action="go:schedule"><span class="kpi-label">📅 Upcoming Events</span><span class="kpi-value">3</span><span class="kpi-sub">In the next 7 days</span></div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">📢 Announcements</span><span class="wf-link" data-action="go:notifications">View all →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { title: "Reading Buddy Session #2 confirmed",        body: "Reminder: meet at Brgy. Lolomboy Hall at 9 AM Saturday.",                          type: "success", time: "2h ago"  },
+              { title: "Your activity log was approved",            body: "5h on the Bayanihan Clean-up has been added to your Total Hours.",                  type: "approved",time: "1d ago"  },
+              { title: "New program open: ICT Training — Sulucan", body: "CICS instructors needed. 8-week run starting June 15.",                              type: "submitted",  time: "2d ago"  },
+              { title: "Quarterly hours certificate ready",         body: "Download your Q1 certificate from My Hours.",                                       type: "submitted",time: "3d ago"  },
+              { title: "Reminder: log your Health Caravan hours",   body: "It's been 3 days since the activity. Log it before May 25 to count toward Q2.",     type: "warning",  time: "5d ago"  },
+            ].map((a) => `
+              <div style="padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;" data-action="go:notifications">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                  <span style="font-weight: 600; font-size: 10.5px;">${a.title}</span>
+                  <span style="font-size: 9px; color: var(--ink-mute); flex-shrink: 0;">${a.time}</span>
+                </div>
+                <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.4;">${a.body}</div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="ttl">📋 Recent Activity Log</span><span class="wf-link" data-action="go:log_activity">View all →</span></div>
+          <div class="panel-body dense">
+            ${[
+              { date: "May 18, 2025", program: "Literacy Drive — Lolomboy", hours: 4.0, status: "approved" },
+              { date: "May 15, 2025", program: "Bayanihan Clean-up — Bunducan", hours: 5.0, status: "approved" },
+              { date: "May 11, 2025", program: "Health Caravan — Antipona", hours: 6.0, status: "approved" },
+              { date: "May 09, 2025", program: "Literacy Drive — Lolomboy", hours: 3.5, status: "pending"  },
+              { date: "May 04, 2025", program: "ICT Training — Sulucan", hours: 4.0, status: "approved" },
+            ].map((l) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;">
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; font-size: 10.5px;">${l.program}</div>
+                  <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${l.date} · ${l.hours}h</div>
+                </div>
+                <span class="status-badge ${l.status === "approved" ? "approved" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize;">${l.status}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    `,
+  },
+
+};
+
+
+/* ---------- PARTNERSHIP MANAGEMENT (view-only) ---------- */
+
+function renderMyBarangay() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">🤝 My Barangay</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Read-only view of the barangay you're assigned to. Updates here are managed by PARAYA officers and the Barangay Captain. Use this page to find contact info, program calendar, and recent community-needs activity.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 8px;">
+      <div class="panel-head"><span class="ttl">Brgy. Lolomboy, Bocaue, Bulacan</span><span class="status-badge approved" style="font-size: 8.5px;">Active partner</span></div>
+      <div class="panel-body dense">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 10px;">
+          <div><span style="color: var(--ink-mute);">Contact:</span> Cap. P. Reyes</div>
+          <div><span style="color: var(--ink-mute);">Phone:</span> +63 917 555 0142</div>
+          <div><span style="color: var(--ink-mute);">Email:</span> preyes@brgy.gov.ph</div>
+          <div><span style="color: var(--ink-mute);">Partnership since:</span> Aug 2023</div>
+          <div><span style="color: var(--ink-mute);">Population:</span> 6,842</div>
+          <div><span style="color: var(--ink-mute);">Households:</span> 1,420</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">📅 Programs in this Barangay</span></div>
+        <div class="panel-body dense">
+          ${[
+            { title: "Literacy Drive — Lolomboy",   range: "May–Jul 2025", status: "active",    mine: true  },
+            { title: "Health Caravan — Lolomboy",   range: "Jun 2025",     status: "planning",  mine: false },
+            { title: "Sitio Mabini Water Response", range: "Apr 2025",     status: "completed", mine: false },
+          ].map((p) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 10.5px; display: flex; align-items: center; gap: 4px;">${p.title}${p.mine ? `<span class="status-badge approved" style="font-size: 8px;">You</span>` : ""}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.range}</div>
+              </div>
+              <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize;">${p.status}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">📋 Recent Community Needs</span></div>
+        <div class="panel-body dense">
+          ${[
+            { title: "Flood drainage — Sitio Mabini", cat: "Environmental", date: "May 17, 2025", status: "forwarded" },
+            { title: "Youth tutoring expansion",       cat: "Education",     date: "May 14, 2025", status: "approved"  },
+            { title: "Sari-sari livelihood mentoring", cat: "Economic",      date: "May 09, 2025", status: "approved"  },
+          ].map((n) => `
+            <div style="padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;">
+              <div style="font-weight: 600; font-size: 10.5px;">${n.title}</div>
+              <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--ink-mute); margin-top: 2px;"><span>${n.cat} · ${n.date}</span><span class="status-badge ${n.status === "approved" ? "approved" : "submitted"}" style="font-size: 8px;">${n.status}</span></div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.my_barangay = {
+  route:   "/volunteer/barangay",
+  title:   "Partnership Management",
+  navKey:  "my_barangay",
+  caption: "Read-only view of the volunteer's assigned barangay — contact info, population stats, programs running there, recent community needs filed. Sourced from /api/my-barangay (RLS-scoped).",
+  render:  () => renderMyBarangay(),
+};
+
+/* ---------- AVAILABLE PROGRAMS (browse + sign-up) ---------- */
+
+const SAMPLE_VOL_PROGRAMS = [
+  { id: 0, title: "Literacy Drive — Lolomboy",      brgy: "Brgy. Lolomboy",  desc: "Weekly tutoring sessions for grade-school children across 3 sitios.", status: "active",    start: "May 18", end: "Jul 12", signups: 12, cap: 20, my: "approved" },
+  { id: 1, title: "Health Caravan — Antipona",      brgy: "Brgy. Antipona",  desc: "Mobile clinic — BP screening, vaccinations, nutrition counseling.",  status: "active",    start: "May 25", end: "Jun 15", signups: 9,  cap: 15, my: "pending"  },
+  { id: 2, title: "ICT Training — Sulucan",         brgy: "Brgy. Sulucan",   desc: "8-week basic computing course for SHS students. CICS-led.",          status: "planning",  start: "Jun 15", end: "Aug 15", signups: 6,  cap: 12, my: null       },
+  { id: 3, title: "Backyard Gardening — Bunducan", brgy: "Brgy. Bunducan",  desc: "Seeds + workshop kits distributed to 80 households.",                status: "planning",  start: "Jun 01", end: "Aug 30", signups: 4,  cap: 15, my: null       },
+  { id: 4, title: "DRR Workshop — Wakas",          brgy: "Brgy. Wakas",     desc: "Disaster-risk reduction simulation + take-home preparedness kits.",  status: "planning",  start: "Jun 21", end: "Jun 22", signups: 0,  cap: 10, my: null       },
+  { id: 5, title: "Bayanihan Clean-up — Bunducan", brgy: "Brgy. Bunducan",  desc: "Quarterly community clean-up. Co-organized with SK.",                status: "completed", start: "Apr 28", end: "Apr 28", signups: 22, cap: 22, my: "approved" },
+];
+
+const PROG_STATUS_FILTERS = [
+  { key: "all",       label: "All statuses" },
+  { key: "planning",  label: "Planning"     },
+  { key: "active",    label: "Active"       },
+  { key: "completed", label: "Completed"    },
+  { key: "cancelled", label: "Cancelled"    },
+];
+
+function renderProgramsPage(state) {
+  const search = state.prog_search ?? "";
+  const statusFilter = state.prog_status_filter ?? "all";
+  const rows = SAMPLE_VOL_PROGRAMS
+    .filter((p) => statusFilter === "all" ? true : p.status === statusFilter)
+    .filter((p) => !search ? true : p.title.toLowerCase().includes(search.toLowerCase()) || p.brgy.toLowerCase().includes(search.toLowerCase()));
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">⚡ Available Programs</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Browse programs you can join. Click <strong>Sign Up</strong> to submit a signup — your status will show as <em>pending</em> until a PARAYA officer approves it. Already-joined programs show <em>Signed up</em> with a withdraw option.
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+      <div class="sheet-input" data-action="prog-search" style="flex: 1; max-width: 320px; padding: 4px 10px; font-size: 9.5px; cursor: text;">🔍 Search by title or barangay…</div>
+      <div class="sheet-input" data-action="prog-open-status-filter" style="padding: 4px 10px; font-size: 9.5px; cursor: pointer; min-width: 130px;">
+        Status: ${PROG_STATUS_FILTERS.find((s) => s.key === statusFilter)?.label ?? "All"} ▾
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      ${rows.map((p) => `
+        <div class="panel">
+          <div class="panel-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span class="ttl" style="line-height: 1.3;">${p.title}</span>
+            <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize; flex-shrink: 0;">${p.status}</span>
+          </div>
+          <div class="panel-body dense">
+            <div style="font-size: 10px; color: var(--ink); line-height: 1.5; margin-bottom: 6px;">${p.desc}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 9.5px; color: var(--ink-mute); padding-top: 4px; border-top: 1px solid var(--line-soft);">
+              <div>📍 ${p.brgy}</div>
+              <div>📅 ${p.start} → ${p.end}</div>
+              <div>👥 ${p.signups} / ${p.cap} volunteers</div>
+              <div>${p.my ? `Status: <strong>${p.my}</strong>` : `Open slots: ${p.cap - p.signups}`}</div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 8px; gap: 4px;">
+              <span class="wf-btn" data-action="prog-open" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px;">↗ Details</span>
+              ${p.my === "approved" || p.my === "pending"
+                ? `<span class="wf-btn" data-action="prog-withdraw" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px; color: #c33;">✕ Withdraw</span>`
+                : p.status === "completed"
+                  ? `<span class="wf-btn" style="padding: 4px 10px; font-size: 9.5px; opacity: 0.5; cursor: not-allowed;">Program closed</span>`
+                  : `<span class="wf-btn primary" data-action="prog-signup" data-row="${p.id}" style="padding: 4px 10px; font-size: 9.5px;">+ Sign Up</span>`
+              }
+            </div>
+          </div>
+        </div>
+      `).join("")}
+      ${rows.length === 0 ? `<div style="grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--ink-mute); font-size: 10px;">No programs match your filters.</div>` : ""}
+    </div>
+  `;
+}
+
+function renderProgStatusFilterMenu() {
+  return `
+    <div style="position: absolute; top: 60px; right: 80px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); width: 160px; z-index: 14; overflow: hidden;">
+      <div style="padding: 8px 12px; font-weight: 700; font-size: 10px; border-bottom: 1px solid var(--line-soft); background: #fafafa;">Filter by status</div>
+      ${PROG_STATUS_FILTERS.map((s) => `
+        <div data-action="prog-set-status:${s.key}" style="padding: 7px 12px; font-size: 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft);">${s.label}</div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderProgDetailSheet(state) {
+  const p = SAMPLE_VOL_PROGRAMS[state.prog_row ?? 0];
+  const can_signup = !p.my && p.status !== "completed" && p.status !== "cancelled";
+  return `
+    <div class="sheet-backdrop" data-action="prog-detail-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">${p.title}</span>
+        <span class="sheet-close" data-action="prog-detail-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span class="status-badge ${p.status === "active" ? "approved" : p.status === "completed" ? "submitted" : "pre_screening"}" style="font-size: 9px; text-transform: capitalize;">${p.status}</span>
+          <span style="font-size: 9.5px; color: var(--ink-mute);">${p.brgy} · ${p.start} → ${p.end}</span>
+        </div>
+        <div class="panel" style="margin-bottom: 8px;"><div class="panel-head"><span class="ttl">About</span></div><div class="panel-body dense"><div style="font-size: 10.5px; line-height: 1.6;">${p.desc}</div></div></div>
+        <div class="panel" style="margin-bottom: 8px;"><div class="panel-head"><span class="ttl">Capacity</span></div><div class="panel-body dense"><div style="font-size: 10.5px;">${p.signups} signed up · ${p.cap - p.signups} slots remaining</div></div></div>
+        ${p.my ? `<div class="panel"><div class="panel-head"><span class="ttl">Your Signup</span></div><div class="panel-body dense"><span class="status-badge ${p.my === "approved" ? "approved" : "pre_screening"}" style="font-size: 9px; text-transform: capitalize;">${p.my}</span><div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 6px; line-height: 1.5;">${p.my === "pending" ? "PARAYA officer hasn't reviewed your signup yet. You'll be notified when it's approved." : "Your signup is confirmed. Use Check In on the day-of to mark attendance via QR/OTP."}</div></div></div>` : ""}
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="prog-detail-cancel">Close</span>
+        ${p.my ? `<span class="wf-btn" data-action="prog-withdraw" data-row="${p.id}" style="color: #c33;">✕ Withdraw</span>` : ""}
+        ${can_signup ? `<span class="wf-btn primary" data-action="prog-signup" data-row="${p.id}">+ Sign Up</span>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.programs = {
+  route:   "/volunteer/programs",
+  title:   "Available Programs",
+  navKey:  "programs",
+  caption: "Card grid of programs the volunteer can join. Top bar has search + status filter. Per-card actions: ↗ Details, + Sign Up (POST /api/programs/[id]/signup) or ✕ Withdraw (DELETE /api/programs/[id]/signup). 'Completed' programs are read-only.",
+  render:  (s) => renderProgramsPage(s),
+};
+
+SCREENS.programs_status_filter = {
+  route:   "/volunteer/programs",
+  title:   "Available Programs",
+  navKey:  "programs",
+  caption: "Status filter dropdown — All / Planning / Active / Completed / Cancelled. Picking one re-filters the card grid; the filter persists across the search-bar narrow-down.",
+  render:  (s) => `${renderProgramsPage(s)}${renderProgStatusFilterMenu()}`,
+};
+
+SCREENS.programs_filtered = {
+  route:   "/volunteer/programs",
+  title:   "Available Programs",
+  navKey:  "programs",
+  caption: "Card grid narrowed by status (and optionally search). Use this to find, e.g., all currently-active programs you haven't signed up for.",
+  render:  (s) => renderProgramsPage(s),
+};
+
+SCREENS.programs_detail = {
+  route:   "/volunteer/programs",
+  title:   "Available Programs",
+  navKey:  "programs",
+  caption: "Program detail sheet — full description, capacity, and your-signup status (if any). Sign Up / Withdraw actions repeat at the bottom for convenience.",
+  render:  (s) => `${renderProgramsPage(s)}${renderProgDetailSheet(s)}`,
+};
+
+SCREENS.programs_signed_up = {
+  route:   "/volunteer/programs",
+  title:   "Available Programs",
+  navKey:  "programs",
+  caption: "Signup success state. The card flips from '+ Sign Up' to 'Signed up (pending)' and the program appears in My Schedule. Officer approval is required before you accumulate hours.",
+  render:  () => `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Signed up!</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        Your signup is <strong>pending officer approval</strong>. Once approved, the program shows in your Schedule and you can Check In on activity days.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn" data-action="go:programs">← Back to programs</span>
+        <span class="wf-btn primary" data-action="go:schedule">📅 Open Schedule</span>
+      </div>
+    </div>
+  `,
+};
+
+/* ---------- MY SCHEDULE (calendar + class entry) ---------- */
+
+function renderSchedulePage() {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  // Generate a sample May 2025 layout (May 1 = Thu)
+  const startOffset = 4; // Thu
+  const daysInMonth = 31;
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let i = 1; i <= daysInMonth; i++) cells.push(i);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const events = {
+    18: [{ kind: "program", title: "Literacy Drive" }],
+    21: [{ kind: "class",   title: "DS 101 lecture" }, { kind: "class", title: "ENG 102" }],
+    25: [{ kind: "program", title: "Health Caravan" }, { kind: "class", title: "DS 101" }],
+    28: [{ kind: "program", title: "Reading Buddy" }],
+  };
+
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">📅 My Schedule</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Monthly calendar combining your program assignments (from approved signups) and your recurring class schedule (which you maintain below). Use this to avoid scheduling conflicts when joining new programs.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 8px;">
+      <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="ttl">May 2025</span>
+        <div style="display: flex; gap: 4px;">
+          <span class="wf-btn" data-action="sched-prev" style="padding: 3px 9px; font-size: 9.5px;">←</span>
+          <span class="wf-btn" data-action="sched-today" style="padding: 3px 10px; font-size: 9.5px;">Today</span>
+          <span class="wf-btn" data-action="sched-next" style="padding: 3px 9px; font-size: 9.5px;">→</span>
+        </div>
+      </div>
+      <div class="panel-body" style="padding: 8px;">
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+          ${days.map((d) => `<div style="text-align: center; font-size: 9px; font-weight: 700; color: var(--ink-mute); text-transform: uppercase; padding: 4px 0;">${d}</div>`).join("")}
+          ${cells.map((n) => {
+            if (!n) return `<div style="background: #fafafa; border: 1px solid var(--line-soft); border-radius: 3px; min-height: 56px;"></div>`;
+            const evs = events[n] ?? [];
+            return `
+              <div style="background: ${n === 20 ? "#f5f5f5" : "#fff"}; border: 1px solid var(--line-soft); border-radius: 3px; min-height: 56px; padding: 3px;">
+                <div style="font-size: 9.5px; font-weight: 700;">${n}</div>
+                ${evs.slice(0, 2).map((e) => `<div style="font-size: 8.5px; padding: 1px 4px; margin-top: 2px; border-radius: 2px; background: ${e.kind === "program" ? "#1a1a1a" : "#e8e8e8"}; color: ${e.kind === "program" ? "#fff" : "#1a1a1a"}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${e.title}</div>`).join("")}
+                ${evs.length > 2 ? `<div style="font-size: 8px; color: var(--ink-mute); margin-top: 2px;">+${evs.length - 2} more</div>` : ""}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-row" style="grid-template-columns: 1fr 1fr;">
+      <div class="panel">
+        <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="ttl">🎓 My Class Schedule</span>
+          <span class="wf-btn primary" data-action="sched-add-class" style="padding: 3px 9px; font-size: 9.5px;">+ Add Class</span>
+        </div>
+        <div class="panel-body dense">
+          ${[
+            { day: "Mon/Wed", time: "7:30 – 9:00 AM",   subj: "DS 101 — Data Structures", loc: "CICS Lab 3" },
+            { day: "Tue/Thu", time: "10:00 – 11:30 AM", subj: "ENG 102 — Communication",  loc: "Rm 204"     },
+            { day: "Tue/Thu", time: "1:00 – 2:30 PM",   subj: "MATH 105 — Calculus",       loc: "Rm 312"     },
+            { day: "Fri",     time: "9:00 – 12:00 PM",  subj: "CS 210 — Algorithms Lab",   loc: "CICS Lab 1" },
+          ].map((c, i) => `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fff;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 10.5px;">${c.subj}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${c.day} · ${c.time}${c.loc ? ` · ${c.loc}` : ""}</div>
+              </div>
+              <div style="display: flex; gap: 3px;">
+                <span class="wf-btn" data-action="sched-edit-class" data-row="${i}" style="padding: 2px 7px; font-size: 9px;">✎</span>
+                <span class="wf-btn" data-action="sched-delete-class" data-row="${i}" style="padding: 2px 7px; font-size: 9px; color: #c33;">✕</span>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🎯 Program Assignments</span></div>
+        <div class="panel-body dense">
+          ${[
+            { title: "Literacy Drive — Lolomboy", next: "Sat May 18, 9 AM", status: "active" },
+            { title: "Health Caravan — Antipona", next: "Sun May 25, 7 AM", status: "active" },
+            { title: "ICT Training — Sulucan",    next: "Sun Jun 15, 1 PM", status: "upcoming" },
+          ].map((p) => `
+            <div style="padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; margin-bottom: 5px; background: #fafafa;">
+              <div style="font-weight: 600; font-size: 10.5px;">${p.title}</div>
+              <div style="font-size: 9px; color: var(--ink-mute); margin-top: 2px;">Next: ${p.next} · <span class="status-badge ${p.status === "active" ? "approved" : "pre_screening"}" style="font-size: 8px;">${p.status}</span></div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAddClassDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="sched-class-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px;">+ Add Class</span>
+        <span class="sheet-close" data-action="sched-class-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div class="sheet-field"><span class="sheet-label">Subject <span class="req">*</span></span><div class="sheet-input">e.g. DS 101 — Data Structures</div></div>
+        <div class="sheet-field"><span class="sheet-label">Day of week <span class="req">*</span></span><div class="sheet-input" data-action="sched-pick-day" style="cursor: pointer;">— Pick day(s) — ▾</div></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="sheet-field"><span class="sheet-label">Start time <span class="req">*</span></span><div class="sheet-input">⏰ HH:MM</div></div>
+          <div class="sheet-field"><span class="sheet-label">End time <span class="req">*</span></span><div class="sheet-input">⏰ HH:MM</div></div>
+        </div>
+        <div class="sheet-field"><span class="sheet-label">Location</span><div class="sheet-input">e.g. CICS Lab 3</div></div>
+        <div class="sheet-field"><span class="sheet-label">Notes</span><div class="sheet-input" style="min-height: 44px; align-items: flex-start; padding: 8px 10px;">Optional context (e.g. instructor name)</div></div>
+        <div class="sheet-hint">Validation: end-time must be after start-time. Stored on volunteer_class_schedules (RLS: only you can read/write your rows).</div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="sched-class-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="sched-class-save">💾 Save Class</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.schedule = {
+  route:   "/volunteer/schedule",
+  title:   "My Schedule",
+  navKey:  "schedule",
+  caption: "Month calendar showing program events (from your approved signups) overlaid with your recurring class blocks. Below: editable class schedule table + a Program Assignments summary. Calendar nav: ← / Today / →.",
+  render:  () => renderSchedulePage(),
+};
+
+SCREENS.schedule_add_class = {
+  route:   "/volunteer/schedule",
+  title:   "My Schedule",
+  navKey:  "schedule",
+  caption: "Add Class dialog. Fields: subject, day(s) of week, start/end time, location, notes. Validation enforces end > start. POSTs to /api/volunteer/classes; rows are RLS-scoped to auth.uid().",
+  render:  () => `${renderSchedulePage()}${renderAddClassDialog()}`,
+};
+
+SCREENS.schedule_edit_class = {
+  route:   "/volunteer/schedule",
+  title:   "My Schedule",
+  navKey:  "schedule",
+  caption: "Edit Class dialog. Same form as Add but pre-filled. PATCHes /api/volunteer/classes/[id]. Delete is a separate action (✕ next to the row).",
+  render:  () => `${renderSchedulePage()}${renderAddClassDialog()}`,
+};
+
+/* ---------- CHECK IN (QR + OTP attendance) ---------- */
+
+function renderCheckInPage() {
+  return `
+    <div style="max-width: 500px; margin: 0 auto;">
+      <div style="margin-bottom: 12px; text-align: center;">
+        <div style="font-weight: 700; font-size: 14px;">📲 Check In</div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 360px; margin-left: auto; margin-right: auto;">
+          Enter the 6-character code shown by the officer at the activity venue, or scan the QR code (auto-fills + submits).
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom: 10px;">
+        <div class="panel-body" style="padding: 20px; text-align: center;">
+          <div style="display: inline-block; padding: 16px; border: 2px dashed var(--line); border-radius: 8px; background: #fafafa;">
+            <div style="display: inline-grid; grid-template-columns: repeat(6, 1fr); gap: 6px;">
+              ${[..."ABCDEF"].map(() => `
+                <div style="width: 36px; height: 44px; border: 1.5px solid var(--line); border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--ink-mute);">_</div>
+              `).join("")}
+            </div>
+            <div style="font-size: 9px; color: var(--ink-mute); margin-top: 8px;">6-character code · case-insensitive</div>
+          </div>
+        </div>
+        <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: center;">
+          <span class="wf-btn primary" data-action="checkin-submit" style="padding: 6px 22px;">✓ Check In</span>
+        </div>
+      </div>
+
+      <div style="background: #fafafa; border: 1px solid var(--line-soft); padding: 10px 14px; border-radius: 4px; font-size: 9.5px; line-height: 1.5; color: var(--ink);">
+        <strong>💡 Tip:</strong> If you scanned a QR from the officer's screen, your code is pre-filled and submitted automatically (URL: <code>/volunteer/check-in?otp=XXXXXX</code>).
+        OTPs rotate every 10 minutes — if yours expired, ask the officer to rotate and re-share.
+      </div>
+    </div>
+  `;
+}
+
+function renderCheckInSuccess() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">You're checked in!</div>
+
+      <div class="panel" style="text-align: left; margin: 16px auto 0;">
+        <div class="panel-body dense">
+          <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Activity</div>
+          <div style="font-weight: 700; font-size: 12px; margin: 2px 0 8px;">Reading Buddy Session #2</div>
+          <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Program</div>
+          <div style="font-weight: 700; font-size: 12px; margin: 2px 0 8px;">Literacy Drive — Lolomboy</div>
+          <div style="font-size: 9px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.5px;">Time</div>
+          <div style="font-weight: 600; font-size: 11px; margin: 2px 0;">May 18, 2025 · 9:00 AM</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; justify-content: center; margin-top: 16px;">
+        <span class="wf-btn" data-action="go:dashboard">← Dashboard</span>
+        <span class="wf-btn primary" data-action="go:log_activity">📋 Log Hours</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderCheckInError() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 2px solid #c33; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; color: #c33;">⚠</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Check-in failed</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        The code <strong>X3K9Q2</strong> is invalid or expired. Ask the officer to rotate the QR and try again.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn primary" data-action="checkin-retry">↻ Try again</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.checkin = {
+  route:   "/volunteer/check-in",
+  title:   "Check In",
+  navKey:  "checkin",
+  caption: "OTP entry page. Empty 6-cell input + ✓ Check In button. If the URL has <code>?otp=XXXXXX</code> (from a QR scan) the OTP auto-submits to /api/attendance/check-in.",
+  render:  () => renderCheckInPage(),
+};
+
+SCREENS.checkin_success = {
+  route:   "/volunteer/check-in",
+  title:   "Check In",
+  navKey:  "checkin",
+  caption: "Check-in confirmed. Shows the matched Activity + Program + time. Two CTAs: ← Dashboard, 📋 Log Hours (jumps to /volunteer/log-activity to record hours for the same activity).",
+  render:  () => renderCheckInSuccess(),
+};
+
+SCREENS.checkin_error = {
+  route:   "/volunteer/check-in",
+  title:   "Check In",
+  navKey:  "checkin",
+  caption: "Failure state — OTP expired, wrong, or already redeemed. Single CTA: ↻ Try again (returns to the entry view).",
+  render:  () => renderCheckInError(),
+};
+
+/* ---------- LOG ACTIVITY (after-event hours entry) ---------- */
+
+function renderLogActivityPage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">📋 Log Activity</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Submit hours you served on a program. Logs enter status='pending' until your officer approves them; approved logs roll into your Total Hours.
+      </div>
+    </div>
+
+    <div class="panel-row" style="grid-template-columns: 1fr 1.2fr;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">+ New Log Entry</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Program <span class="req">*</span></span><div class="sheet-input" data-action="log-pick-program" style="cursor: pointer;">— Pick from your approved signups — ▾</div></div>
+          <div class="sheet-field"><span class="sheet-label">Date <span class="req">*</span></span><div class="sheet-input">📅 yyyy-mm-dd</div></div>
+          <div class="sheet-field"><span class="sheet-label">Hours <span class="req">*</span></span><div class="sheet-input">e.g. 4.5</div></div>
+          <div class="sheet-field"><span class="sheet-label">What did you do? <span class="req">*</span></span><div class="sheet-input" style="min-height: 70px; align-items: flex-start; padding: 8px 10px;">Brief description of your contribution (min. 5 chars)</div></div>
+          <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+            <span class="wf-btn" data-action="log-clear">Clear</span>
+            <span class="wf-btn primary" data-action="log-submit">📤 Submit Log</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head" style="display: flex; justify-content: space-between;"><span class="ttl">Recent Logs</span><span class="wf-link" data-action="go:hours">Open My Hours →</span></div>
+        <div class="panel-body" style="padding: 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+              <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Date</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Program</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Hours</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[
+                { date: "May 18", program: "Literacy Drive — Lolomboy",  hours: 4.0, status: "approved" },
+                { date: "May 15", program: "Bayanihan Clean-up",          hours: 5.0, status: "approved" },
+                { date: "May 11", program: "Health Caravan — Antipona",   hours: 6.0, status: "approved" },
+                { date: "May 09", program: "Literacy Drive — Lolomboy",  hours: 3.5, status: "pending"  },
+                { date: "May 04", program: "ICT Training — Sulucan",      hours: 4.0, status: "approved" },
+                { date: "Apr 28", program: "Bayanihan Clean-up",          hours: 8.0, status: "approved" },
+                { date: "Apr 20", program: "Reading Caravan — Antipona", hours: 5.0, status: "rejected" },
+              ].map((l, i) => `
+                <tr style="border-bottom: 1px solid var(--line-soft);" data-action="log-open-row" data-row="${i}">
+                  <td style="padding: 9px 10px; color: var(--ink-mute);">${l.date}</td>
+                  <td style="padding: 9px 10px; font-weight: 600;">${l.program}</td>
+                  <td style="padding: 9px 10px;">${l.hours}h</td>
+                  <td style="padding: 9px 10px;"><span class="status-badge ${l.status === "approved" ? "approved" : l.status === "rejected" ? "rejected" : "pre_screening"}" style="font-size: 8.5px; text-transform: capitalize;">${l.status}</span></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderLogSuccess() {
+  return `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Log submitted</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        Your entry is now in status <strong>pending</strong>. A PARAYA officer will review it; once approved, the hours roll into your Total Hours and certificate totals.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn" data-action="log-another">+ Log another</span>
+        <span class="wf-btn primary" data-action="go:hours">📊 My Hours</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.log_activity = {
+  route:   "/volunteer/log-activity",
+  title:   "Log Activity",
+  navKey:  "log_activity",
+  caption: "Two-column page: new-log form on the left (program / date / hours / description), recent logs table on the right with status badges. Form POSTs /api/activity-logs; logs default to status='pending'.",
+  render:  () => renderLogActivityPage(),
+};
+
+SCREENS.log_activity_submitted = {
+  route:   "/volunteer/log-activity",
+  title:   "Log Activity",
+  navKey:  "log_activity",
+  caption: "Log submission success state. Confirms the row was created with status='pending'. CTAs: + Log another (resets form), 📊 My Hours (jumps to /volunteer/hours summary).",
+  render:  () => renderLogSuccess(),
+};
+
+/* ---------- MY HOURS (aggregate + certificate) ---------- */
+
+function renderHoursPage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">📊 My Hours</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Total volunteer hours since the start of the semester. Only <em>approved</em> activity logs count — pending and rejected logs are visible but excluded from totals.
+      </div>
+    </div>
+
+    <div class="kpi-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px;">
+      <div class="kpi"><span class="kpi-label">⏱ Total Approved</span><span class="kpi-value">42.5</span><span class="kpi-sub">hours since Jan 1</span></div>
+      <div class="kpi"><span class="kpi-label">⏳ Pending</span><span class="kpi-value">3.5</span><span class="kpi-sub">awaiting officer review</span></div>
+      <div class="kpi"><span class="kpi-label">📋 Logs Submitted</span><span class="kpi-value">11</span><span class="kpi-sub">across 5 programs</span></div>
+      <div class="kpi"><span class="kpi-label">🏆 Certificate</span><span class="kpi-value" style="font-size: 14px;">Q1</span><span class="kpi-sub" style="font-weight: 600;">Ready to download</span></div>
+    </div>
+
+    <div class="panel-row" style="grid-template-columns: 1.4fr 1fr;">
+      <div class="panel">
+        <div class="panel-head" style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="ttl">Per-Program Breakdown</span>
+          <div style="display: flex; gap: 4px;">
+            <span class="wf-btn" data-action="hours-export-csv" style="padding: 3px 9px; font-size: 9px;">⬇ CSV</span>
+            <span class="wf-btn" data-action="hours-export-pdf" style="padding: 3px 9px; font-size: 9px;">⬇ PDF</span>
+            <span class="wf-btn primary" data-action="hours-cert" style="padding: 3px 9px; font-size: 9px;">🏆 Certificate</span>
+          </div>
+        </div>
+        <div class="panel-body" style="padding: 0;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+              <tr style="background: #f7f7f5; border-bottom: 1px solid var(--line-soft);">
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Program</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Approved</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Pending</th>
+                <th style="text-align: left; padding: 8px 10px; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-mute);">Logs</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[
+                { prog: "Literacy Drive — Lolomboy",   appr: 18.0, pend: 3.5, logs: 5 },
+                { prog: "Bayanihan Clean-up",          appr: 13.0, pend: 0.0, logs: 2 },
+                { prog: "Health Caravan — Antipona",   appr: 6.0,  pend: 0.0, logs: 1 },
+                { prog: "ICT Training — Sulucan",      appr: 4.0,  pend: 0.0, logs: 1 },
+                { prog: "Reading Caravan — Antipona", appr: 0.0,  pend: 0.0, logs: 1 },
+              ].map((r) => `
+                <tr style="border-bottom: 1px solid var(--line-soft);">
+                  <td style="padding: 9px 10px; font-weight: 600;">${r.prog}</td>
+                  <td style="padding: 9px 10px;">${r.appr}h</td>
+                  <td style="padding: 9px 10px; color: var(--ink-mute);">${r.pend > 0 ? r.pend + "h" : "—"}</td>
+                  <td style="padding: 9px 10px; color: var(--ink-mute);">${r.logs}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">📆 Monthly Trend</span></div>
+        <div class="panel-body dense">
+          ${[
+            { month: "Jan 2025", hours: 6.0  },
+            { month: "Feb 2025", hours: 9.5  },
+            { month: "Mar 2025", hours: 12.0 },
+            { month: "Apr 2025", hours: 8.0  },
+            { month: "May 2025", hours: 7.0  },
+          ].map((m) => {
+            const max = 14;
+            const w = (m.hours / max) * 100;
+            return `
+              <div style="margin-bottom: 6px;">
+                <div style="display: flex; justify-content: space-between; font-size: 9.5px; margin-bottom: 2px;"><span>${m.month}</span><span style="font-weight: 600;">${m.hours}h</span></div>
+                <div style="height: 8px; background: #f0f0f0; border-radius: 2px; overflow: hidden;"><div style="height: 100%; width: ${w}%; background: #1a1a1a;"></div></div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCertificateDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="hours-cert-cancel-backdrop"></div>
+    <div class="modal-dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 520px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 15;">
+      <div style="padding: 14px 16px; border-bottom: 1px solid var(--line-soft); background: #fafafa; display: flex; justify-content: space-between;">
+        <span style="font-weight: 700; font-size: 13px;">🏆 Generate Certificate</span>
+        <span class="sheet-close" data-action="hours-cert-cancel-x">✕</span>
+      </div>
+      <div style="padding: 16px;">
+        <div style="font-size: 10.5px; line-height: 1.5; margin-bottom: 12px;">A PDF certificate listing your approved volunteer hours, signed by the PARAYA Director. Useful for OJT logs, NSTP credit, or scholarship applications.</div>
+        <div class="sheet-field"><span class="sheet-label">Period <span class="req">*</span></span><div class="sheet-input" data-action="hours-pick-period" style="cursor: pointer;">Q1 2025 (Jan–Mar) ▾</div></div>
+        <div class="sheet-field"><span class="sheet-label">Include pending logs?</span>
+          <div style="display: flex; gap: 12px; padding: 6px 0;">
+            <label style="font-size: 10px; display: flex; align-items: center; gap: 4px;"><input type="radio" name="ic" checked disabled> No (approved only — recommended)</label>
+            <label style="font-size: 10px; display: flex; align-items: center; gap: 4px;"><input type="radio" name="ic" disabled> Yes</label>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--line-soft); display: flex; justify-content: flex-end; gap: 6px; background: #fafafa;">
+        <span class="wf-btn" data-action="hours-cert-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="hours-cert-download">⬇ Download PDF</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.hours = {
+  route:   "/volunteer/hours",
+  title:   "My Hours",
+  navKey:  "hours",
+  caption: "4 KPIs (Total Approved, Pending, Logs Submitted, Certificate status) + per-program breakdown table + monthly bar chart. Top-right actions: CSV / PDF exports + 🏆 Certificate generator.",
+  render:  () => renderHoursPage(),
+};
+
+SCREENS.hours_certificate = {
+  route:   "/volunteer/hours",
+  title:   "My Hours",
+  navKey:  "hours",
+  caption: "Certificate dialog. Period picker (Q1 / Q2 / Q3 / Q4 / Full year) + 'include pending?' toggle. Download triggers a PARAYA-Director-signed PDF compiled from approved activity_logs rows.",
+  render:  () => `${renderHoursPage()}${renderCertificateDialog()}`,
+};
+
+/* ---------- BENEFICIARY SURVEYS (interview surveys) ---------- */
+
+const SAMPLE_VOL_SURVEYS = [
+  { id: 0, title: "Health needs assessment — May 2025", desc: "Quarterly check on community health access, sanitation, and nutrition. Interview households on the day of the Health Caravan.", cat: "Health",         questions: 12, responded: 5 },
+  { id: 1, title: "Literacy baseline — Lolomboy",         desc: "Reading + writing self-assessment for households with school-age kids. One row per beneficiary interviewed.",                  cat: "Education",      questions: 8,  responded: 11 },
+  { id: 2, title: "Flood preparedness pulse — Wakas",     desc: "Two-month follow-up after DRR workshop to gauge sustained preparedness behavior.",                                              cat: "Disaster prep",  questions: 10, responded: 0  },
+  { id: 3, title: "Sari-sari livelihood profiling",       desc: "Income + inventory profile for sari-sari store operators. One survey per store.",                                              cat: "Economic",       questions: 14, responded: 3  },
+];
+
+function renderSurveysPage() {
+  return `
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 14px;">📝 Beneficiary Surveys</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px; max-width: 540px;">
+        Published surveys you can fill out while interviewing beneficiaries in the field. Each submission creates a new <code>survey_responses</code> row — so the same survey can be submitted once per beneficiary.
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      ${SAMPLE_VOL_SURVEYS.map((s) => `
+        <div class="panel">
+          <div class="panel-head" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span class="ttl" style="line-height: 1.3;">${s.title}</span>
+            <span class="status-badge submitted" style="font-size: 8.5px;">${s.cat}</span>
+          </div>
+          <div class="panel-body dense">
+            <div style="font-size: 10px; color: var(--ink); line-height: 1.5; margin-bottom: 6px;">${s.desc}</div>
+            <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--ink-mute); padding-top: 4px; border-top: 1px solid var(--line-soft);">
+              <span>${s.questions} questions</span>
+              <span>${s.responded > 0 ? `${s.responded} responses by you` : "Not started yet"}</span>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+              <span class="wf-btn primary" data-action="surv-open" data-row="${s.id}" style="padding: 4px 12px; font-size: 9.5px;">🎤 ${s.responded > 0 ? "Submit Another Response" : "Start Interview"}</span>
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSurveyAnswerSheet(state) {
+  const s = SAMPLE_VOL_SURVEYS[state.surv_row ?? 0];
+  return `
+    <div class="sheet-backdrop" data-action="surv-cancel-backdrop"></div>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <span class="sheet-title">🎤 ${s.title}</span>
+        <span class="sheet-close" data-action="surv-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div style="background: #fafafa; border: 1px solid var(--line-soft); padding: 8px 12px; border-radius: 4px; font-size: 9.5px; line-height: 1.5; margin-bottom: 12px;">
+          ℹ <strong>Interviewer mode</strong> — record the beneficiary's answers below. This creates a new survey_response. Submit one row per beneficiary.
+        </div>
+
+        <div class="sheet-section">
+          <div class="sheet-section-title">Beneficiary info</div>
+          <div class="sheet-field"><span class="sheet-label">Beneficiary name <span style="color: var(--ink-mute);">(optional)</span></span><div class="sheet-input">e.g. Aling Maria, 42</div></div>
+          <div class="sheet-field"><span class="sheet-label">Sitio</span><div class="sheet-input" data-action="surv-pick-sitio" style="cursor: pointer;">— Pick sitio — ▾</div></div>
+        </div>
+
+        <div class="sheet-section" style="margin-top: 14px;">
+          <div class="sheet-section-title">Questions</div>
+          <div class="sheet-field"><span class="sheet-label">Q1. How many household members? <span class="req">*</span></span><div class="sheet-input">Numeric input</div></div>
+          <div class="sheet-field"><span class="sheet-label">Q2. Primary water source <span class="req">*</span></span>
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 4px 0;">
+              ${["Piped (Maynilad/Manila Water)", "Deep well", "Rainwater catchment", "Bottled / refill station", "Other"].map((opt) => `
+                <label style="font-size: 10px; display: flex; align-items: center; gap: 6px;"><input type="radio" name="q2" disabled> ${opt}</label>
+              `).join("")}
+            </div>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Q3. Which health services accessed (last 3 months)?</span>
+            <div style="display: flex; flex-direction: column; gap: 3px; padding: 4px 0;">
+              ${["BP screening", "Vaccination", "Maternal care", "Dental", "Mental health", "None"].map((opt) => `
+                <label style="font-size: 10px; display: flex; align-items: center; gap: 6px;"><input type="checkbox" disabled> ${opt}</label>
+              `).join("")}
+            </div>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Q4. Rate your overall health satisfaction</span>
+            <div style="display: flex; gap: 4px; padding: 4px 0;">
+              ${[1,2,3,4,5].map((n) => `<span class="wf-btn" data-action="surv-rate" data-row="${n}" style="padding: 4px 10px; font-size: 11px;">★ ${n}</span>`).join("")}
+            </div>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Q5. Open feedback</span><div class="sheet-input" style="min-height: 70px; align-items: flex-start; padding: 8px 10px;">Anything they'd like to add?</div></div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="surv-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="surv-submit">✓ Submit Response</span>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.surveys = {
+  route:   "/volunteer/surveys",
+  title:   "Beneficiary Surveys",
+  navKey:  "surveys",
+  caption: "Card grid of published surveys (status='published'). Each card lists question count + how many responses you've already submitted. CTA: 'Start Interview' / 'Submit Another Response' — one row per beneficiary.",
+  render:  () => renderSurveysPage(),
+};
+
+SCREENS.surveys_answer = {
+  route:   "/volunteer/surveys",
+  title:   "Beneficiary Surveys",
+  navKey:  "surveys",
+  caption: "Answer sheet (interviewer mode). Top: beneficiary info (name + sitio). Below: questions per type (text, radio, checkbox, rating, textarea). POSTs /api/surveys/[id]/respond.",
+  render:  (s) => `${renderSurveysPage()}${renderSurveyAnswerSheet(s)}`,
+};
+
+SCREENS.surveys_submitted = {
+  route:   "/volunteer/surveys",
+  title:   "Beneficiary Surveys",
+  navKey:  "surveys",
+  caption: "Response submitted success state. Confirms the response row was created. The surveys list refreshes with an incremented per-survey count, and the sheet closes.",
+  render:  () => `
+    <div style="max-width: 460px; margin: 60px auto; text-align: center;">
+      <div style="width: 72px; height: 72px; border-radius: 50%; background: #f0f0f0; border: 2px solid #2a2a2a; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px;">✓</div>
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 6px;">Response submitted</div>
+      <div style="font-size: 10.5px; color: var(--ink-mute); margin-bottom: 20px; line-height: 1.55;">
+        Thank the beneficiary — their answers are now in PARAYA's dataset. You can interview another household by clicking Submit Another Response on the same survey.
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: center;">
+        <span class="wf-btn primary" data-action="go:surveys">← Back to surveys</span>
+        <span class="wf-btn" data-action="surv-another">+ Submit Another</span>
+      </div>
+    </div>
+  `,
+};
+
+
+/* ---------- DISCUSSION FORUM ---------- */
+
+const SAMPLE_FORUM_THREADS = [
+  { id: 0, title: "Q2 volunteer orientation — schedule sync",  author: "R. Yanga (PARAYA)",  date: "May 17, 2025", replies: 8,  last: "2h ago", pinned: true,  locked: false },
+  { id: 1, title: "Carpool to Lolomboy on Saturday?",            author: "Maria S. Cruz",       date: "May 16, 2025", replies: 6,  last: "4h ago", pinned: false, locked: false },
+  { id: 2, title: "Tips for first-time Health Caravan vols",     author: "Anna L. Bautista",    date: "May 14, 2025", replies: 12, last: "1d ago", pinned: false, locked: false },
+  { id: 3, title: "[ARCHIVED] Q1 volunteer retrospective",       author: "R. Yanga (PARAYA)",  date: "Apr 28, 2025", replies: 23, last: "3w ago", pinned: false, locked: true  },
+];
+
+function renderForum() {
+  return `
+    <div style="margin-bottom: 8px;">
+      <div style="font-weight: 700; font-size: 13px;">💬 Discussion Forum</div>
+      <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+        Internal threads for volunteers + PARAYA staff. Coordinate carpools, swap tips, ask the staff questions. Moderation (pin / lock / delete) is PARAYA-officer only.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px;">
+      <div class="sheet-input" data-action="forum-search" style="flex: 1; max-width: 320px; padding: 4px 10px; font-size: 9.5px; cursor: text;">🔍 Search threads…</div>
+      <span class="wf-btn primary" data-action="forum-new" style="padding: 4px 12px; font-size: 9.5px;">+ New Thread</span>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${SAMPLE_FORUM_THREADS.map((t) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer;" data-action="forum-open" data-id="${t.id}">
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${t.pinned ? '<span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>' : ""}
+                ${t.locked ? '<span class="status-badge rejected" style="font-size: 8.5px;">🔒 Locked</span>' : ""}
+                <span style="font-weight: 700; font-size: 11px;">${t.title}</span>
+              </div>
+              <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">
+                ${t.author} · ${t.date} · 💬 ${t.replies} replies · last activity ${t.last}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderForumNewDialog() {
+  return `
+    <div class="sheet-backdrop" data-action="forum-new-cancel-backdrop"></div>
+    <div class="sheet-panel" style="width: 50%;">
+      <div class="sheet-head">
+        <span class="sheet-title">💬 New Thread</span>
+        <span class="sheet-close" data-action="forum-new-cancel-x">✕</span>
+      </div>
+      <div class="sheet-body">
+        <div class="sheet-field"><span class="sheet-label">Title <span class="req">*</span></span><div class="sheet-input">What's the topic?</div></div>
+        <div class="sheet-field">
+          <span class="sheet-label">Body <span class="req">*</span></span>
+          <div class="sheet-input" style="min-height: 140px; align-items: flex-start; padding: 10px; line-height: 1.5;">Share the context, question, or discussion starter… Use @name to mention someone.</div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="wf-btn" data-action="forum-new-cancel">Cancel</span>
+        <span class="wf-btn primary" data-action="forum-new-save">+ Create Thread</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderForumThread() {
+  return `
+    <span class="wf-btn" data-action="forum-back" style="padding: 3px 8px; font-size: 9.5px; margin-bottom: 10px; display: inline-block;">← Back to threads</span>
+
+    <div class="panel" style="margin-bottom: 10px;">
+      <div class="panel-head">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="status-badge approved" style="font-size: 8.5px;">📌 Pinned</span>
+            <span style="font-weight: 700; font-size: 13px;">Q2 volunteer orientation — schedule sync</span>
+          </div>
+          <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 3px;">R. Yanga (PARAYA Director) · May 17, 2025 · 💬 8 replies</div>
+        </div>
+      </div>
+      <div class="panel-body dense">
+        <div style="font-size: 10.5px; line-height: 1.55;">
+          Hi everyone — running the Q2 volunteer orientation next Saturday at 9 AM in the CICS auditorium. Bring your sign-up confirmation and a notebook. New programs we're rolling out: Reading Caravan, ICT Training Sulucan, and the DRR Workshop in Wakas. RSVP below.
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 10px; font-weight: 700; margin-bottom: 6px;">8 Replies</div>
+
+    ${[
+      { author: "Maria S. Cruz",     date: "May 17, 2025 · 11:30", content: "I'll be there. Can I also bring a friend who's interested in joining? She's a Nursing student." },
+      { author: "Anna L. Bautista",  date: "May 17, 2025 · 14:18", content: "Question: will the orientation cover the new QR check-in flow? My phone camera is finicky." },
+      { author: "R. Yanga (PARAYA)", date: "May 17, 2025 · 16:42", content: "Yes Anna — full demo planned. Maria, bringing a friend is fine; just have them create an account first via /signup." },
+    ].map((r) => `
+      <div style="display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;">
+        <div class="vol-avatar">${r.author.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("")}</div>
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <span style="font-weight: 700; font-size: 10.5px;">${r.author}</span>
+            <span style="font-size: 9px; color: var(--ink-mute);">${r.date}</span>
+          </div>
+          <div style="font-size: 10px; margin-top: 3px; line-height: 1.5;">${r.content}</div>
+        </div>
+      </div>
+    `).join("")}
+
+    <div class="panel" style="margin-top: 10px;">
+      <div class="panel-head"><span class="ttl">Write a reply</span></div>
+      <div class="panel-body dense">
+        <div class="sheet-input" style="min-height: 80px; align-items: flex-start; padding: 10px; line-height: 1.5;">Type your reply…</div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+          <span class="wf-btn primary" data-action="forum-reply" style="padding: 4px 12px;">▶ Post Reply</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.forum = {
+  route:   "/volunteer/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Internal forum. Search + thread list with pinned/locked badges. Volunteers post + reply in mixed threads with PARAYA staff. Moderation (pin / lock / delete) is officer-only.",
+  render:  () => renderForum(),
+};
+
+SCREENS.forum_new = {
+  route:   "/volunteer/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "New Thread dialog. Title + body; @mentions notify the target user via /api/notifications.",
+  render:  () => `${renderForum()}${renderForumNewDialog()}`,
+};
+
+SCREENS.forum_thread = {
+  route:   "/volunteer/forum",
+  title:   "Discussion Forum",
+  navKey:  "forum",
+  caption: "Thread detail — pinned banner, OP, reply chain, and a Write-a-reply box. Volunteers can read + post; the pin/lock/delete header buttons are hidden (officer-only).",
+  render:  () => renderForumThread(),
+};
+
+/* ---------- CHATBOT, NOTIFICATIONS, PROFILE (shared semantics) ---------- */
+
+const SUGGESTED_PROMPTS_B = [
+  "How do I check in at an activity?",
+  "Why is my activity log still pending?",
+  "How do I withdraw from a program?",
+  "How can I download my volunteer-hours certificate?",
+  "What's the difference between Available Programs and My Schedule?",
+];
+
+function renderChatbot(state) {
+  const active = state.chat_active;
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; height: 100%;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center;">✨</div>
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">AGAPE Assistant</div>
+            <div style="font-size: 9.5px; color: var(--ink-mute);">AI-powered platform guide · Claude</div>
+          </div>
+        </div>
+        ${active ? `<span class="wf-btn" data-action="chat-new" style="padding: 3px 8px; font-size: 9.5px;">↻ New chat</span>` : ""}
+      </div>
+      <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel-body" style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px; ${active ? "" : "justify-content: center; align-items: center; text-align: center;"}">
+          ${!active ? `
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto;">🤖</div>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">Hi! I'm AGAPE Assistant.</div>
+              <div style="font-size: 10px; color: var(--ink-mute); margin-top: 4px; max-width: 280px;">
+                Ask me anything about needs, surveys, programs, or how to use the platform.
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 360px; margin-top: 6px;">
+              ${SUGGESTED_PROMPTS_B.map((p, i) => `
+                <span class="wf-btn" data-action="chat-prompt:${i}" style="text-align: left; padding: 7px 12px; font-size: 10px; font-weight: 400;">${p}</span>
+              `).join("")}
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: flex-end;">
+              <div style="background: #1a1a1a; color: #fff; max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; font-size: 10.5px; line-height: 1.5;">
+                How do I check in at an activity?
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: flex-start;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #f0f0f0; border: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: center; font-size: 12px;">🤖</div>
+              <div style="background: #fafafa; border: 1px solid var(--line-soft); max-width: 80%; padding: 8px 12px; border-radius: 12px 12px 12px 2px; font-size: 10.5px; line-height: 1.55;">
+There are two ways to check in:
+
+1. <strong>QR scan</strong> — your officer will show a QR on their screen. Scan it with your phone camera and you'll land on <code>/volunteer/check-in?otp=XXXXXX</code> which auto-submits. Easiest path.
+
+2. <strong>Manual OTP</strong> — open <strong>Check In</strong> from the sidebar and enter the 6-character code the officer reads out. Case-insensitive.
+
+OTPs rotate every 10 minutes. If yours expired or you got a "Check-in failed" screen, ask the officer to rotate the QR and try again. Your attendance row is created once accepted, and the activity becomes available in <strong>Log Activity</strong> so you can record hours afterward.
+              </div>
+            </div>
+          `}
+        </div>
+        <div style="border-top: 1px solid var(--line-soft); padding: 10px 14px; display: flex; gap: 8px; align-items: flex-end;">
+          <div class="sheet-input" style="flex: 1; min-height: 36px; align-items: flex-start; padding: 8px 10px; line-height: 1.5;">Ask me anything…</div>
+          <span class="wf-btn primary" data-action="chat-send" style="padding: 7px 12px;">▶</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 8.5px; color: var(--ink-mute); margin-top: 6px;">
+        AGAPE Assistant is AI-powered and may make mistakes. Do not rely on it for official decisions.
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.chatbot = {
+  route:   "/volunteer/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Empty-state chatbot with 5 volunteer-scoped suggested prompts (check-in, logging, withdrawal, certificate, schedule). Click a prompt or type a question → routes to the active conversation view.",
+  render:  (s) => renderChatbot(s),
+};
+
+SCREENS.chatbot_active = {
+  route:   "/volunteer/chatbot",
+  title:   "AI Assistant",
+  navKey:  "chatbot",
+  caption: "Active conversation. AI is given volunteer-account context — your signed-up programs, recent activity logs, schedule conflicts, hours — and can fall back to tool-use to query /api/volunteer/dashboard.",
+  render:  (s) => renderChatbot({ chat_active: true }),
+};
+
+const NOTIF_FILTER_LABEL = { all: "All notifications", unread: "Unread only", read: "Read only" };
+const SAMPLE_BARANGAY_NOTIFS = [
+  { id: 0, type: "success", icon: "✓", title: "Signup approved — Literacy Drive — Lolomboy", message: "Officer M. Cruz approved your signup. The program is now in your Schedule and you can Check In on May 18.",  time: "20m ago", read: false },
+  { id: 1, type: "info",    icon: "ℹ", title: "Reminder: Health Caravan tomorrow",            message: "Sun May 25, 7:00 AM at Brgy. Antipona Hall. Bring water and your DYCI ID.",                                       time: "1h ago",  read: false },
+  { id: 2, type: "success", icon: "✓", title: "Activity log approved (+5.0h)",                 message: "Bayanihan Clean-up — your 5.0h log was approved. New total: 42.5h since Jan 1.",                                  time: "5h ago",  read: false },
+  { id: 3, type: "warning", icon: "⚠", title: "Activity log needs more detail",                message: "Reading Caravan — Apr 20 — please add a description of what you did. Edit the log to resubmit.",                  time: "2d ago",  read: true  },
+  { id: 4, type: "info",    icon: "ℹ", title: "New program open: ICT Training — Sulucan",     message: "CICS-led 8-week course starting June 15. 12 slots — open to all majors.",                                          time: "3d ago",  read: true  },
+];
+const NOTIF_TYPE_BADGE = { info: "submitted", success: "approved", warning: "revisions_requested", error: "rejected" };
+
+function renderNotificationsPage(state) {
+  const filter         = state.notif_filter ?? "all";
+  const filterMenuOpen = state.notif_filter_open;
+  let rows = SAMPLE_BARANGAY_NOTIFS;
+  if (filter === "unread") rows = rows.filter((n) => !n.read);
+  if (filter === "read")   rows = rows.filter((n) =>  n.read);
+  const unread = SAMPLE_BARANGAY_NOTIFS.filter((n) => !n.read).length;
+  return `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div>
+        <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          🔔 Notifications
+          ${unread > 0 ? `<span class="status-badge approved" style="font-size: 8.5px;">${unread} unread</span>` : ""}
+        </div>
+        <div style="font-size: 9.5px; color: var(--ink-mute); margin-top: 2px;">
+          In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
+        </div>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <div class="partner-filter-wrap">
+          <div class="partner-filter" data-action="notif-open-filter">${NOTIF_FILTER_LABEL[filter]} ▾</div>
+          ${filterMenuOpen ? `
+            <div class="status-filter-menu" style="min-width: 140px;">
+              ${Object.entries(NOTIF_FILTER_LABEL).map(([k, lbl]) => `
+                <div class="status-filter-item ${filter === k ? "active" : ""}" data-action="notif-set-filter:${k}">${lbl}</div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+        <span class="wf-btn" data-action="notif-mark-all" style="padding: 4px 10px; font-size: 9.5px;">✓ Mark all read</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="padding: 0;">
+        ${rows.map((n, i) => `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--box-soft); background: ${!n.read ? "#fafafa" : "#fff"};">
+            <div style="width: 30px; height: 30px; background: #f0f0f0; border: 1px solid var(--line-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${n.icon}</div>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 10.5px;">${n.title}</span>
+                <span class="status-badge ${NOTIF_TYPE_BADGE[n.type]}" style="font-size: 8px;">${n.type}</span>
+                ${!n.read ? '<span style="width: 6px; height: 6px; border-radius: 50%; background: #1a1a1a;"></span>' : ""}
+                <span style="margin-left: auto; font-size: 9px; color: var(--ink-mute);">${n.time}</span>
+              </div>
+              <div style="font-size: 10px; margin-top: 3px; line-height: 1.4;">${n.message}</div>
+              <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <span class="wf-link" data-action="notif-open" data-row="${i}" style="font-size: 9.5px;">View ↗</span>
+                ${!n.read ? `<span class="wf-link" data-action="notif-mark-one" data-row="${i}" style="font-size: 9.5px;">Mark read</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.notifications = {
+  route:   "/volunteer/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Volunteer notifications. Triggered by: signup approvals, activity-log approvals/rejections, program reminders day-before, new programs open for signup.",
+  render:  (s) => renderNotificationsPage(s),
+};
+
+SCREENS.notifications_filter = {
+  route:   "/volunteer/notifications",
+  title:   "Notifications",
+  navKey:  "notifications",
+  caption: "Filter dropdown — All / Unread / Read. Scopes the list; the unread badge in the header always shows the full unread count.",
+  render:  (s) => renderNotificationsPage({ ...s, notif_filter_open: true }),
+};
+
+function renderProfile() {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").filter((w) => /[A-Z]/.test(w[0])).map((s) => s[0]).slice(0, 2).join("");
+  return `
+    <div style="max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px;">
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">👤 Profile Information</span></div>
+        <div class="panel-body dense">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <div class="vol-avatar lg" style="width: 56px; height: 56px; font-size: 18px;">${initials}</div>
+            <div style="flex: 1;">
+              <div style="font-weight: 700; font-size: 13px;">${info.name}</div>
+              <div style="font-size: 9.5px; color: var(--ink-mute);">${info.email}</div>
+              <span class="status-badge approved" style="font-size: 8.5px; margin-top: 4px; display: inline-block;">${info.label}</span>
+            </div>
+            <span class="wf-btn" data-action="profile-change-photo" style="padding: 4px 10px; font-size: 9.5px;">📷 Change photo</span>
+          </div>
+          <div class="sheet-field"><span class="sheet-label">Full Name</span><div class="sheet-input filled">${info.name}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Email <span style="color: var(--ink-mute);">(read-only)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.email}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Department / Year <span style="color: var(--ink-mute);">(read-only — managed by Admin)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">${info.org}</div></div>
+          <div class="sheet-field"><span class="sheet-label">Assigned Barangay <span style="color: var(--ink-mute);">(read-only — managed by Admin)</span></span><div class="sheet-input filled" style="background: #f0f0f0;">Brgy. Lolomboy, Bocaue, Bulacan</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <span class="wf-btn primary" data-action="profile-save" style="padding: 5px 14px;">💾 Save Profile</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔔 Notification Preferences</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field" style="margin-bottom: 10px;">
+            <span class="sheet-label">📞 Phone (for SMS)</span>
+            <div class="sheet-input">+63 9XX XXX XXXX</div>
+            <div class="sheet-hint">Required if you turn SMS on. SMS is dispatched via Semaphore.</div>
+          </div>
+          ${[
+            { key: "in_app", icon: "💬", label: "In-app notifications", desc: "Show in the bell dropdown and on the Notifications page", on: true },
+            { key: "email",  icon: "📧", label: "Email notifications",  desc: "Forward important messages to your email address",       on: true },
+            { key: "sms",    icon: "📱", label: "SMS notifications",    desc: "Send urgent items as SMS (e.g. captain approvals)",       on: false },
+          ].map((p) => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 4px; background: #fff; margin-bottom: 5px;" data-action="profile-toggle:${p.key}">
+              <span style="font-size: 16px;">${p.icon}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; font-size: 10.5px;">${p.label}</div>
+                <div style="font-size: 9px; color: var(--ink-mute); margin-top: 1px;">${p.desc}</div>
+              </div>
+              <div style="width: 32px; height: 18px; background: ${p.on ? "#1a1a1a" : "#dcdcdc"}; border-radius: 999px; position: relative; flex-shrink: 0;">
+                <div style="position: absolute; top: 2px; ${p.on ? "right: 2px" : "left: 2px"}; width: 14px; height: 14px; background: #fff; border-radius: 50%;"></div>
+              </div>
+            </div>
+          `).join("")}
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-notifs" style="padding: 5px 14px;">💾 Save Preferences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="ttl">🔐 Change Password</span></div>
+        <div class="panel-body dense">
+          <div class="sheet-field"><span class="sheet-label">Current Password <span class="req">*</span></span><div class="sheet-input">••••••••</div></div>
+          <div class="sheet-field"><span class="sheet-label">New Password <span class="req">*</span></span><div class="sheet-input">Min. 8 characters</div></div>
+          <div class="sheet-field"><span class="sheet-label">Confirm New Password <span class="req">*</span></span><div class="sheet-input">Repeat new password</div></div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <span class="wf-btn primary" data-action="profile-save-password" style="padding: 5px 14px;">🔐 Update Password</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+SCREENS.profile = {
+  route:   "/volunteer/profile",
+  title:   "My Profile",
+  navKey:  "profile",
+  caption: "Profile settings. Shows the volunteer's Department/Year + Assigned Barangay rows (read-only — managed by Admin). Standard fields: name + email + phone + 3 channel toggles + password change.",
+  render:  () => renderProfile(),
+};
+
+
+/* ============================================================
+   Auto-generate placeholder stub screens for every volunteer nav
+   destination that doesn't already have a custom render above.
+   ============================================================ */
+const ROUTE_FOR_SCREEN = {
+  my_barangay:    ["/volunteer/barangay",        "Partnership Management"],
+  programs:       ["/volunteer/programs",        "Available Programs"],
+  schedule:       ["/volunteer/schedule",        "My Schedule"],
+  checkin:        ["/volunteer/check-in",        "Check In"],
+  log_activity:   ["/volunteer/log-activity",    "Log Activity"],
+  hours:          ["/volunteer/hours",           "My Hours"],
+  surveys:        ["/volunteer/surveys",         "Beneficiary Surveys"],
+  forum:          ["/volunteer/forum",           "Discussion Forum"],
+  chatbot:        ["/volunteer/chatbot",         "AI Assistant"],
+  notifications:  ["/volunteer/notifications",   "Notifications"],
+  profile:        ["/volunteer/profile",         "My Profile"],
+};
+
+const STUB_CAPTIONS = {
+  my_barangay:   "Read-only view of the volunteer's assigned barangay — contact info, partnership status, programs running there, recent community needs.",
+  programs:      "Card grid of available programs. Search + status filter. Sign up / withdraw inline; click a card to open details.",
+  schedule:      "Monthly calendar overlaying program events with your recurring class blocks. Class entry table below — add / edit / delete.",
+  checkin:       "OTP entry page. Empty 6-cell input; auto-submits when /volunteer/check-in?otp=XXXXXX comes in from a QR scan.",
+  log_activity:  "Log volunteer hours after an event. Form on the left, recent submissions on the right. Logs default to pending until officer approves.",
+  hours:         "Total approved hours + pending + per-program breakdown + monthly trend + certificate download.",
+  surveys:       "Card grid of published surveys (interviewer mode). Each submission creates a new survey_responses row.",
+  forum:         "Internal forum — volunteers + PARAYA staff. Coordinate carpools, ask staff questions. Officer-only moderation.",
+  chatbot:       "Role-aware AI assistant. Volunteer-account context (your signups, hours, schedule conflicts).",
+  notifications: "In-app notifications feed. Triggered by signup approvals, log approvals, program reminders, new programs open.",
+  profile:       "Profile settings: full name, email (read-only), department/year (read-only), assigned barangay (read-only), phone, password, channel toggles.",
+};
+
+for (const [screenId, [route, title]] of Object.entries(ROUTE_FOR_SCREEN)) {
+  if (SCREENS[screenId]) continue;
+  SCREENS[screenId] = {
+    route, title,
+    navKey: screenId,
+    caption: STUB_CAPTIONS[screenId] ?? "Placeholder wireframe — full content to be designed.",
+    render: () => `
+      <div class="stub">
+        <div class="stub-route">${route}</div>
+        <div class="stub-title">${title}</div>
+        <div class="stub-desc">${STUB_CAPTIONS[screenId] ?? ""}</div>
+        <div class="stub-tag">Placeholder — wireframe pending</div>
+      </div>
+    `,
+  };
+}
+
+/* ============================================================
+   SIDEBAR RENDERING
+   ============================================================ */
+function getActiveNavKey(screenId) {
+  const def = SCREENS[screenId];
+  return def?.navKey ?? screenId;
+}
+
+function isNavItemActive(item, activeKey) {
+  if (item.key === activeKey) return true;
+  if (item.children) return item.children.some((c) => c.key === activeKey);
+  return false;
+}
+
+function renderSidebar(activeKey, state) {
+  const role = currentRole;
+  const nav = PARTNER_NAV;
+  const info = ROLE_INFO[role];
+  const expandedGroup = state?.expandedGroup;
+
+  const items = nav.map((item) => {
+    if (item.group) {
+      const childActive = isNavItemActive(item, activeKey);
+      const manuallyExpanded = expandedGroup === item.key;
+      const expanded = childActive || manuallyExpanded;
+      const collapsed = !expanded;
+      // Filter children by role allowlist
+      const children = item.children.filter((c) => !c.roles || c.roles.includes(role));
+      if (children.length === 0) return "";
+      const groupCls = `side-item group${collapsed ? " collapsed" : ""}${childActive ? " active" : ""}`;
+      return `
+        <li>
+          <div class="${groupCls}" data-action="toggle-group:${item.key}">
+            <span class="ico"></span>${item.label}
+          </div>
+          ${collapsed ? "" : `
+            <ul class="side-children">
+              ${children.map((c) => `
+                <li class="side-child ${c.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${c.screen}">${c.label}</li>
+              `).join("")}
+            </ul>
+          `}
+        </li>`;
+    }
+    const cls = `side-item${item.key === activeKey ? " active" : ""}`;
+    return `<li><div class="${cls}" data-action="nav" data-screen="${item.screen}"><span class="ico"></span>${item.label}</div></li>`;
+  }).join("");
+
+  // AI Assistant + Notifications pinned at the bottom for all roles.
+  const pinned = `
+    <div class="side-divider"></div>
+    ${SIDEBAR_PINNED.map((p) => `
+      <div class="side-item ${p.key === activeKey ? "active" : ""}" data-action="nav" data-screen="${p.screen}"><span class="ico"></span>${p.label}</div>
+    `).join("")}
+  `;
+
+  return `
+    <div class="page-side">
+      <div class="side-brand">
+        <div class="side-logo">LOGO</div>
+        <div>
+          <div class="side-brand-title">AGAPE</div>
+          <div class="side-brand-sub">PARAYA · DYCI</div>
+        </div>
+      </div>
+      <div class="side-nav">
+        <ul>${items}</ul>
+        ${pinned}
+      </div>
+      <div class="side-user">
+        <div class="row">
+          <div class="avatar">${info.name.charAt(0)}</div>
+          <div style="min-width: 0;">
+            <div class="name">${info.name}</div>
+            <div class="email">${info.email}</div>
+          </div>
+        </div>
+        <button class="signout" data-action="signout">↩ Sign out</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderHeader(title, route, state) {
+  const info = ROLE_INFO[currentRole];
+  const initials = info.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+  const notifDropdown = state.bellOpen ? `
+    <div class="dropdown notif-dropdown">
+      <div class="dropdown-head">
+        <span class="dropdown-title">Notifications</span>
+        <span class="dropdown-action" data-action="mark-read">✓ Mark all read</span>
+      </div>
+      <div class="dropdown-body">
+        <div class="notif-item unread">
+          <div class="notif-icon">!</div>
+          <div class="notif-content">
+            <div class="notif-title">New proposal awaiting pre-screen</div>
+            <div class="notif-msg">"Reading Caravan — Brgy. Lolomboy" submitted by CSG</div>
+            <div class="notif-time">5m ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item unread">
+          <div class="notif-icon">i</div>
+          <div class="notif-content">
+            <div class="notif-title">3 new survey responses</div>
+            <div class="notif-msg">Health needs assessment — Brgy. Bunducan</div>
+            <div class="notif-time">1h ago</div>
+          </div>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="notif-item">
+          <div class="notif-icon">✓</div>
+          <div class="notif-content">
+            <div class="notif-title">Activity report approved</div>
+            <div class="notif-msg">Literacy Camp — May 14</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-foot">
+        <span class="dropdown-link" data-action="nav" data-screen="notifications">View all notifications →</span>
+      </div>
+    </div>
+  ` : "";
+
+  const profileDropdown = state.profileOpen ? `
+    <div class="dropdown profile-dropdown">
+      <div class="dropdown-user">
+        <div class="dropdown-user-name">${info.name}</div>
+        <div class="dropdown-user-email">${info.email}</div>
+      </div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item" data-action="nav" data-screen="profile">Profile Settings</div>
+      <div class="dropdown-sep"></div>
+      <div class="dropdown-item danger" data-action="signout">Sign out</div>
+    </div>
+  ` : "";
+
+  return `
+    <div class="page-header">
+      <div class="page-title"><span class="crumb">${route} ·</span> ${title}</div>
+      <div class="spacer"></div>
+      <div class="iconbtn bell" data-action="toggle:bell" title="Notifications">
+        🔔<span class="badge">2</span>
+      </div>
+      <div class="iconbtn avatar" data-action="toggle:profile" title="${info.name}">${initials}</div>
+      ${notifDropdown}
+      ${profileDropdown}
+    </div>
+  `;
+}
+
+/* ============================================================
+   BOARD STATE — same FIFO mechanics as auth.html
+   ============================================================ */
+let nextInstanceId = 1;
+const board = [];
+const transitions = [];
+
+function makeInstance(screenId) {
+  return { screenId, instanceId: nextInstanceId++, state: {}, clickedActionKey: null };
+}
+
+const undoStack = [];
+
+function pushScreen(screenId, fromInstance, fromActionKey, initialState) {
+  const snap = {
+    boardLen: board.length,
+    transLen: transitions.length,
+    prevSrcId: fromInstance ? fromInstance.instanceId : null,
+    prevClick: fromInstance ? fromInstance.clickedActionKey : null,
+  };
+
+  let target;
+  if (initialState) {
+    target = makeInstance(screenId);
+    target.state = { ...initialState };
+    board.push(target);
+  } else {
+    const existing = board.find((b) => b.screenId === screenId);
+    if (existing) {
+      target = existing;
+    } else {
+      target = makeInstance(screenId);
+      board.push(target);
+    }
+  }
+  if (fromInstance) {
+    fromInstance.clickedActionKey = fromActionKey;
+    transitions.push({
+      fromInstanceId: fromInstance.instanceId,
+      toInstanceId:   target.instanceId,
+      fromActionKey,
+    });
+  }
+
+  // Record what changed so undo can reverse it. We always push an entry when
+  // pushScreen is called from an interactive context, even if no tile was
+  // added (so the user can also undo "click that just re-highlighted").
+  undoStack.push({
+    tileAdded:  board.length > snap.boardLen,
+    transAdded: transitions.length > snap.transLen,
+    prevSrcId:  snap.prevSrcId,
+    prevClick:  snap.prevClick,
+  });
+
+  render();
+}
+
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  if (a.transAdded) transitions.pop();
+  if (a.tileAdded)  board.pop();
+  if (a.prevSrcId != null) {
+    const src = board.find((b) => b.instanceId === a.prevSrcId);
+    if (src) src.clickedActionKey = a.prevClick;
+  }
+  render();
+}
+
+function resetBoard(initialScreenId) {
+  board.length = 0;
+  transitions.length = 0;
+  undoStack.length = 0;
+  nextInstanceId = 1;
+  board.push(makeInstance(initialScreenId));
+  render();
+}
+
+/* ============================================================
+   Resolve a stored action-key back to the element that was clicked.
+   "nav" actions are special because the data-action is shared across
+   many sidebar items + the header icons; we disambiguate via data-screen.
+   ============================================================ */
+function findClickedElement(root, key) {
+  if (!key) return null;
+  if (key.startsWith("nav:")) {
+    const screen = key.slice(4);
+    return root.querySelector(`[data-action="nav"][data-screen="${screen}"]`);
+  }
+  // CSS.escape protects against keys containing characters like ":" or "/"
+  return root.querySelector(`[data-action="${CSS.escape(key)}"]`);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render() {
+  const boardEl = document.getElementById("board");
+  // Remove every previous slot but preserve the arrows SVG.
+  [...boardEl.querySelectorAll(".slot")].forEach((s) => s.remove());
+
+  board.forEach((entry, i) => {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.slot = String(i);
+    boardEl.appendChild(slot);
+
+    const def = SCREENS[entry.screenId];
+
+    const idx = document.createElement("div");
+    idx.className = "slot-index";
+    idx.textContent = i + 1;
+    slot.appendChild(idx);
+
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.instanceId = entry.instanceId;
+
+    const meta = document.createElement("div");
+    meta.className = "tile-meta";
+    meta.innerHTML = `<span class="route">${def.route}</span><span class="id">screen: ${entry.screenId}</span>`;
+
+    const page = document.createElement("div");
+    page.className = "page" + (def.chromeless ? " chromeless" : "");
+    if (def.chromeless) {
+      page.innerHTML = `
+        <div class="page-main">
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    } else {
+      const activeKey = getActiveNavKey(entry.screenId);
+      page.innerHTML = `
+        ${renderSidebar(activeKey, entry.state)}
+        <div class="page-main">
+          ${renderHeader(def.title, def.route, entry.state)}
+          <div class="page-body">${def.render(entry.state)}</div>
+        </div>
+      `;
+    }
+
+    const caption = document.createElement("div");
+    caption.className = "tile-caption";
+    caption.textContent = def.caption;
+
+    tile.appendChild(meta);
+    tile.appendChild(page);
+    tile.appendChild(caption);
+    slot.appendChild(tile);
+
+    // Wire up click handlers on every [data-action] inside this tile
+    tile.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const action = el.dataset.action;
+        if (action === "nav") {
+          pushScreen(el.dataset.screen, entry, "nav:" + el.dataset.screen);
+          return;
+        }
+        if (action.startsWith("toggle-group:")) {
+          // Spawn a new tile with this sidebar group expanded so the children
+          // become visible and clickable. Click the same group again to collapse.
+          const key = action.slice("toggle-group:".length);
+          const wasExpanded = entry.state.expandedGroup === key;
+          pushScreen(entry.screenId, entry, action, {
+            ...entry.state,
+            expandedGroup: wasExpanded ? null : key,
+          });
+          return;
+        }
+        if (action === "toggle:bell") {
+          // Spawn a NEW tile showing the same page with the notif dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:bell", { bellOpen: true });
+          return;
+        }
+        if (action === "toggle:profile") {
+          // Spawn a NEW tile showing the same page with the profile dropdown open.
+          pushScreen(entry.screenId, entry, "toggle:profile", { profileOpen: true });
+          return;
+        }
+        if (action === "mark-read") {
+          // Cosmetic — would PATCH /api/notifications in the real app.
+          entry.clickedActionKey = "mark-read";
+          render();
+          return;
+        }
+        if (action === "signout") {
+          // Now that login is in scope, sign-out closes the loop back to it.
+          pushScreen("login", entry, "signout");
+          return;
+        }
+        // Dashboard cards: "go:<screen>"
+        if (action.startsWith("go:")) {
+          const screen = action.slice(3);
+          pushScreen(screen, entry, action);
+          return;
+        }
+        // Login form: input toggle + submit
+        if (action === "fill") {
+          entry.state[el.dataset.field] = !entry.state[el.dataset.field];
+          entry.clickedActionKey = "fill";
+          render();
+          return;
+        }
+        if (action === "signin") {
+          pushScreen("dashboard", entry, "signin");
+          return;
+        }
+        if (action === "forgot" || action === "signup") {
+          // Out of scope for the officer wireframe — auth.html maps these.
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- AVAILABLE PROGRAMS ---------- */
+        if (action === "prog-search") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "prog-open-status-filter") {
+          pushScreen("programs_status_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("prog-set-status:")) {
+          const s = action.slice("prog-set-status:".length);
+          pushScreen("programs_filtered", entry, action, { prog_status_filter: s });
+          return;
+        }
+        if (action === "prog-open") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("programs_detail", entry, action, { prog_row: row });
+          return;
+        }
+        if (action === "prog-signup") {
+          pushScreen("programs_signed_up", entry, action);
+          return;
+        }
+        if (action === "prog-withdraw") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "prog-detail-cancel" ||
+          action === "prog-detail-cancel-x" ||
+          action === "prog-detail-cancel-backdrop"
+        ) {
+          pushScreen("programs", entry, action);
+          return;
+        }
+
+        /* ---------- MY SCHEDULE ---------- */
+        if (action === "sched-prev" || action === "sched-next" || action === "sched-today") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "sched-add-class") {
+          pushScreen("schedule_add_class", entry, action);
+          return;
+        }
+        if (action === "sched-edit-class") {
+          pushScreen("schedule_edit_class", entry, action);
+          return;
+        }
+        if (action === "sched-delete-class" || action === "sched-pick-day") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (
+          action === "sched-class-cancel" ||
+          action === "sched-class-cancel-x" ||
+          action === "sched-class-cancel-backdrop"
+        ) {
+          pushScreen("schedule", entry, action);
+          return;
+        }
+        if (action === "sched-class-save") {
+          pushScreen("schedule", entry, action);
+          return;
+        }
+
+        /* ---------- CHECK IN ---------- */
+        if (action === "checkin-submit") {
+          pushScreen("checkin_success", entry, action);
+          return;
+        }
+        if (action === "checkin-retry") {
+          pushScreen("checkin", entry, action);
+          return;
+        }
+
+        /* ---------- LOG ACTIVITY ---------- */
+        if (action === "log-pick-program" || action === "log-clear") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "log-submit") {
+          pushScreen("log_activity_submitted", entry, action);
+          return;
+        }
+        if (action === "log-another") {
+          pushScreen("log_activity", entry, action);
+          return;
+        }
+        if (action === "log-open-row") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- MY HOURS ---------- */
+        if (action === "hours-export-csv" || action === "hours-export-pdf") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "hours-cert") {
+          pushScreen("hours_certificate", entry, action);
+          return;
+        }
+        if (
+          action === "hours-cert-cancel" ||
+          action === "hours-cert-cancel-x" ||
+          action === "hours-cert-cancel-backdrop"
+        ) {
+          pushScreen("hours", entry, action);
+          return;
+        }
+        if (action === "hours-pick-period" || action === "hours-cert-download") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- SURVEYS (interview mode) ---------- */
+        if (action === "surv-open") {
+          const row = parseInt(el.dataset.row, 10);
+          pushScreen("surveys_answer", entry, action, { surv_row: row });
+          return;
+        }
+        if (
+          action === "surv-cancel" ||
+          action === "surv-cancel-x" ||
+          action === "surv-cancel-backdrop"
+        ) {
+          pushScreen("surveys", entry, action);
+          return;
+        }
+        if (action === "surv-submit") {
+          pushScreen("surveys_submitted", entry, action);
+          return;
+        }
+        if (action === "surv-another") {
+          pushScreen("surveys_answer", entry, action, { ...entry.state });
+          return;
+        }
+        if (action === "surv-rate" || action === "surv-pick-sitio") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- DISCUSSION FORUM ---------- */
+        if (action === "forum-search") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+        if (action === "forum-new") {
+          pushScreen("forum_new", entry, action);
+          return;
+        }
+        if (action === "forum-open") {
+          pushScreen("forum_thread", entry, action);
+          return;
+        }
+        if (action === "forum-back") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (
+          action === "forum-new-cancel" ||
+          action === "forum-new-cancel-x" ||
+          action === "forum-new-cancel-backdrop"
+        ) {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-new-save") {
+          pushScreen("forum", entry, action);
+          return;
+        }
+        if (action === "forum-reply") {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- CHATBOT ---------- */
+        if (action.startsWith("chat-prompt:")) {
+          const idx = parseInt(action.slice("chat-prompt:".length), 10);
+          pushScreen("chatbot_active", entry, action, { chat_active: true, chat_prompt_idx: idx });
+          return;
+        }
+        if (action === "chat-send") {
+          pushScreen("chatbot_active", entry, action, { chat_active: true });
+          return;
+        }
+        if (action === "chat-new") {
+          pushScreen("chatbot", entry, action);
+          return;
+        }
+
+        /* ---------- NOTIFICATIONS PAGE ---------- */
+        if (action === "notif-open-filter") {
+          pushScreen("notifications_filter", entry, action);
+          return;
+        }
+        if (action.startsWith("notif-set-filter:")) {
+          const f = action.slice("notif-set-filter:".length);
+          pushScreen("notifications", entry, action, { notif_filter: f });
+          return;
+        }
+        if (
+          action === "notif-mark-all" ||
+          action === "notif-mark-one" ||
+          action === "notif-open"
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+
+        /* ---------- PROFILE ---------- */
+        if (
+          action === "profile-change-photo" ||
+          action === "profile-save" ||
+          action === "profile-save-notifs" ||
+          action === "profile-save-password" ||
+          action.startsWith("profile-toggle:")
+        ) {
+          entry.clickedActionKey = action;
+          render();
+          return;
+        }
+      });
+    });
+
+    // Highlight the most-recently-clicked control on this tile
+    if (entry.clickedActionKey) {
+      const clickedEl = findClickedElement(tile, entry.clickedActionKey);
+      if (clickedEl) clickedEl.classList.add("wf-clicked");
+    }
+  });
+
+  requestAnimationFrame(drawArrows);
+}
+
+/* ============================================================
+   ARROWS
+   ============================================================ */
+function drawArrows() {
+  const svg = document.getElementById("arrows");
+  const boardEl = document.getElementById("board");
+  // Clear previous paths AND handles — otherwise drag-induced redraws leak handles.
+  [...svg.querySelectorAll("path.arrow-line, .arrow-handle")].forEach((n) => n.remove());
+
+  const rect = boardEl.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+  svg.setAttribute("width", rect.width);
+  svg.setAttribute("height", rect.height);
+
+  // Pass 1: collect geometry for every transition. We capture both the clicked
+  // element rect (for the Y anchor) AND the source tile rect (for the X anchor),
+  // so the arrow leaves the tile at its outer edge instead of cutting through
+  // the page content next to the button.
+  const data = transitions.map((t) => {
+    const fromTile  = document.querySelector(`.tile[data-instance-id="${t.fromInstanceId}"]`);
+    const toTile    = document.querySelector(`.tile[data-instance-id="${t.toInstanceId}"]`);
+    if (!fromTile || !toTile) return null;
+    const clickedEl = findClickedElement(fromTile, t.fromActionKey);
+    if (!clickedEl) return null;
+    const a    = clickedEl.getBoundingClientRect();
+    const aBox = fromTile.getBoundingClientRect();
+    const b    = toTile.getBoundingClientRect();
+    return { t, a, aBox, b };
+  });
+
+  // Pass 2: pick exit + entry side per transition based on the dominant axis
+  // between source tile center and destination tile center.
+  const arrivals   = {};
+  const departures = {};
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const dx = (d.b.left + d.b.width / 2) - (d.aBox.left + d.aBox.width / 2);
+    const dy = (d.b.top  + d.b.height / 2) - (d.aBox.top  + d.aBox.height / 2);
+    const horizontal = Math.abs(dx) * 1.2 >= Math.abs(dy);
+    let exit, entry;
+    if (horizontal) {
+      exit  = dx > 0 ? "R" : "L";
+      entry = dx > 0 ? "L" : "R";
+    } else {
+      exit  = dy > 0 ? "B" : "T";
+      entry = dy > 0 ? "T" : "B";
+    }
+    d.exit = exit; d.entry = entry;
+    const arrKey = `${d.t.toInstanceId}:${entry}`;
+    (arrivals[arrKey] = arrivals[arrKey] ?? []).push(idx);
+    const depKey = `${d.t.fromInstanceId}:${d.t.fromActionKey}:${exit}`;
+    (departures[depKey] = departures[depKey] ?? []).push(idx);
+  });
+
+  // Pass 3: draw. The arrow exits the clicked element on the chosen side and
+  // enters the destination tile on the opposite-facing side, so it never cuts
+  // across unrelated content.
+  data.forEach((d, idx) => {
+    if (!d) return;
+    const { t, a, b, exit, entry } = d;
+
+    const arrGroup    = arrivals[`${t.toInstanceId}:${entry}`];
+    const arrPos      = arrGroup.indexOf(idx);
+    const arrN        = arrGroup.length;
+    const arrAlongLen = (entry === "L" || entry === "R") ? b.height : b.width;
+    const arrSpread   = Math.min(arrAlongLen * 0.7, 28 * arrN);
+    const arrFrac     = arrN === 1 ? 0.5 : arrPos / (arrN - 1);
+    const arrOffset   = arrSpread * (arrFrac - 0.5);
+
+    const depGroup    = departures[`${t.fromInstanceId}:${t.fromActionKey}:${exit}`];
+    const depPos      = depGroup.indexOf(idx);
+    const depN        = depGroup.length;
+    const depOffset   = depN === 1 ? 0 : (depPos - (depN - 1) / 2) * 6;
+
+    let sx, sy, tx, ty;
+    if (exit === "R")      { sx = a.right;             sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "L") { sx = a.left;              sy = a.top + a.height / 2 + depOffset; }
+    else if (exit === "B") { sx = a.left + a.width/2 + depOffset; sy = a.bottom; }
+    else                   { sx = a.left + a.width/2 + depOffset; sy = a.top;    }
+
+    if (entry === "L")      { tx = b.left;              ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "R") { tx = b.right;             ty = b.top + b.height / 2 + arrOffset; }
+    else if (entry === "T") { tx = b.left + b.width/2 + arrOffset; ty = b.top;    }
+    else                    { tx = b.left + b.width/2 + arrOffset; ty = b.bottom; }
+
+    // Base positions (auto-computed). User-applied offsets shift the
+    // endpoints; the offsets persist per-transition and survive re-renders.
+    const srcOff = t.srcOffset ?? { x: 0, y: 0 };
+    const dstOff = t.dstOffset ?? { x: 0, y: 0 };
+    const x1 = (sx - rect.left) + srcOff.x;
+    const y1 = (sy - rect.top)  + srcOff.y;
+    const x2 = (tx - rect.left) + dstOff.x;
+    const y2 = (ty - rect.top)  + dstOff.y;
+
+    // Cubic bezier whose tangents respect the chosen exit/entry sides.
+    const dist  = Math.hypot(x2 - x1, y2 - y1);
+    const reach = Math.max(40, Math.min(220, dist * 0.45));
+    let cp1x = x1, cp1y = y1, cp2x = x2, cp2y = y2;
+    if (exit === "R")      cp1x = x1 + reach;
+    else if (exit === "L") cp1x = x1 - reach;
+    else if (exit === "B") cp1y = y1 + reach;
+    else                   cp1y = y1 - reach;
+    if (entry === "L")      cp2x = x2 - reach;
+    else if (entry === "R") cp2x = x2 + reach;
+    else if (entry === "T") cp2y = y2 - reach;
+    else                    cp2y = y2 + reach;
+
+    const pathD = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+
+    // Wide invisible hit-area path — makes the arrow easy to click without
+    // forcing the visible stroke to be fat.
+    const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    hitPath.setAttribute("class", "arrow-hit");
+    hitPath.setAttribute("d", pathD);
+    hitPath.setAttribute("stroke", "transparent");
+    hitPath.setAttribute("stroke-width", "14");
+    hitPath.setAttribute("fill", "none");
+    hitPath.dataset.transitionIdx = String(transitions.indexOf(t));
+    svg.appendChild(hitPath);
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "arrow-line");
+    path.setAttribute("d", pathD);
+    path.setAttribute("stroke", "#d32f2f");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", "url(#arrowhead)");
+    svg.appendChild(path);
+
+    // Draggable handles — only rendered in edit mode so they don't clutter
+    // the board for screenshots. Stable transition index identifies each.
+    if (arrowEditMode) {
+      const tIdx = transitions.indexOf(t);
+      [
+        { side: "src", cx: x1, cy: y1 },
+        { side: "dst", cx: x2, cy: y2 },
+      ].forEach((h) => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("class", "arrow-handle");
+        c.setAttribute("cx", String(h.cx));
+        c.setAttribute("cy", String(h.cy));
+        c.setAttribute("r", "4");
+        c.setAttribute("fill", "#fff");
+        c.setAttribute("stroke", "#d32f2f");
+        c.setAttribute("stroke-width", "1.5");
+        c.dataset.arrowHandle = h.side;
+        c.dataset.transitionIdx = String(tIdx);
+        svg.appendChild(c);
+      });
+    }
+  });
+}
+
+let arrowEditMode = false;
+
+/* ============================================================
+   Arrow drag — let the user reposition the source/dest endpoint
+   of any arrow. Offsets are stored on the transition object and
+   re-applied on every drawArrows() call.
+   ============================================================ */
+let arrowDrag = null;
+
+document.addEventListener("mousedown", (e) => {
+  const handle = e.target.closest(".arrow-handle");
+  if (!handle) return;
+  const idx  = parseInt(handle.dataset.transitionIdx, 10);
+  const side = handle.dataset.arrowHandle;
+  const t    = transitions[idx];
+  if (!t) return;
+  const key = side === "src" ? "srcOffset" : "dstOffset";
+  if (!t[key]) t[key] = { x: 0, y: 0 };
+  arrowDrag = {
+    idx, side, key,
+    startMouseX: e.clientX,
+    startMouseY: e.clientY,
+    startOx:     t[key].x,
+    startOy:     t[key].y,
+  };
+  handle.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!arrowDrag) return;
+  const t = transitions[arrowDrag.idx];
+  if (!t) return;
+  t[arrowDrag.key] = {
+    x: arrowDrag.startOx + (e.clientX - arrowDrag.startMouseX),
+    y: arrowDrag.startOy + (e.clientY - arrowDrag.startMouseY),
+  };
+  drawArrows();
+});
+
+document.addEventListener("mouseup", () => {
+  if (!arrowDrag) return;
+  document.querySelectorAll(".arrow-handle.dragging").forEach((h) => h.classList.remove("dragging"));
+  arrowDrag = null;
+});
+
+// Click an arrow (its wide hit-area path) to bring it to the front layer.
+// Move that transition to the end of the array so it draws last on top.
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest(".arrow-hit");
+  if (!hit) return;
+  const idx = parseInt(hit.dataset.transitionIdx, 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= transitions.length) return;
+  const moved = transitions.splice(idx, 1)[0];
+  transitions.push(moved);
+  drawArrows();
+});
+
+/* ============================================================
+   CONTROLS
+   ============================================================ */
+document.getElementById("rolePicker").addEventListener("change", (e) => {
+  currentRole = e.target.value;
+  // Switching accounts is a fresh session — clear the board.
+  resetBoard("login");
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  resetBoard("login");
+});
+
+document.getElementById("resetArrows").addEventListener("click", () => {
+  // Wipe any user-applied endpoint offsets but keep the tiles in place.
+  transitions.forEach((t) => { delete t.srcOffset; delete t.dstOffset; });
+  drawArrows();
+});
+
+document.getElementById("editArrows").addEventListener("click", (e) => {
+  arrowEditMode = !arrowEditMode;
+  e.currentTarget.textContent = arrowEditMode ? "✓ Done editing" : "✎ Edit arrows";
+  e.currentTarget.style.background = arrowEditMode ? "#d32f2f" : "";
+  drawArrows();
+});
+
+document.getElementById("undo").addEventListener("click", undo);
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+  }
+});
+
+document.getElementById("downloadPng").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const original = btn.textContent;
+  btn.textContent = "Rendering…";
+  btn.disabled = true;
+  try {
+    const node = document.getElementById("board");
+    const dataUrl = await htmlToImage.toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+    });
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    link.download = `agape-volunteer-wireframes-${stamp}.png`;
+    link.href = dataUrl;
+    link.click();
+  } catch (err) {
+    alert("PNG export failed: " + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(drawArrows));
+
+resetBoard("login");
+</script>
+</body>
+</html>

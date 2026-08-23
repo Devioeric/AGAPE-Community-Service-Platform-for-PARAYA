@@ -1,0 +1,29 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.0.0" type="device">
+  <diagram name="01 - Launcher" id="p1">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="sb" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="220" height="900" as="geometry"/></mxCell>
+        <mxCell id="logo" value="AGAPE" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="180" height="34" as="geometry"/></mxCell>
+        <mxCell id="logosub" value="PARAYA Officers" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;" vertex="1" parent="1"><mxGeometry x="20" y="56" width="180" height="20" as="geometry"/></mxCell>
+        <mxCell id="nm" value="(... nav items ...)" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=10;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="10" y="100" width="200" height="600" as="geometry"/></mxCell>
+        <mxCell id="ht" value="Officer Dashboard" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=20;fontSize=18;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="220" y="14" width="500" height="40" as="geometry"/></mxCell>
+        <mxCell id="bl" value="[ BELL ]" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1400" y="14" width="60" height="40" as="geometry"/></mxCell>
+        <mxCell id="us" value="[ USER: Officer Name &#9662; ]" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;" vertex="1" parent="1"><mxGeometry x="1460" y="14" width="180" height="40" as="geometry"/></mxCell>
+        <mxCell id="hs" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="220" y="60" width="1380" height="1" as="geometry"/></mxCell>
+        <mxCell id="dash" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="240" y="80" width="1340" height="720" as="geometry"/></mxCell>
+        <mxCell id="dasht" value="(Dashboard cards and content)" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="240" y="400" width="1340" height="40" as="geometry"/></mxCell>
+        <mxCell id="fab" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1480" y="740" width="80" height="80" as="geometry"/></mxCell>
+        <mxCell id="fabi" value="" style="text;html=1;align=center;verticalAlign=middle;fontSize=34;fontColor=#fff;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1480" y="740" width="80" height="80" as="geometry"/></mxCell>
+        <mxCell id="fabbg" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1546" y="744" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="fabbgn" value="2" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#fff;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1546" y="744" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="tt" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#000;strokeColor=#000;" vertex="1" parent="1"><mxGeometry x="1260" y="752" width="200" height="56" as="geometry"/></mxCell>
+        <mxCell id="ttl" value="Ask AGAPE assistant" style="text;html=1;align=center;verticalAlign=top;spacingTop=10;fontSize=11;fontStyle=1;fontColor=#fff;" vertex="1" parent="1"><mxGeometry x="1260" y="752" width="200" height="22" as="geometry"/></mxCell>
+        <mxCell id="ttl2" value="2 suggestions for you" style="text;html=1;align=center;verticalAlign=top;spacingTop=30;fontSize=10;fontStyle=2;fontColor=#fff;" vertex="1" parent="1"><mxGeometry x="1260" y="752" width="200" height="22" as="geometry"/></mxCell>
+        <mxCell id="tta" value="&#9656;" style="text;html=1;align=center;verticalAlign=middle;fontSize=14;fontColor=#000;" vertex="1" parent="1"><mxGeometry x="1462" y="772" width="20" height="20" as="geometry"/></mxCell>
+        <mxCell id="ft" value="STATE: Chatbot launcher &#8212; floating brown FAB bottom-right, red badge with 2 unread suggestions, black tooltip" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="240" y="822" width="1100" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "6ddfda10f58b97c943ac7d148a6eb4e57441886e",
+  "head": "a9434543e24ae7410a65f9d95b065b17a7d9620d",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,14 +14,14 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 2,
-    "include": 2,
+    "total": 8,
+    "include": 8,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
     "ambiguous-needs-owner-review": 0,
     "secretFindings": 0,
-    "acknowledgedSyntheticSecretFindings": 0
+    "acknowledgedSyntheticSecretFindings": 2
   },
   "entries": [
     {
@@ -35,6 +35,63 @@
     },
     {
       "path": "docs/implementation/release-gate-inclusion-manifest.json",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "scripts/lib/database-gate-config.mjs",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "scripts/lib/local-database-gate.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "scripts/run-local-database-gates.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/database-gate-scopes.json",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/local-database-gate.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": [
+        "jwt-token",
+        "postgres-credential-url"
+      ]
+    },
+    {
+      "path": "TESTING.md",
       "state": " M",
       "tracked": true,
       "classification": "include",

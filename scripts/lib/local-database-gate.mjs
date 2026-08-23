@@ -1,12 +1,20 @@
-import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
-import { basename, join, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
+import {
+  DATABASE_GATE_SCOPE_FILE,
+  EXPECTED_DISPOSABLE_PROJECT_ID,
+  EXPECTED_POSTGRES_MAJOR,
+  EXPECTED_SOURCE_PROJECT_ID,
+  EXPECTED_SUPABASE_CLI_VERSION,
+  loadDatabaseGateScopeManifest,
+  scopeConfiguration,
+} from "./database-gate-config.mjs";
 
 export const BASELINE_FILE = "20260815000000_pre_phase0_baseline.sql";
 export const DISPOSABLE_CONFIRMATION = "agape-release-gate";
-export const PHASE1_CUTOFF = "20260817000410";
 export const PHASE_FLAGS = [
   "AGAPE_PROFILING_V2_ENABLED",
   "AGAPE_PARTNER_REGISTRY_V2_ENABLED",
@@ -18,13 +26,28 @@ export const PHASE_FLAGS = [
 
 const TIMESTAMPED_MIGRATION = /^(\d{14})_[a-z0-9_]+\.sql$/;
 
-export function selectMigrationNames(names, { scope = "phase2", appliedVersions = [] } = {}) {
+export function selectMigrationNames(names, { scope = "phase2", appliedVersions = [], scopeManifest } = {}) {
   const timestamped = names.filter((name) => TIMESTAMPED_MIGRATION.test(name)).sort();
-  if (scope === "phase1") return timestamped.filter((name) => name.slice(0, 14) <= PHASE1_CUTOFF);
-  if (scope === "phase2" || scope === "reconciliation-full") return timestamped;
+  if (!scopeManifest) throw new Error("database-gate scope manifest is required");
+  if (scope === "phase1" || scope === "phase2") {
+    const configured = scopeConfiguration(scopeManifest, scope).migrationNames;
+    const available = new Set(timestamped);
+    const missing = configured.filter((name) => !available.has(name));
+    if (missing.length) throw new Error(`${scope} scope references missing migrations: ${missing.join(", ")}`);
+    return [...configured];
+  }
+  if (scope === "reconciliation-full") {
+    const configured = scopeConfiguration(scopeManifest, "phase2").migrationNames;
+    const available = new Set(timestamped);
+    const missing = configured.filter((name) => name !== BASELINE_FILE && !available.has(name));
+    if (missing.length) throw new Error(`reconciliation-full references missing migrations: ${missing.join(", ")}`);
+    return [...configured];
+  }
   if (scope === "reconciliation-applied") {
-    const allowed = new Set(appliedVersions);
-    return timestamped.filter((name) => name === BASELINE_FILE || allowed.has(name.slice(0, 14)));
+    const known = new Map(timestamped.map((name) => [name.slice(0, 14), name]));
+    const unknown = appliedVersions.filter((version) => !known.has(version));
+    if (unknown.length) throw new Error(`captured ledger references migrations absent from the repository: ${unknown.join(", ")}`);
+    return [BASELINE_FILE, ...appliedVersions.map((version) => known.get(version)).filter((name) => name !== BASELINE_FILE)];
   }
   throw new Error(`unsupported database-gate scope ${scope}`);
 }
@@ -56,25 +79,37 @@ export function redactProcessOutput(value) {
   return String(value)
     .replace(/(postgres(?:ql)?:\/\/[^:\s/]+:)[^@\s/]+(@)/gi, "$1[REDACTED]$2")
     .replace(/\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/g, "[REDACTED_JWT]")
-    .replace(/\b((?:SERVICE_ROLE|ANON|JWT)_?(?:KEY|SECRET))\s*[:=]\s*\S+/gi, "$1=[REDACTED]");
+    .replace(/\bsb_secret_[A-Za-z0-9_-]{16,}\b/g, "[REDACTED_SUPABASE_SECRET]")
+    .replace(/\b((?:SUPABASE_)?(?:SERVICE_ROLE|ANON|JWT|ACCESS)_?(?:KEY|SECRET|TOKEN)|SUPABASE_DB_PASSWORD)\s*[:=]\s*\S+/gi, "$1=[REDACTED]");
 }
 
-const REMOTE_ENVIRONMENT_KEYS = [
-  "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY",
-  "SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "DATABASE_URL", "POSTGRES_URL",
-  "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING",
-  "SUPABASE_PROJECT_ID", "SUPABASE_PROJECT_REF", "SUPABASE_URL",
-];
+const CHILD_ENVIRONMENT_ALLOWLIST = new Set([
+  "CI", "COMSPEC", "LANG", "LC_ALL", "NO_COLOR", "PATH", "PATHEXT",
+  "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "TERM", "TMP", "WINDIR",
+]);
 
 export function isolatedChildEnvironment(env = process.env) {
-  const result = { ...env };
-  for (const key of REMOTE_ENVIRONMENT_KEYS) delete result[key];
+  const result = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (CHILD_ENVIRONMENT_ALLOWLIST.has(key.toUpperCase()) && typeof value === "string") result[key] = value;
+  }
   for (const flag of PHASE_FLAGS) result[flag] = "false";
   result.AGAPE_DB_TEST_ISOLATED = "true";
+  result.NO_PROXY = "127.0.0.1,localhost,::1";
   return result;
 }
 
-export async function prepareIsolatedSupabaseProject(root, { migrationNames = null, baselineCandidate = null } = {}) {
+function safeSupabaseRelativePath(value) {
+  const normalized = String(value).replaceAll("\\", "/");
+  if (!normalized || isAbsolute(normalized) || normalized.split("/").includes("..")) {
+    throw new Error("refusing to copy an unsafe Supabase test path");
+  }
+  return normalized;
+}
+
+export async function prepareIsolatedSupabaseProject(root, {
+  migrationNames = null, baselineCandidate = null, copyPaths = [],
+} = {}) {
   const privateRoot = await mkdtemp(join(tmpdir(), "agape-release-gate-"));
   const workspace = join(privateRoot, "workspace");
   const source = join(root, "supabase");
@@ -87,8 +122,13 @@ export async function prepareIsolatedSupabaseProject(root, { migrationNames = nu
     if (name === BASELINE_FILE && baselineCandidate) await cp(resolve(baselineCandidate), join(targetMigrations, BASELINE_FILE));
     else await cp(join(source, "migrations", name), join(targetMigrations, name));
   }
-  await cp(join(source, "tests"), join(target, "tests"), { recursive: true });
-  await cp(join(source, "seed.sql"), join(target, "seed.sql"));
+  for (const rawPath of copyPaths) {
+    const path = safeSupabaseRelativePath(rawPath);
+    const sourcePath = join(source, path);
+    const targetPath = join(target, path);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await cp(sourcePath, targetPath, { recursive: true });
+  }
 
   let config = await readFile(join(source, "config.toml"), "utf8");
   if (!/^project_id\s*=\s*"agape-local"\s*$/m.test(config)) throw new Error("source Supabase project_id is not agape-local");
@@ -103,29 +143,86 @@ export async function prepareIsolatedSupabaseProject(root, { migrationNames = nu
     workspace,
     configPath: join(target, "config.toml"),
     async cleanup() {
-      const resolved = resolve(privateRoot);
-      const temp = `${resolve(tmpdir())}${sep}`;
-      if (!resolved.startsWith(temp) || !basename(resolved).startsWith("agape-release-gate-")) {
-        throw new Error("refusing to remove a directory outside the AGAPE release-gate temp root");
-      }
+      const resolved = validateDisposableCleanupTarget(privateRoot);
       await rm(resolved, { recursive: true, force: true });
     },
   };
 }
 
-export async function collectStaticPreflightFailures(root, env = process.env, { scope = "phase2", baselineCandidate = null, appliedVersions = [] } = {}) {
+export function validateDisposableCleanupTarget(path) {
+  const resolved = resolve(path);
+  const temp = `${resolve(tmpdir())}${sep}`;
+  if (!resolved.startsWith(temp) || !basename(resolved).startsWith("agape-release-gate-")) {
+    throw new Error("refusing to remove a directory outside the AGAPE release-gate temp root");
+  }
+  return resolved;
+}
+
+export function validateSupabaseConfig(config, manifest) {
+  const failures = [];
+  const expected = manifest ?? {
+    sourceProjectId: EXPECTED_SOURCE_PROJECT_ID,
+    postgresMajorVersion: EXPECTED_POSTGRES_MAJOR,
+    ports: { api: 54321, database: 54322, shadow: 54320, studio: 54323, inbucket: 54324 },
+  };
+  if (!new RegExp(`^project_id\\s*=\\s*"${expected.sourceProjectId}"\\s*$`, "m").test(config)) failures.push(`Supabase project_id must be exactly ${expected.sourceProjectId}`);
+  const sections = [
+    ["api", "port", expected.ports.api], ["db", "port", expected.ports.database],
+    ["db", "shadow_port", expected.ports.shadow], ["studio", "port", expected.ports.studio],
+    ["inbucket", "port", expected.ports.inbucket], ["db", "major_version", expected.postgresMajorVersion],
+  ];
+  for (const [section, key, value] of sections) {
+    const pattern = new RegExp(`\\[${section.replace(".", "\\.")}\\][\\s\\S]*?^${key}\\s*=\\s*${value}\\s*$`, "m");
+    if (!pattern.test(config)) failures.push(`${section}.${key} must be ${value}`);
+  }
+  return failures;
+}
+
+export function validateInstalledSupabaseCliPackage(packageJson) {
+  if (!packageJson || packageJson.version !== EXPECTED_SUPABASE_CLI_VERSION) {
+    return [`repository-local Supabase CLI must be exactly ${EXPECTED_SUPABASE_CLI_VERSION}`];
+  }
+  return [];
+}
+
+export async function findForbiddenSupabaseLinkMetadata(root) {
+  const candidates = [
+    "supabase/.temp", "supabase/.branches", "supabase/.linked", "supabase/.project-ref",
+  ];
+  const found = [];
+  for (const candidate of candidates) {
+    try { await stat(resolve(root, candidate)); found.push(candidate); } catch { /* absent is safe */ }
+  }
+  return found;
+}
+
+export async function findMissingGateInputs(root, relativePaths) {
+  const missing = [];
+  for (const relativePath of relativePaths) {
+    try { await access(resolve(root, relativePath), fsConstants.R_OK); }
+    catch { missing.push(relativePath); }
+  }
+  return missing;
+}
+
+export async function collectStaticPreflightFailures(root, env = process.env, {
+  scope = "phase2", baselineCandidate = null, appliedVersions = [], scopeManifest = null,
+} = {}) {
   const failures = [];
   const migrationDir = resolve(root, "supabase", "migrations");
   const configPath = resolve(root, "supabase", "config.toml");
   const cliPath = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
-  const requiredGateFiles = [
-    resolve(root, "supabase", "seed.sql"),
-    resolve(root, "supabase", "tests", "fixtures", "release-gate-synthetic.sql"),
-    resolve(root, "supabase", "tests", "database", "00_catalog_grants_rls.sql"),
-    resolve(root, "supabase", "tests", "database", "01_synthetic_capabilities_runtime.sql"),
-    resolve(root, "supabase", "tests", "database", "02_storage_boundaries.sql"),
-    resolve(root, "supabase", "tests", "seeded", "00_release_fixture_integrity.sql"),
-  ];
+  let manifest = scopeManifest;
+  try { manifest ??= await loadDatabaseGateScopeManifest(root); }
+  catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
+  const configuredScope = manifest ? scopeConfiguration(manifest, scope) : null;
+  const requiredRelativePaths = new Set([DATABASE_GATE_SCOPE_FILE]);
+  if (configuredScope) {
+    for (const key of ["databaseTestPaths", "fixtureSeedPaths", "seededTestPaths"]) {
+      for (const path of configuredScope[key]) requiredRelativePaths.add(`supabase/${path}`);
+    }
+    if (!scope.startsWith("reconciliation-")) requiredRelativePaths.add("supabase/seed.sql");
+  }
 
   let migrationNames = [];
   try {
@@ -136,12 +233,19 @@ export async function collectStaticPreflightFailures(root, env = process.env, { 
         try { await access(resolve(baselineCandidate), fsConstants.R_OK); }
         catch { failures.push("private baseline candidate is missing or unreadable"); }
       }
-      const selected = selectMigrationNames(migrationNames, { scope, appliedVersions });
+      const selected = selectMigrationNames(migrationNames, { scope, appliedVersions, scopeManifest: manifest });
       failures.push(...inspectMigrationNames([BASELINE_FILE, ...selected.filter((name) => name !== BASELINE_FILE)]));
     } else {
       failures.push(...inspectMigrationNames(migrationNames));
-      if (scope === "phase1" && migrationNames.some((name) => TIMESTAMPED_MIGRATION.test(name) && name.slice(0, 14) > PHASE1_CUTOFF)) {
-        // Later migrations are allowed in the repository but excluded from the isolated Phase 1 project.
+      if (manifest) {
+        try {
+          const selected = selectMigrationNames(migrationNames, { scope, appliedVersions, scopeManifest: manifest });
+          const selectedSet = new Set(selected);
+          if (scope === "phase2") {
+            const unexpected = migrationNames.filter((name) => TIMESTAMPED_MIGRATION.test(name) && !selectedSet.has(name));
+            if (unexpected.length) failures.push(`timestamped migrations are absent from the Phase 2 scope manifest: ${unexpected.join(", ")}`);
+          }
+        } catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
       }
     }
   } catch {
@@ -159,22 +263,25 @@ export async function collectStaticPreflightFailures(root, env = process.env, { 
 
   try {
     const config = await readFile(configPath, "utf8");
-    if (!/^project_id\s*=\s*"agape-local"\s*$/m.test(config)) failures.push("Supabase project_id must be exactly agape-local");
-    if (!/^port\s*=\s*54322\s*$/m.test(config)) failures.push("local database port must remain the dedicated 54322 test port");
+    failures.push(...validateSupabaseConfig(config, manifest));
   } catch {
     failures.push("supabase/config.toml is missing or unreadable");
   }
 
   try {
     await access(cliPath, fsConstants.R_OK);
+    const cliPackage = JSON.parse(await readFile(resolve(root, "node_modules", "supabase", "package.json"), "utf8"));
+    failures.push(...validateInstalledSupabaseCliPackage(cliPackage));
   } catch {
     failures.push("repository-local Supabase CLI is missing; run npm ci before database gates");
   }
 
-  for (const path of requiredGateFiles) {
-    try { await access(path, fsConstants.R_OK); }
-    catch { failures.push(`required database-gate input is missing: ${path.slice(root.length + 1)}`); }
+  for (const relativePath of await findMissingGateInputs(root, requiredRelativePaths)) {
+    failures.push(`required database-gate input is missing: ${relativePath}`);
   }
+
+  const linkMetadata = await findForbiddenSupabaseLinkMetadata(root);
+  if (linkMetadata.length) failures.push(`remote Supabase link metadata must be removed before testing: ${linkMetadata.join(", ")}`);
 
   for (const flag of PHASE_FLAGS) {
     if (env[flag] === "true") failures.push(`${flag} must be false during disposable replay`);
@@ -183,7 +290,7 @@ export async function collectStaticPreflightFailures(root, env = process.env, { 
   return failures;
 }
 
-export function runProcess(command, args, { cwd, env = process.env, timeoutMs = 180_000 } = {}) {
+export function runProcess(command, args, { cwd, env = isolatedChildEnvironment(), timeoutMs = 180_000 } = {}) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, {
       cwd,
@@ -233,17 +340,66 @@ export async function dockerEngineFailure(root) {
   }
 }
 
-export function validateLocalSupabaseStatus(status) {
+export function assertSuccessfulProcessResult(result, label) {
+  if (!result || result.code !== 0) throw new Error(`${label} failed`);
+  if (result.truncated) throw new Error(`${label} output was truncated`);
+  return result;
+}
+
+export function validateDisposableProjectConfig(config) {
+  const failures = validateSupabaseConfig(config, {
+    sourceProjectId: EXPECTED_DISPOSABLE_PROJECT_ID,
+    postgresMajorVersion: EXPECTED_POSTGRES_MAJOR,
+    ports: { api: 54321, database: 54322, shadow: 54320, studio: 54323, inbucket: 54324 },
+  }).map((failure) => failure.replace("Supabase project_id", "disposable project ID"));
+  if (config.includes(".temp") || /project[_-]?ref/i.test(config)) failures.push("disposable config contains linked-project metadata");
+  return failures;
+}
+
+export function validateLocalSupabaseStatus(status, allowedPorts = [54320, 54321, 54322, 54323, 54324]) {
   const failures = [];
   if (!status || typeof status !== "object") return ["Supabase status JSON is malformed"];
   for (const [key, value] of Object.entries(status)) {
     if (typeof value !== "string" || !/(?:url|uri|host|db)/i.test(key)) continue;
     if (/^(?:https?|postgres(?:ql)?):\/\//i.test(value)) {
       try {
-        const host = new URL(value).hostname;
+        const parsed = new URL(value);
+        const host = parsed.hostname;
         if (!['127.0.0.1', 'localhost', '::1'].includes(host)) failures.push(`${key} is not loopback`);
+        const port = parsed.port ? Number(parsed.port) : null;
+        if (port === null || !allowedPorts.includes(port)) failures.push(`${key} uses unexpected port ${parsed.port || "default"}`);
       } catch { failures.push(`${key} is not a valid local endpoint`); }
     }
   }
   return failures;
+}
+
+export function parseDatabaseTestCounts(output) {
+  const source = String(output);
+  let passed = 0;
+  let failed = 0;
+  let skipped = 0;
+  for (const line of source.split(/\r?\n/)) {
+    if (/^not ok\b/i.test(line.trim())) failed += 1;
+    else if (/^ok\b/i.test(line.trim())) {
+      if (/\#\s*skip\b/i.test(line)) skipped += 1;
+      else passed += 1;
+    }
+  }
+  if (passed + failed + skipped === 0) {
+    const prove = source.match(/Tests=(\d+).*?Result:\s*(PASS|FAIL)/is);
+    if (prove) {
+      if (prove[2].toUpperCase() === "PASS") passed = Number(prove[1]);
+      else failed = Number(prove[1]);
+    }
+  }
+  return { passed, failed, skipped };
+}
+
+export function isArtifactDirectoryOutsideRepository(root, artifactDirectory) {
+  if (!artifactDirectory) return true;
+  const repository = resolve(root);
+  const artifact = resolve(artifactDirectory);
+  const fromRepository = relative(repository, artifact);
+  return Boolean(fromRepository) && (fromRepository === ".." || fromRepository.startsWith(`..${sep}`));
 }

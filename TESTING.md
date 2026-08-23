@@ -89,11 +89,26 @@ npm.cmd run test:db:gates
 ```
 
 The harness creates an untracked temporary Supabase project, strips remote
-credentials, forces all application flags false, runs two clean no-seed
-replays, compares schema hashes, executes pgTAP, validates the reviewed
-`.invalid` synthetic fixture, and finally checks the legacy development seed in
-a separate replay. It stops and removes only that known temporary stack and
-does not write release evidence automatically.
+credentials through an explicit environment allowlist, forces all application
+flags false, creates a different temporary project for each clean replay,
+compares schema hashes, executes pgTAP, validates the reviewed `.invalid`
+synthetic fixture, and finally checks the legacy development seed in another
+fresh replay. It stops and removes only the project whose ID is exactly
+`agape-release-gate`. The reviewed migration, fixture, and assertion membership
+for each scope is defined in `supabase/database-gate-scopes.json`; Phase 1 is
+never inferred from a numeric timestamp cutoff.
+
+The runner does not write approved Markdown evidence. To retain a sanitized
+machine result, pass an encrypted artifact directory outside this repository:
+
+```powershell
+npm.cmd run test:db:phase1 -- --artifact-dir <private-outside-git-directory>
+```
+
+The JSON result contains suite/revision/scope identifiers, the migration-list
+and schema/catalog digests, case counts, timestamps, and final disabled/V1
+assertions. It never contains local keys or connection strings and still
+requires human review before an evidence envelope may be approved.
 
 Before the baseline is promoted or legacy SQL is archived, an authorized private
 candidate can be replayed without copying unordered migrations into the temporary

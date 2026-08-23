@@ -1,0 +1,85 @@
+{
+  "schema": "agape.database-gate-scopes.v1",
+  "supabaseCliVersion": "2.114.0",
+  "postgresMajorVersion": 15,
+  "sourceProjectId": "agape-local",
+  "disposableProjectId": "agape-release-gate",
+  "ports": {
+    "api": 54321,
+    "database": 54322,
+    "shadow": 54320,
+    "studio": 54323,
+    "inbucket": 54324
+  },
+  "scopes": {
+    "phase1": {
+      "migrationNames": [
+        "20260815000000_pre_phase0_baseline.sql",
+        "20260816000100_phase0_users_audit_hardening.sql",
+        "20260816000150_phase0_active_account_rls.sql",
+        "20260816000200_phase0_workflow_rls_hardening.sql",
+        "20260817000100_phase1_authorization_closure.sql",
+        "20260817000200_phase1_profiling_foundation.sql",
+        "20260817000250_phase1_profiling_rpcs.sql",
+        "20260817000260_phase1_profiling_queries_and_imports.sql",
+        "20260817000270_phase1_profiling_configuration.sql",
+        "20260817000280_phase1_profiling_operations.sql",
+        "20260817000300_phase1_domain_containment.sql",
+        "20260817000310_phase1_function_execute_hardening.sql",
+        "20260817000400_phase1_completion_gate.sql",
+        "20260817000410_phase1_release_gate_remediation.sql"
+      ],
+      "databaseTestPaths": ["tests/database/phase1"],
+      "fixtureSeedPaths": ["tests/fixtures/release-gate-phase1.sql"],
+      "seededTestPaths": ["tests/seeded/phase1"]
+    },
+    "phase2": {
+      "migrationNames": [
+        "20260815000000_pre_phase0_baseline.sql",
+        "20260816000100_phase0_users_audit_hardening.sql",
+        "20260816000150_phase0_active_account_rls.sql",
+        "20260816000200_phase0_workflow_rls_hardening.sql",
+        "20260817000100_phase1_authorization_closure.sql",
+        "20260817000200_phase1_profiling_foundation.sql",
+        "20260817000250_phase1_profiling_rpcs.sql",
+        "20260817000260_phase1_profiling_queries_and_imports.sql",
+        "20260817000270_phase1_profiling_configuration.sql",
+        "20260817000280_phase1_profiling_operations.sql",
+        "20260817000300_phase1_domain_containment.sql",
+        "20260817000310_phase1_function_execute_hardening.sql",
+        "20260817000400_phase1_completion_gate.sql",
+        "20260817000410_phase1_release_gate_remediation.sql",
+        "20260818000100_phase2_partner_history_foundation.sql",
+        "20260818000200_phase2_proposal_finance_foundation.sql",
+        "20260818000300_phase2_security_and_core_rpcs.sql",
+        "20260818000400_phase2_proposal_workflow_and_handoff.sql",
+        "20260818000500_phase2_program_finance_rpcs.sql",
+        "20260818000600_phase2_renewal_outbox.sql",
+        "20260818000700_phase2_completion_remediation.sql",
+        "20260818000710_phase2_partner_history_operations.sql",
+        "20260818000720_phase2_proposal_budget_operations.sql",
+        "20260818000730_phase2_program_finance_operations.sql",
+        "20260818000740_phase2_historical_imports.sql",
+        "20260818000750_phase2_document_boundary.sql"
+      ],
+      "databaseTestPaths": ["tests/database"],
+      "fixtureSeedPaths": [
+        "tests/fixtures/release-gate-phase1.sql",
+        "tests/fixtures/release-gate-phase2-supplement.sql"
+      ],
+      "seededTestPaths": ["tests/seeded/phase2"]
+    },
+    "reconciliation-applied": {
+      "migrationSelection": "captured-ledger",
+      "databaseTestPaths": [],
+      "fixtureSeedPaths": [],
+      "seededTestPaths": []
+    },
+    "reconciliation-full": {
+      "migrationSelection": "phase2",
+      "databaseTestPaths": [],
+      "fixtureSeedPaths": [],
+      "seededTestPaths": []
+    }
+  }
+}

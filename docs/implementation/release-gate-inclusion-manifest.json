@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "0e21c21c926b5001b6c78db1f107859efff63974",
+  "head": "b35550ac09903ddc57ec9203b92f5cec578ce0ad",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 14,
-    "include": 14,
+    "total": 7,
+    "include": 7,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -34,6 +34,15 @@
       "acknowledgedSecretRuleIds": []
     },
     {
+      "path": "docs/implementation/phase-1-interface-traceability.md",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
       "path": "docs/implementation/release-gate-inclusion-manifest.json",
       "state": " M",
       "tracked": true,
@@ -43,27 +52,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/profiling/imports/preview/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/profiling/submissions/[id]/revise/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/profiling/submissions/route.ts",
-      "state": " M",
-      "tracked": true,
+      "path": "src/components/profiling/ProfilingRolePanels.tsx",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -71,60 +62,6 @@
     },
     {
       "path": "src/components/profiling/ProfilingWorkspace.tsx",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/profiling/api.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/profiling/import-headers.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/profiling/import-parser.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/profiling/privacy.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/profiling/server-context.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/types/profiling.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -142,9 +79,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/phase1-profiling-contracts.test.mjs",
-      "state": " M",
-      "tracked": true,
+      "path": "test/security/phase1-role-interfaces.test.mjs",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],

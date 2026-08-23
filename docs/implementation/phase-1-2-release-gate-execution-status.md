@@ -10,6 +10,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Packet 0 intermediate revision: `6ddfda10f58b97c943ac7d148a6eb4e57441886e`
 - Packet 2 intermediate revision: `854ce1e11e3b096fc4d6914a5debab8773fcee30`
 - Packet 3 intermediate revision: `0e21c21c926b5001b6c78db1f107859efff63974`
+- Packet 4 intermediate revision: `b35550ac09903ddc57ec9203b92f5cec578ce0ad`
 - Production/shared deployment authorized: No
 - Profiling application flag: `false`
 - Phase 2 application flags: `false`
@@ -38,7 +39,8 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 | K — Reconciliation/rollback | pending | Not started. | Run only on disposable synthetic state. |
 | L — Release evidence | blocked | Requires immutable candidate, private artifacts, and independent reviewers. | Do not create executed evidence until all suites pass. |
 
-| 4 — Deterministic Phase 1 corrections | locally_complete | Locked the strict aggregate v2 sample contract to include nonparticipating households, returned actual submission row versions, removed hard-coded mutation versions, aligned Captain endorsement and minor derivation, preserved imported resident linkage, rejected normalized duplicate/unknown headers, and replaced direct service-role cycle reads with actor-scoped RPC-backed context. Focused tests pass 12/12; the full suite passes 137/137, typecheck, lint, and the 155-route build. | Begin Packet 5 Phase 1 role interfaces. The dedicated database cycle-context/version-returning RPC remains a forward-only Packet 9 migration after ledger reconciliation. |
+| 4 — Deterministic Phase 1 corrections | locally_complete | Locked the strict aggregate v2 sample contract to include nonparticipating households, returned actual submission row versions, removed hard-coded mutation versions, aligned Captain endorsement and minor derivation, preserved imported resident linkage, rejected normalized duplicate/unknown headers, and replaced direct service-role cycle reads with actor-scoped RPC-backed context. Focused tests pass 12/12; the full suite passes 137/137, typecheck, lint, and the 155-route build. | Packet 5 completed; retain the dedicated database RPC work for Packet 9. |
+| 5 — Phase 1 role interfaces | locally_complete | Added a traceability matrix and extracted Researcher operations, structured Secretary review, and structured aggregate panels. Researcher browser controls now cover prefix, sitios, privacy notice, official snapshot intake, cycle creation, sample register/replacement, assignments, duplicate resolution, and expected-version lifecycle correction. Existing Mother Leader, Captain, and aggregate-only flows remain capability-separated. Focused tests pass 3/3; full suite passes 140/140, typecheck, lint, and the 155-route build. | Begin Packet 6 executable Phase 1 security-suite preparation. Authenticated execution remains pending canonical replay. |
 
 ## Human prerequisite lane
 
@@ -104,6 +106,17 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Rollback: revert only the Packet 4 checkpoint. No database, Supabase stack, Auth identity, Storage object, external service, evidence envelope, or runtime configuration was changed.
 - External blocker: authoritative capture, credential/Auth evidence, canonical baseline, and independent approvals remain unavailable. Packets 7–10 cannot close until those artifacts pass validation.
 - Next exact action: execute Packet 5 only, splitting the profiling workspace into capability-specific operational panels without starting Phase 2 or changing runtime flags.
+
+## Packet 5 implementation record
+
+- Files changed: `ProfilingWorkspace`, the new role-panel module, Phase 1 interface traceability, role-interface tests, the adjusted completion-gate source test, and this ledger.
+- Migrations added or modified: none.
+- Commands: focused role-interface tests, complete Node suite, typecheck, lint, and production build.
+- Results: focused 3 passed; full 140 passed; zero failed/skipped; typecheck/lint/build passed; no authenticated browser or database suite was represented as executed.
+- Security/RLS impact: browser controls call only existing capability-protected APIs. Secretary decisions require an opened allowlisted detail and an explicit return reason. Director/Associate analytics remain aggregate-only and the aggregate panel contains no resident drill-through or raw JSON display.
+- Rollback: revert only the Packet 5 checkpoint. No database, Auth, Storage, worker, external service, evidence envelope, or runtime configuration was changed.
+- External blocker: executable role/RLS/browser proof still requires the authoritative capture and canonical disposable chain.
+- Next exact action: execute Packet 6 only, completing fail-closed Phase 1 pgTAP/JWT/RPC/concurrency suite definitions without claiming database execution.
 
 ## Packet 2 implementation record
 

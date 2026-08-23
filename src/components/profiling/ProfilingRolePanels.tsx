@@ -1,0 +1,119 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+export type ProfilingCycleSummary = {
+  id: string;
+  barangay_id: string;
+  barangay_name?: string;
+  name: string;
+  status: string;
+  target_households: number;
+  approved_households: number;
+  row_version: number;
+  captain_endorsed_at: string | null;
+};
+
+export type ProfilingNoticeSummary = { id: string; version: string };
+export type ProfilingSitioSummary = { id: string; name: string };
+export type ProfilingDetail = {
+  id: string;
+  household_code: string;
+  sitio_name: string;
+  row_version: number;
+  household_data?: Record<string, unknown>;
+  residents: Array<{ resident_id: string; resident_code: string; profile: Record<string, unknown>; relationship_to_head: string | null; is_minor: boolean }>;
+  consents?: unknown[];
+};
+
+type RequestJson = (url: string, init?: RequestInit) => Promise<unknown>;
+type AggregateCell = { label?: string; category?: string; count?: number; suppressed?: boolean };
+type AggregateView = {
+  cycle?: { name?: string };
+  sample?: { approvedHouseholds?: number; nonparticipatingHouseholds?: number };
+  coverage?: { percentage?: number };
+  dimensions?: Record<string, AggregateCell[]>;
+  source?: { name?: string } | string;
+  asOfDate?: string;
+  privacy?: { suppressionThreshold?: number };
+};
+
+function readable(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Not stated";
+  if (Array.isArray(value)) return value.length ? value.map(String).join(", ") : "None";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") return "Recorded";
+  return String(value).replaceAll("_", " ");
+}
+
+function FieldGrid({ value }: { value: Record<string, unknown> }) {
+  return <dl className="grid gap-3 sm:grid-cols-2">{Object.entries(value).map(([key, field]) => <div className="rounded border p-3" key={key}><dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{key.replaceAll("_", " ")}</dt><dd className="mt-1 text-sm">{readable(field)}</dd></div>)}</dl>;
+}
+
+export function ProfilingAggregatePanel({ aggregate, cycleId }: { aggregate: AggregateView; cycleId: string }) {
+  const dimensions = Object.entries(aggregate.dimensions ?? {});
+  return <Card data-testid="profiling-aggregate-panel"><CardContent className="space-y-4 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5 text-success" />Approved sample aggregate</h2><div className="flex gap-2"><a className={buttonVariants({ size: "sm", variant: "outline" })} href={`/api/profiling/analytics/${cycleId}/export?format=csv`}>CSV</a><a className={buttonVariants({ size: "sm", variant: "outline" })} href={`/api/profiling/analytics/${cycleId}/export?format=xlsx`}>XLSX</a></div></div>
+    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div><dt className="text-xs text-muted-foreground">Cycle</dt><dd>{readable(aggregate.cycle?.name)}</dd></div><div><dt className="text-xs text-muted-foreground">Approved households</dt><dd>{readable(aggregate.sample?.approvedHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Nonparticipating households</dt><dd>{readable(aggregate.sample?.nonparticipatingHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Coverage</dt><dd>{readable(aggregate.coverage?.percentage)}%</dd></div></dl>
+    {dimensions.map(([name, cells]) => <section key={name}><h3 className="mb-2 text-sm font-semibold capitalize">{name.replaceAll("_", " ")}</h3><div className="flex flex-wrap gap-2">{cells.map((cell, index) => <Badge variant="outline" key={`${name}-${index}`}>{readable(cell.label ?? cell.category)}: {cell.suppressed ? "Suppressed" : readable(cell.count)}</Badge>)}</div></section>)}
+    <p className="text-xs text-muted-foreground">Source: {readable(typeof aggregate.source === "object" ? aggregate.source?.name : aggregate.source)} · As of {readable(aggregate.asOfDate)} · Small-cell threshold {readable(aggregate.privacy?.suppressionThreshold)}</p>
+  </CardContent></Card>;
+}
+
+export function SecretaryReviewPanel({ detail, onClose, onDecision }: { detail: ProfilingDetail; onClose: () => void; onDecision: (decision: "approve" | "return", reason?: string) => Promise<void> }) {
+  const [reason, setReason] = useState("");
+  return <Card className="border-primary" data-testid="secretary-detail-review"><CardHeader><CardTitle className="text-base">Secretary detail review · {detail.household_code}</CardTitle></CardHeader><CardContent className="space-y-4">
+    <section><h3 className="mb-2 font-medium">Current household · {detail.sitio_name}</h3><FieldGrid value={detail.household_data ?? {}} /></section>
+    <section className="space-y-3"><h3 className="font-medium">Complete resident roster</h3>{detail.residents.map((resident) => <article className="rounded border p-3" key={resident.resident_id}><div className="mb-2 flex flex-wrap justify-between gap-2"><strong>{resident.resident_code}</strong><span className="text-xs text-muted-foreground">{resident.is_minor ? "Guardian authorization required" : "Adult consent required"} · {readable(resident.relationship_to_head)}</span></div><FieldGrid value={resident.profile} /></article>)}</section>
+    <section><h3 className="mb-2 font-medium">Consent review</h3><p className="text-sm text-muted-foreground">{detail.consents?.length ?? 0} recorded consent entries. Approval confirms household participation and every adult or guardian basis was inspected.</p></section>
+    <Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Required reason when returning the package" />
+    <div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Close</Button><Button variant="outline" disabled={reason.trim().length < 3} onClick={() => void onDecision("return", reason.trim())}>Return with reason</Button><Button onClick={() => void onDecision("approve")}>Approve reviewed package</Button></div>
+  </CardContent></Card>;
+}
+
+export function ResearcherOperationsPanel({ cycle, sitios, notices, requestJson, onRefresh }: { cycle?: ProfilingCycleSummary; sitios: ProfilingSitioSummary[]; notices: ProfilingNoticeSummary[]; requestJson: RequestJson; onRefresh: () => Promise<void> }) {
+  const [prefix, setPrefix] = useState("");
+  const [sitioName, setSitioName] = useState("");
+  const [sampleRows, setSampleRows] = useState("");
+  const [replacement, setReplacement] = useState({ sampleUnitId: "", reference: "", reason: "" });
+  const [lifecycle, setLifecycle] = useState({ action: "resident_inactive", entityId: "", expectedVersion: "", effectiveOn: "", targetId: "", reason: "" });
+  const [cycleDraft, setCycleDraft] = useState({ name: "", method: "", target: "", starts: "", ends: "", noticeId: notices[0]?.id ?? "" });
+  const [notice, setNotice] = useState({ version: "", text: "", controller: "", contact: "", retention: "", effectiveFrom: "" });
+  const [snapshot, setSnapshot] = useState({ asOf: "", source: "", population: "", households: "", notes: "" });
+  const [assignment, setAssignment] = useState({ motherLeaderId: "", sitioId: sitios[0]?.id ?? "", from: "", to: "" });
+  const [duplicates, setDuplicates] = useState<Array<{ id: string; status?: string; match_type?: string }>>([]);
+  const [duplicateDecision, setDuplicateDecision] = useState<Record<string, { resolution: string; reason: string; linkedId: string }>>({});
+  const barangayId = cycle?.barangay_id ?? "";
+  const defaultSitio = sitios[0]?.id ?? "";
+  const parsedSamples = useMemo(() => sampleRows.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => { const [sample_reference, sitio_id] = line.split(",").map((part) => part.trim()); return { sample_reference, sitio_id: sitio_id || defaultSitio }; }), [sampleRows, defaultSitio]);
+
+  async function act(label: string, url: string, init: RequestInit) {
+    try { await requestJson(url, init); toast.success(label); await onRefresh(); }
+    catch (error) { toast.error(error instanceof Error ? error.message : `${label} failed`); }
+  }
+  const json = (method: string, body: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  async function loadDuplicates() {
+    if (!cycle) return;
+    try { setDuplicates((await requestJson(`/api/profiling/duplicates?cycle_id=${cycle.id}`) ?? []) as Array<{ id: string; status?: string; match_type?: string }>); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Unable to load duplicates"); }
+  }
+
+  return <div className="grid gap-4 xl:grid-cols-2" data-testid="researcher-operations">
+    <Card><CardHeader><CardTitle className="text-base">Barangay and sitio configuration</CardTitle></CardHeader><CardContent className="space-y-3"><Input value={prefix} onChange={(event) => setPrefix(event.target.value.toUpperCase())} placeholder="Immutable code prefix (2–8 characters)" /><Button disabled={!barangayId || !/^[A-Z0-9]{2,8}$/.test(prefix)} onClick={() => void act("Barangay prefix saved", "/api/profiling/configuration/prefix", json("PUT", { barangay_id: barangayId, prefix }))}>Save prefix</Button><div className="flex gap-2"><Input value={sitioName} onChange={(event) => setSitioName(event.target.value)} placeholder="Official sitio name" /><Button variant="outline" disabled={!barangayId || sitioName.trim().length < 2} onClick={() => void act("Sitio created", "/api/profiling/sitios", json("POST", { barangay_id: barangayId, name: sitioName.trim(), aliases: [] }))}>Create sitio</Button></div></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Create profiling cycle</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2"><Input value={cycleDraft.name} onChange={(event) => setCycleDraft((v) => ({ ...v, name: event.target.value }))} placeholder="Cycle name" /><Input value={cycleDraft.method} onChange={(event) => setCycleDraft((v) => ({ ...v, method: event.target.value }))} placeholder="Sampling method" /><Input type="number" min={1} value={cycleDraft.target} onChange={(event) => setCycleDraft((v) => ({ ...v, target: event.target.value }))} placeholder="Target households" /><select className="h-10 rounded-md border bg-background px-3 text-sm" value={cycleDraft.noticeId} onChange={(event) => setCycleDraft((v) => ({ ...v, noticeId: event.target.value }))}>{notices.map((notice) => <option value={notice.id} key={notice.id}>{notice.version}</option>)}</select><Input type="date" value={cycleDraft.starts} onChange={(event) => setCycleDraft((v) => ({ ...v, starts: event.target.value }))} /><Input type="date" value={cycleDraft.ends} onChange={(event) => setCycleDraft((v) => ({ ...v, ends: event.target.value }))} /><Button className="sm:col-span-2" disabled={!barangayId || !cycleDraft.noticeId || !cycleDraft.name || !cycleDraft.method || !cycleDraft.starts || !cycleDraft.ends || Number(cycleDraft.target) < 1} onClick={() => void act("Cycle created", "/api/profiling/cycles", json("POST", { barangay_id: barangayId, name: cycleDraft.name, sample_method: cycleDraft.method, target_households: Number(cycleDraft.target), collection_starts_on: cycleDraft.starts, collection_ends_on: cycleDraft.ends, privacy_notice_id: cycleDraft.noticeId }))}>Create draft cycle</Button></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Privacy readiness</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2"><Input value={notice.version} onChange={(event) => setNotice((v) => ({ ...v, version: event.target.value }))} placeholder="Notice version" /><Input type="date" value={notice.effectiveFrom} onChange={(event) => setNotice((v) => ({ ...v, effectiveFrom: event.target.value }))} /><Input value={notice.controller} onChange={(event) => setNotice((v) => ({ ...v, controller: event.target.value }))} placeholder="Data controller" /><Input value={notice.contact} onChange={(event) => setNotice((v) => ({ ...v, contact: event.target.value }))} placeholder="Privacy contact" /><Textarea className="sm:col-span-2" value={notice.text} onChange={(event) => setNotice((v) => ({ ...v, text: event.target.value }))} placeholder="Approved notice text" /><Textarea className="sm:col-span-2" value={notice.retention} onChange={(event) => setNotice((v) => ({ ...v, retention: event.target.value }))} placeholder="Approved retention summary" /><Button className="sm:col-span-2" disabled={!notice.version || notice.text.trim().length < 20 || !notice.controller || !notice.contact || !notice.retention || !notice.effectiveFrom} onClick={() => void act("Privacy notice created", "/api/profiling/privacy/notice", json("POST", { version: notice.version, notice_text: notice.text, controller_name: notice.controller, privacy_contact: notice.contact, retention_summary: notice.retention, effective_from: notice.effectiveFrom }))}>Create approved notice version</Button></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Official population snapshot</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2"><Input type="date" value={snapshot.asOf} onChange={(event) => setSnapshot((v) => ({ ...v, asOf: event.target.value }))} /><Input value={snapshot.source} onChange={(event) => setSnapshot((v) => ({ ...v, source: event.target.value }))} placeholder="Official source" /><Input type="number" min={0} value={snapshot.population} onChange={(event) => setSnapshot((v) => ({ ...v, population: event.target.value }))} placeholder="Population" /><Input type="number" min={0} value={snapshot.households} onChange={(event) => setSnapshot((v) => ({ ...v, households: event.target.value }))} placeholder="Households" /><Textarea className="sm:col-span-2" value={snapshot.notes} onChange={(event) => setSnapshot((v) => ({ ...v, notes: event.target.value }))} placeholder="Source notes" /><Button className="sm:col-span-2" disabled={!barangayId || !snapshot.asOf || snapshot.source.trim().length < 2} onClick={() => void act("Official snapshot recorded", "/api/profiling/official-snapshots", json("POST", { barangay_id: barangayId, as_of_date: snapshot.asOf, source_name: snapshot.source, total_population: Number(snapshot.population), total_households: Number(snapshot.households), notes: snapshot.notes || null }))}>Record unverified snapshot</Button></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Mother Leader assignment</CardTitle></CardHeader><CardContent className="grid gap-2 sm:grid-cols-2"><Input value={assignment.motherLeaderId} onChange={(event) => setAssignment((v) => ({ ...v, motherLeaderId: event.target.value }))} placeholder="Mother Leader account UUID" /><select className="h-10 rounded-md border bg-background px-3 text-sm" value={assignment.sitioId} onChange={(event) => setAssignment((v) => ({ ...v, sitioId: event.target.value }))}>{sitios.map((sitio) => <option key={sitio.id} value={sitio.id}>{sitio.name}</option>)}</select><Input type="date" value={assignment.from} onChange={(event) => setAssignment((v) => ({ ...v, from: event.target.value }))} /><Input type="date" value={assignment.to} onChange={(event) => setAssignment((v) => ({ ...v, to: event.target.value }))} /><Button className="sm:col-span-2" disabled={!assignment.motherLeaderId || !assignment.sitioId || !assignment.from} onClick={() => void act("Mother Leader assigned", "/api/profiling/assignments", json("POST", { mother_leader_id: assignment.motherLeaderId, sitio_id: assignment.sitioId, effective_from: assignment.from, effective_to: assignment.to || null }))}>Create temporal assignment</Button></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Opaque sample register</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-xs text-muted-foreground">One non-identifying reference per line. Optionally append a sitio UUID after a comma.</p><Textarea value={sampleRows} onChange={(event) => setSampleRows(event.target.value)} placeholder={`SAMPLE-001,${defaultSitio || "sitio-uuid"}`} /><Button disabled={!cycle || parsedSamples.length === 0 || parsedSamples.some((row) => !row.sitio_id)} onClick={() => void act("Sample units registered", "/api/profiling/sample-register", json("POST", { cycle_id: cycle?.id, units: parsedSamples }))}>Register sample units</Button></CardContent></Card>
+    <Card><CardHeader><CardTitle className="text-base">Sample replacement</CardTitle></CardHeader><CardContent className="space-y-2"><Input value={replacement.sampleUnitId} onChange={(event) => setReplacement((v) => ({ ...v, sampleUnitId: event.target.value }))} placeholder="Original sample-unit UUID" /><Input value={replacement.reference} onChange={(event) => setReplacement((v) => ({ ...v, reference: event.target.value }))} placeholder="Replacement opaque reference" /><Textarea value={replacement.reason} onChange={(event) => setReplacement((v) => ({ ...v, reason: event.target.value }))} placeholder="Required replacement reason" /><Button variant="outline" disabled={!replacement.sampleUnitId || !replacement.reference || replacement.reason.trim().length < 3} onClick={() => void act("Replacement recorded", "/api/profiling/sample-register/replacement", json("POST", { sample_unit_id: replacement.sampleUnitId, replacement_reference: replacement.reference, reason: replacement.reason }))}>Record replacement</Button></CardContent></Card>
+    <Card className="xl:col-span-2"><CardHeader><CardTitle className="text-base">Versioned lifecycle correction</CardTitle></CardHeader><CardContent className="grid gap-2 md:grid-cols-3"><select className="h-10 rounded-md border bg-background px-3 text-sm" value={lifecycle.action} onChange={(event) => setLifecycle((v) => ({ ...v, action: event.target.value }))}>{["resident_inactive","resident_deceased","resident_transfer","resident_merge","household_moved","household_dissolved","household_merge","consent_withdrawal"].map((action) => <option key={action} value={action}>{action.replaceAll("_", " ")}</option>)}</select><Input value={lifecycle.entityId} onChange={(event) => setLifecycle((v) => ({ ...v, entityId: event.target.value }))} placeholder="Household/resident UUID" /><Input type="number" min={1} value={lifecycle.expectedVersion} onChange={(event) => setLifecycle((v) => ({ ...v, expectedVersion: event.target.value }))} placeholder="Expected row version" /><Input type="date" value={lifecycle.effectiveOn} onChange={(event) => setLifecycle((v) => ({ ...v, effectiveOn: event.target.value }))} /><Input value={lifecycle.targetId} onChange={(event) => setLifecycle((v) => ({ ...v, targetId: event.target.value }))} placeholder="Target UUID when required" /><Textarea value={lifecycle.reason} onChange={(event) => setLifecycle((v) => ({ ...v, reason: event.target.value }))} placeholder="Required audited reason" /><Button className="md:col-span-3" variant="outline" disabled={!lifecycle.entityId || Number(lifecycle.expectedVersion) < 1 || !lifecycle.effectiveOn || lifecycle.reason.trim().length < 3} onClick={() => void act("Lifecycle correction submitted", "/api/profiling/lifecycle", json("POST", { action: lifecycle.action, entity_id: lifecycle.entityId, expected_version: Number(lifecycle.expectedVersion), effective_on: lifecycle.effectiveOn, reason: lifecycle.reason, target_entity_id: lifecycle.targetId || null }))}>Apply lifecycle correction</Button></CardContent></Card>
+    <Card className="xl:col-span-2"><CardHeader><CardTitle className="flex items-center justify-between text-base"><span>Duplicate escalation</span><Button size="sm" variant="outline" onClick={() => void loadDuplicates()}>Refresh candidates</Button></CardTitle></CardHeader><CardContent className="space-y-3">{duplicates.length === 0 && <p className="text-sm text-muted-foreground">No unresolved candidates loaded.</p>}{duplicates.map((candidate) => { const decision = duplicateDecision[candidate.id] ?? { resolution: "distinct", reason: "", linkedId: "" }; return <div className="grid gap-2 rounded border p-3 md:grid-cols-4" key={candidate.id}><div className="text-xs"><p className="font-mono">{candidate.id}</p><p>{readable(candidate.match_type)}</p></div><select className="h-10 rounded-md border bg-background px-3 text-sm" value={decision.resolution} onChange={(event) => setDuplicateDecision((v) => ({ ...v, [candidate.id]: { ...decision, resolution: event.target.value } }))}>{["linked","distinct","exclude"].map((value) => <option key={value} value={value}>{value}</option>)}</select><Input value={decision.linkedId} onChange={(event) => setDuplicateDecision((v) => ({ ...v, [candidate.id]: { ...decision, linkedId: event.target.value } }))} placeholder="Linked entity UUID" disabled={decision.resolution !== "linked"} /><div className="flex gap-2"><Input value={decision.reason} onChange={(event) => setDuplicateDecision((v) => ({ ...v, [candidate.id]: { ...decision, reason: event.target.value } }))} placeholder="Reason" /><Button disabled={decision.reason.trim().length < 3 || (decision.resolution === "linked" && !decision.linkedId)} onClick={() => void act("Duplicate resolved", `/api/profiling/duplicates/${candidate.id}/resolve`, json("POST", { resolution: decision.resolution, reason: decision.reason, linked_entity_id: decision.linkedId || null }))}>Resolve</Button></div></div>; })}</CardContent></Card>
+  </div>;
+}

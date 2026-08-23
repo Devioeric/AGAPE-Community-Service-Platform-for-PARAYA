@@ -60,11 +60,12 @@ test("profiling mutations use scoped cycle context and database-returned row ver
 
 test("the UI cannot assert minor status and Secretary approval requires detail review", async () => {
   const workspace = await source("src/components/profiling/ProfilingWorkspace.tsx");
+  const panels = await source("src/components/profiling/ProfilingRolePanels.tsx");
   const contracts = await source("src/lib/profiling/contracts.ts");
   assert.doesNotMatch(workspace, /is_minor:\s*(resident|minor|event)/);
   assert.doesNotMatch(contracts, /is_minor:/);
   assert.match(workspace, /Review details/);
-  assert.match(workspace, /Secretary detail review/);
+  assert.match(panels, /Secretary detail review/);
 });
 
 test("legacy household evidence is redacted and new profiling links use completed aggregate snapshots", async () => {

@@ -6,6 +6,7 @@ import {
   applyOwnerApprovals,
   parseGitPorcelainZ,
   scanFileForSecretRuleIds,
+  shouldScanReleaseEntry,
   summarizeManifestEntries,
 } from "./lib/release-inclusion.mjs";
 
@@ -58,7 +59,7 @@ async function main() {
 
   for (const statusEntry of statusEntries) {
     const classified = classifyReleasePath(statusEntry.path);
-    const secretRuleIds = classified.classification === "include"
+    const secretRuleIds = shouldScanReleaseEntry({ ...statusEntry, ...classified })
       ? await scanFileForSecretRuleIds(resolve(root, statusEntry.path), statusEntry.path)
       : [];
     entries.push(applyOwnerApprovals({ ...statusEntry, ...classified, secretRuleIds }, approvals));

@@ -1,16 +1,32 @@
-# Credential rotation evidence template
+# Credential Rotation evidence template
 
 Template-Only: true
 Evidence-Status: DRAFT
 Evidence-Result: NOT EXECUTED
-Environment: production
+Environment: <production>
 Executed-Date: YYYY-MM-DD
-Operator: Full Name (Supabase Owner)
-Reviewer: Different Full Name (Security Reviewer)
-Release-Revision: <immutable-git-commit>
-Evidence-Reference: <private-dashboard-evidence-reference>
-Artifact-SHA256: <64-hex-sha256>
+Operator: Full Name (<Supabase Owner>)
+Reviewer: Different Full Name (<Security Reviewer>)
+Release-Revision: <40-character-release-commit-R>
+Evidence-Reference: <private-opaque-reference>
+Artifact-SHA256: <64-lowercase-hex>
+Suite-ID: agape.phase1.credential-rotation.v1
+Suite-Version: 1.0.0
+Passed-Cases: <integer-at-least-1>
+Failed-Cases: 0
+Skipped-Cases: 0
 
-Record only credential class, affected consumers, revocation time, sanitized
-old-credential rejection result, replacement deployment confirmation, and
-independent review. Never record either credential value.
+## Objective
+
+State the exact control, environment, release candidate, and private bundle tested.
+
+## Procedure and cases
+
+Record sanitized command identifiers and case counts. Do not include credentials,
+JWTs, connection strings, personal data, uploaded documents, or database rows.
+
+## Results and independent review
+
+Record discrepancies, remediation references, and the opaque private bundle
+reference. The reviewer confirms the evidence applies to release commit R and that
+zero failed or skipped mandatory cases are represented as passing.

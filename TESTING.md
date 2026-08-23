@@ -61,8 +61,10 @@ npm.cmd test
 npm.cmd run typecheck
 npm.cmd run lint
 npm.cmd run build
-npm.cmd run db:validate-evidence -- --schema <private-schema-only.sql> --ledger <private-ledger-version-file> --catalog-dir <private-catalog-directory>
+npm.cmd run db:validate-evidence -- --capture-dir <private-authoritative-capture>
 npm.cmd run db:inventory -- --check --ledger <private-ledger-version-file>
+npm.cmd run db:schema-equivalence -- --authoritative <private-schema-only.sql> --replay <private-replay-schema.sql>
+npm.cmd run db:catalog-equivalence -- --authoritative-capture <private-authoritative-capture> --replay-capture <private-replay-capture>
 npm.cmd run test:db:preflight
 ```
 
@@ -80,6 +82,9 @@ run the complete local gate:
 
 ```powershell
 $env:AGAPE_DB_TEST_CONFIRM_DISPOSABLE = "agape-release-gate"
+npm.cmd run test:db:phase1
+npm.cmd run test:db:phase2
+# or run both sequentially:
 npm.cmd run test:db:gates
 ```
 
@@ -89,6 +94,18 @@ replays, compares schema hashes, executes pgTAP, validates the reviewed
 `.invalid` synthetic fixture, and finally checks the legacy development seed in
 a separate replay. It stops and removes only that known temporary stack and
 does not write release evidence automatically.
+
+Before the baseline is promoted or legacy SQL is archived, an authorized private
+candidate can be replayed without copying unordered migrations into the temporary
+project:
+
+```powershell
+node scripts/run-local-database-gates.mjs --replay-only --scope reconciliation-applied --baseline-candidate <private-baseline.sql> --capture-dir <private-authoritative-capture>
+node scripts/run-local-database-gates.mjs --replay-only --scope reconciliation-full --baseline-candidate <private-baseline.sql> --capture-dir <private-authoritative-capture>
+```
+
+This candidate mode never promotes the baseline or edits the repository. A
+passing replay still requires schema/catalog equivalence and independent review.
 
 ## Direct database acceptance matrix
 

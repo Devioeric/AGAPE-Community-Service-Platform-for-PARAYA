@@ -30,5 +30,6 @@ canonical pre-Phase-0 baseline has been captured from the reconciled live schema
   malware-scanning/risk-acceptance approval;
 - official implementation date/source inventory and legacy-account cutover sign-off.
 
-Until every artifact exists under `docs/release-evidence/phase-1/` and
-`docs/release-evidence/phase-2/`, Phase 3 remains blocked.
+Until every Phase 1 artifact exists directly under `docs/release-evidence/` and
+every Phase 2 artifact exists under `docs/release-evidence/phase-2/`, Phase 3
+remains blocked.

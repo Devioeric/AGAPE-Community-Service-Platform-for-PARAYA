@@ -18,12 +18,18 @@ Reviewer: Different Full Name (Role)
 Release-Revision: immutable hexadecimal Git commit
 Evidence-Reference: access-controlled private evidence identifier
 Artifact-SHA256: SHA-256 of the referenced private evidence bundle
+Suite-ID: registered suite identifier
+Suite-Version: semantic suite version
+Passed-Cases: positive integer
+Failed-Cases: 0
+Skipped-Cases: 0
 ```
 
-Use `disposable-clone`, `development`, `staging`, or `production` for the
-environment. Placeholders, `TBD`, template warnings, role-only reviewers, future
-dates, and missing references fail the automated gate. The reviewer must be a
-named person different from the operator.
+Each generated template lists the exact allowed environment and operator/reviewer
+roles for that artifact. Placeholders, `TBD`, template warnings, abbreviated
+commits, role-only reviewers, future dates, missing references, and mandatory
+skips fail the automated gate. The reviewer must be a named person different
+from the operator.
 
 Start from [`templates/executed-evidence.template.md`](templates/executed-evidence.template.md)
 or the relevant specialized template. Templates remain `Template-Only: true`
@@ -128,13 +134,28 @@ Use the [rollback template](templates/rollback-rehearsal.template.md).
 
 ## 7. Submit evidence
 
-1. Copy a template to the exact required filename only after executing the work.
-2. Replace every placeholder, remove the template warning, and use the required
+1. Freeze a clean executable release candidate commit `R`. Run every suite and
+   produce every private bundle against that exact 40-character commit.
+2. Copy a generated template to the exact required filename only after executing the work.
+3. Replace every placeholder, remove the template warning, and use the required
    envelope. Mark unresolved checks failed; do not omit them.
-3. Keep raw artifacts private and reference them by access-controlled identifier
+4. Keep raw artifacts private and reference them by access-controlled identifier
    plus the SHA-256 of the reviewed private artifact bundle.
-4. Obtain independent review, then run both applicable release-gate checkers.
-5. Treat a passing checker as envelope/digest validation. A release owner must
+5. Create evidence commit `E` containing only the exact approved Markdown files
+   under `docs/release-evidence/`. Commit `R` must be an ancestor of `E`; any
+   executable change after `R` invalidates the evidence.
+6. Create a private JSON index outside the repository using schema
+   `agape.private-artifact-index.v1`. It binds each opaque reference to one local
+   encrypted bundle path and SHA-256, and names release commit `R`.
+7. From a clean `E`, run:
+
+   ```powershell
+   npm.cmd run test:release-gate -- --release-revision <R> --artifact-index <private-index>
+   npm.cmd run test:phase2-release-gate -- --release-revision <R> --artifact-index <private-index>
+   ```
+
+   Public CI may use `--envelope-only`, but that mode cannot approve release.
+8. Treat a passing checker as envelope/digest validation. A release owner must
    still review the underlying evidence and authorize the release separately.
 
 Environment, configuration, migration, processor, privacy notice, or mapped-set

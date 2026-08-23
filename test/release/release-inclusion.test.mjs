@@ -8,6 +8,7 @@ import {
   applyOwnerApprovals,
   parseGitPorcelainZ,
   scanFileForSecretRuleIds,
+  shouldScanReleaseEntry,
   summarizeManifestEntries,
 } from "../../scripts/lib/release-inclusion.mjs";
 
@@ -25,6 +26,11 @@ test("git porcelain parser preserves spaces and tracked state", () => {
     { path: "package.json", state: " M", tracked: true },
     { path: "ProcessFiles Paraya/source.pdf", state: "??", tracked: false },
   ]);
+});
+
+test("deleted include paths are classified but not opened for secret scanning", () => {
+  assert.equal(shouldScanReleaseEntry({ classification: "include", state: " D" }), false);
+  assert.equal(shouldScanReleaseEntry({ classification: "include", state: "M " }), true);
 });
 
 test("manifest summary counts classifications and secret rules", () => {

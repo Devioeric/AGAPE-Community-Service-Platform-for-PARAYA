@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 
 export const BASELINE_FILE = "20260815000000_pre_phase0_baseline.sql";
 export const DISPOSABLE_CONFIRMATION = "agape-release-gate";
+export const PHASE1_CUTOFF = "20260817000410";
 export const PHASE_FLAGS = [
   "AGAPE_PROFILING_V2_ENABLED",
   "AGAPE_PARTNER_REGISTRY_V2_ENABLED",
@@ -16,6 +17,17 @@ export const PHASE_FLAGS = [
 ];
 
 const TIMESTAMPED_MIGRATION = /^(\d{14})_[a-z0-9_]+\.sql$/;
+
+export function selectMigrationNames(names, { scope = "phase2", appliedVersions = [] } = {}) {
+  const timestamped = names.filter((name) => TIMESTAMPED_MIGRATION.test(name)).sort();
+  if (scope === "phase1") return timestamped.filter((name) => name.slice(0, 14) <= PHASE1_CUTOFF);
+  if (scope === "phase2" || scope === "reconciliation-full") return timestamped;
+  if (scope === "reconciliation-applied") {
+    const allowed = new Set(appliedVersions);
+    return timestamped.filter((name) => name === BASELINE_FILE || allowed.has(name.slice(0, 14)));
+  }
+  throw new Error(`unsupported database-gate scope ${scope}`);
+}
 
 export function inspectMigrationNames(names) {
   const sqlNames = names.filter((name) => name.endsWith(".sql")).sort();
@@ -51,6 +63,7 @@ const REMOTE_ENVIRONMENT_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD", "DATABASE_URL", "POSTGRES_URL",
   "POSTGRES_PRISMA_URL", "POSTGRES_URL_NON_POOLING",
+  "SUPABASE_PROJECT_ID", "SUPABASE_PROJECT_REF", "SUPABASE_URL",
 ];
 
 export function isolatedChildEnvironment(env = process.env) {
@@ -61,13 +74,19 @@ export function isolatedChildEnvironment(env = process.env) {
   return result;
 }
 
-export async function prepareIsolatedSupabaseProject(root) {
+export async function prepareIsolatedSupabaseProject(root, { migrationNames = null, baselineCandidate = null } = {}) {
   const privateRoot = await mkdtemp(join(tmpdir(), "agape-release-gate-"));
   const workspace = join(privateRoot, "workspace");
   const source = join(root, "supabase");
   const target = join(workspace, "supabase");
   await mkdir(target, { recursive: true });
-  await cp(join(source, "migrations"), join(target, "migrations"), { recursive: true });
+  const targetMigrations = join(target, "migrations");
+  await mkdir(targetMigrations, { recursive: true });
+  const names = migrationNames ?? await readdir(join(source, "migrations"));
+  for (const name of names) {
+    if (name === BASELINE_FILE && baselineCandidate) await cp(resolve(baselineCandidate), join(targetMigrations, BASELINE_FILE));
+    else await cp(join(source, "migrations", name), join(targetMigrations, name));
+  }
   await cp(join(source, "tests"), join(target, "tests"), { recursive: true });
   await cp(join(source, "seed.sql"), join(target, "seed.sql"));
 
@@ -94,7 +113,7 @@ export async function prepareIsolatedSupabaseProject(root) {
   };
 }
 
-export async function collectStaticPreflightFailures(root, env = process.env) {
+export async function collectStaticPreflightFailures(root, env = process.env, { scope = "phase2", baselineCandidate = null, appliedVersions = [] } = {}) {
   const failures = [];
   const migrationDir = resolve(root, "supabase", "migrations");
   const configPath = resolve(root, "supabase", "config.toml");
@@ -111,7 +130,20 @@ export async function collectStaticPreflightFailures(root, env = process.env) {
   let migrationNames = [];
   try {
     migrationNames = await readdir(migrationDir);
-    failures.push(...inspectMigrationNames(migrationNames));
+    if (scope.startsWith("reconciliation-")) {
+      if (!baselineCandidate) failures.push("reconciliation replay requires a private baseline candidate");
+      else {
+        try { await access(resolve(baselineCandidate), fsConstants.R_OK); }
+        catch { failures.push("private baseline candidate is missing or unreadable"); }
+      }
+      const selected = selectMigrationNames(migrationNames, { scope, appliedVersions });
+      failures.push(...inspectMigrationNames([BASELINE_FILE, ...selected.filter((name) => name !== BASELINE_FILE)]));
+    } else {
+      failures.push(...inspectMigrationNames(migrationNames));
+      if (scope === "phase1" && migrationNames.some((name) => TIMESTAMPED_MIGRATION.test(name) && name.slice(0, 14) > PHASE1_CUTOFF)) {
+        // Later migrations are allowed in the repository but excluded from the isolated Phase 1 project.
+      }
+    }
   } catch {
     failures.push("supabase/migrations is missing or unreadable");
   }
@@ -199,4 +231,19 @@ export async function dockerEngineFailure(root) {
   } catch {
     return "Docker CLI or Docker engine is unavailable";
   }
+}
+
+export function validateLocalSupabaseStatus(status) {
+  const failures = [];
+  if (!status || typeof status !== "object") return ["Supabase status JSON is malformed"];
+  for (const [key, value] of Object.entries(status)) {
+    if (typeof value !== "string" || !/(?:url|uri|host|db)/i.test(key)) continue;
+    if (/^(?:https?|postgres(?:ql)?):\/\//i.test(value)) {
+      try {
+        const host = new URL(value).hostname;
+        if (!['127.0.0.1', 'localhost', '::1'].includes(host)) failures.push(`${key} is not loopback`);
+      } catch { failures.push(`${key} is not a valid local endpoint`); }
+    }
+  }
+  return failures;
 }

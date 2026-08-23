@@ -7,6 +7,8 @@ import {
   inspectMigrationNames,
   isolatedChildEnvironment,
   redactProcessOutput,
+  selectMigrationNames,
+  validateLocalSupabaseStatus,
 } from "../../scripts/lib/local-database-gate.mjs";
 
 test("database gate requires one canonical first migration and rejects unordered SQL", () => {
@@ -30,6 +32,15 @@ test("database gate rejects duplicate migration timestamps", () => {
     "20260816000100_second.sql",
   ]).join("\n");
   assert.match(failures, /duplicate migration timestamp 20260816000100/);
+});
+
+test("database gate selects deterministic Phase 1 and applied-reconciliation cutoffs", () => {
+  const names = [
+    BASELINE_FILE, "20260816000100_phase0.sql", "20260817000410_phase1.sql",
+    "20260818000100_phase2.sql", "legacy.sql",
+  ];
+  assert.deepEqual(selectMigrationNames(names, { scope: "phase1" }), names.slice(0, 3));
+  assert.deepEqual(selectMigrationNames(names, { scope: "reconciliation-applied", appliedVersions: ["20260816000100"] }), [BASELINE_FILE, "20260816000100_phase0.sql"]);
 });
 
 test("database gate redacts local database passwords, JWTs, and key output", () => {
@@ -59,6 +70,11 @@ test("database gate strips every remote Supabase credential and forces features 
   assert.equal(child.AGAPE_PROPOSALS_V2_ENABLED, "false");
   assert.equal(child.SAFE_VALUE, "kept");
   assert.equal(child.AGAPE_DB_TEST_ISOLATED, "true");
+});
+
+test("database gate rejects any non-loopback Supabase status endpoint", () => {
+  assert.deepEqual(validateLocalSupabaseStatus({ API_URL: "http://127.0.0.1:54321", DB_URL: "postgresql://postgres:x@localhost:54322/postgres" }), []);
+  assert.match(validateLocalSupabaseStatus({ API_URL: "https://remote.supabase.co" }).join("\n"), /not loopback/);
 });
 
 test("database gate source separates reviewed synthetic and legacy seed replays", async () => {

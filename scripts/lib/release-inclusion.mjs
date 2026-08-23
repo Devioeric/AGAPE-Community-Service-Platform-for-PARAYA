@@ -137,6 +137,10 @@ export function applyOwnerApprovals(entry, approvals = {}) {
   };
 }
 
+export function shouldScanReleaseEntry(entry) {
+  return entry.classification === "include" && !entry.state.includes("D");
+}
+
 function isTextCandidate(path) {
   if ([".gitignore", "Dockerfile"].includes(path)) return true;
   return TEXT_EXTENSIONS.has(extname(path).toLowerCase());

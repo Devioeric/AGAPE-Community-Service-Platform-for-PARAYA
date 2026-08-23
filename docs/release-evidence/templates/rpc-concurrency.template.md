@@ -1,37 +1,20 @@
-# Phase2 Release Authorization evidence template
+# Rpc Concurrency evidence template
 
 Template-Only: true
 Evidence-Status: DRAFT
 Evidence-Result: NOT EXECUTED
-Environment: <staging>
+Environment: <disposable-clone>
 Executed-Date: YYYY-MM-DD
-Operator: Full Name (<Release Coordinator>)
-Reviewer: Different Full Name (<Release Owner>)
+Operator: Full Name (<Security Test Operator|QA Operator|Database Operator|E2E Operator>)
+Reviewer: Different Full Name (<Security Reviewer|QA Reviewer|Database Reviewer|Release Owner>)
 Release-Revision: <40-character-release-commit-R>
 Evidence-Reference: <private-opaque-reference>
 Artifact-SHA256: <64-lowercase-hex>
-Suite-ID: agape.phase2.release-authorization.v1
+Suite-ID: agape.phase1.rpc-concurrency.v1
 Suite-Version: 1.0.0
 Passed-Cases: <integer-at-least-1>
 Failed-Cases: 0
 Skipped-Cases: 0
-AGAPE-Profiling-Flag: false
-AGAPE-Partner-Registry-Flag: false
-AGAPE-Historical-Programs-Flag: false
-AGAPE-Proposals-Flag: false
-AGAPE-Program-Finance-Flag: false
-AGAPE-External-Contact-Email-Flag: false
-Profiling-Runtime-Mode: off
-Partner-Registry-Mode: off
-Historical-Programs-Mode: off
-Structured-Proposals-Mode: off
-Program-Finance-Mode: off
-External-Contact-Email-Mode: off
-Partner-Mutation-Authority: v1
-Proposal-Mutation-Authority: v1
-Gated-Workers: stopped-or-no-op
-Suppressed-Messages-Released: false
-Production-Activation-Authorized: false
 
 ## Objective
 

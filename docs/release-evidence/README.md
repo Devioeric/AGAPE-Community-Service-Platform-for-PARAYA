@@ -48,16 +48,21 @@ executed files directly in this directory:
 - `phase1-release-authorization.md`
 
 Each artifact must include the exact machine-readable fields documented by the
-[operator runbook](operator-runbook.md), including `Evidence-Status: APPROVED`,
-`Evidence-Result: PASS`, a real environment, execution date, named reviewer,
-release revision, and non-placeholder private evidence reference. The baseline
-manifest must contain the reviewed SHA-256 of the canonical baseline and match
-the file byte-for-byte. Every artifact also records `Artifact-SHA256`, binding
-the committed review envelope to the private evidence bundle that was reviewed.
+[operator runbook](operator-runbook.md), including its registered suite ID and
+version, zero failed/skipped cases, and the full 40-character release commit
+`R`. The baseline manifest binds two clean replay hashes and the catalog digest
+to the reviewed baseline bytes. `Artifact-SHA256` binds each committed envelope
+to one encrypted private bundle outside the repository.
 
-Running `npm.cmd run test:release-gate` is necessary but not sufficient. It
-validates the evidence envelope and baseline digest, not the truth of private
-screenshots, test logs, or approvals. The release owner must still inspect them.
+The final local command is:
+
+```powershell
+npm.cmd run test:release-gate -- --release-revision <40-character-R> --artifact-index <private-index>
+```
+
+`--envelope-only` is available for public CI, but cannot approve a release.
+Both modes validate envelopes; only the private-index mode recomputes the
+outside-repository bundle hashes. Human review remains mandatory.
 
 Use the [release-gate matrix](release-gate-matrix.md) for dependencies and the
 [operator runbook](operator-runbook.md) for safe evidence capture. Phase 2 is

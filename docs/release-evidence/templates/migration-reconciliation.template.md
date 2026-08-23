@@ -1,35 +1,38 @@
-# Migration reconciliation evidence template
+# Migration Reconciliation evidence template
 
 Template-Only: true
 Evidence-Status: DRAFT
 Evidence-Result: NOT EXECUTED
-Environment: production
+Environment: <production>
 Executed-Date: YYYY-MM-DD
-Operator: Full Name (Database Operator)
-Reviewer: Different Full Name (Database Reviewer)
-Release-Revision: <immutable-git-commit>
-Evidence-Reference: <private-reconciliation-matrix-reference>
-Artifact-SHA256: <64-hex-sha256>
+Operator: Full Name (<Database Operator>)
+Reviewer: Different Full Name (<Database Reviewer|Security Reviewer>)
+Release-Revision: <40-character-release-commit-R>
+Evidence-Reference: <private-opaque-reference>
+Artifact-SHA256: <64-lowercase-hex>
+Suite-ID: agape.phase1.migration-reconciliation.v1
+Suite-Version: 1.0.0
+Passed-Cases: <integer-at-least-1>
+Failed-Cases: 0
+Skipped-Cases: 0
+Repository-Inventory-SHA256: <required-repository-inventory-sha256>
+Current-Ledger-SHA256: <required-current-ledger-sha256>
+Intended-Ledger-SHA256: <required-intended-ledger-sha256>
+Baseline-Cut-Branch: <required-baseline-cut-branch>
+Unresolved-Items: 0
+Security-Unresolved-Items: 0
 
-## Baseline-cut branch
+## Objective
 
-Record exactly one: no timestamped migration applied; historical pre-Phase-0
-snapshot; or reviewed reverse attribution from current schema. Explain why the
-other branches do not apply.
+State the exact control, environment, release candidate, and private bundle tested.
 
-## Object matrix summary
+## Procedure and cases
 
-| Classification | Count | Resolved | Open |
-|---|---:|---:|---:|
-| Matched | 0 | 0 | 0 |
-| Live only | 0 | 0 | 0 |
-| Repository only | 0 | 0 | 0 |
-| Definition drift | 0 | 0 | 0 |
-| Order unknown | 0 | 0 | 0 |
-| Superseded | 0 | 0 | 0 |
-| Needs confirmation | 0 | 0 | 0 |
+Record sanitized command identifiers and case counts. Do not include credentials,
+JWTs, connection strings, personal data, uploaded documents, or database rows.
 
-Reference the private row-level matrix containing object, authoritative hash,
-repository source, ledger evidence, dependency, security impact, baseline
-treatment, forward fix, verification query, and rollback. Approval requires no
-unresolved security-relevant or baseline-cut item.
+## Results and independent review
+
+Record discrepancies, remediation references, and the opaque private bundle
+reference. The reviewer confirms the evidence applies to release commit R and that
+zero failed or skipped mandatory cases are represented as passing.

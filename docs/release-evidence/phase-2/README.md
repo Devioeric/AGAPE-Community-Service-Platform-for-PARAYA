@@ -24,3 +24,12 @@ receipts, or other personal data in this repository.
 Executed files must use the evidence envelope in the parent
 [`operator-runbook.md`](../operator-runbook.md). Templates are kept under
 [`../templates/`](../templates/) and can never satisfy the release checker.
+
+Final verification inherits every Phase 1 artifact and uses:
+
+```powershell
+npm.cmd run test:phase2-release-gate -- --release-revision <40-character-R> --artifact-index <private-index>
+```
+
+All Phase 1 files remain directly under `docs/release-evidence/`; there is no
+`phase-1/` evidence directory.

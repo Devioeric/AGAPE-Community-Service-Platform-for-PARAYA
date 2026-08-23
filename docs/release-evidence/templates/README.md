@@ -10,3 +10,8 @@ A template, example, locally generated informational report, or self-approval
 cannot close a release gate. The release candidate must also be a clean,
 immutable Git revision, the reviewer must differ from the operator, and
 `Artifact-SHA256` must identify the exact private bundle that was reviewed.
+
+Templates are generated from the executable artifact registry with
+`npm.cmd run release:generate-evidence-templates`. A generated template includes
+the exact suite ID, authorized role choices, allowed environment choices, and
+artifact-specific state fields. Generation never creates executed evidence.

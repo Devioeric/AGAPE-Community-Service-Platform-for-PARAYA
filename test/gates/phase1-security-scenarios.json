@@ -1,0 +1,29 @@
+{
+  "schema": "agape.phase1-security-scenarios.v1",
+  "mandatorySuites": ["catalog", "jwt", "rpc-abuse", "concurrency", "storage"],
+  "roles": ["admin", "paraya_director", "paraya_associate", "paraya_researcher", "finance_officer", "barangay_captain", "barangay_secretary", "barangay_mother_leader", "volunteer"],
+  "accountStates": ["active", "pending", "inactive", "suspended"],
+  "jwtCases": [
+    { "id": "admin-profiling-denied", "actor": "admin@release-gate.invalid", "operation": "read", "boundary": "profiling_households", "expected": "no_rows_no_mutation" },
+    { "id": "researcher-cycle-read", "actor": "researcher@release-gate.invalid", "operation": "read", "boundary": "profiling_cycles", "expected": "allowlisted_rows" },
+    { "id": "deny-override-profiling", "actor": "deny-profiling@release-gate.invalid", "operation": "rpc", "boundary": "phase1_list_profiling_cycles", "expected": "denied_no_side_effect" },
+    { "id": "finance-resident-denied", "actor": "finance@release-gate.invalid", "operation": "read", "boundary": "profiling_residents", "expected": "no_rows_no_mutation" },
+    { "id": "legacy-resident-denied", "actor": "office-history@release-gate.invalid", "operation": "read", "boundary": "profiling_residents", "expected": "no_rows_no_mutation" },
+    { "id": "mother-cross-sitio-denied", "actor": "mother-cross-sitio@release-gate.invalid", "operation": "read", "boundary": "profiling_submissions", "expected": "scoped_rows_only" },
+    { "id": "mother-unassigned-denied", "actor": "mother-unassigned@release-gate.invalid", "operation": "insert", "boundary": "profiling_submissions", "expected": "denied_no_side_effect" },
+    { "id": "mother-expired-denied", "actor": "mother-expired@release-gate.invalid", "operation": "rpc", "boundary": "phase1_create_profiling_submission", "expected": "denied_no_side_effect" },
+    { "id": "pending-auth-denied", "actor": "pending@release-gate.invalid", "operation": "read", "boundary": "profiling_cycles", "expected": "denied_no_side_effect" },
+    { "id": "inactive-auth-denied", "actor": "inactive@release-gate.invalid", "operation": "read", "boundary": "profiling_cycles", "expected": "denied_no_side_effect" },
+    { "id": "suspended-auth-denied", "actor": "suspended@release-gate.invalid", "operation": "read", "boundary": "profiling_cycles", "expected": "denied_no_side_effect" }
+  ],
+  "rpcAbuseCases": [
+    "unknown-key", "protected-key", "wrong-json-type", "prohibited-synonym", "pii-category-canary", "minor-consent-contradiction", "guardian-consent-contradiction", "invalid-pregnancy-period", "cross-cycle-id", "cross-sample-id", "cross-sitio-id", "cross-resident-id", "stale-version", "malformed-import", "altered-hash", "forged-total"
+  ],
+  "concurrencyCases": [
+    "code-allocation", "create-versus-submit", "approve-versus-return", "duplicate-versus-commit", "revision-race", "resident-transfer", "resident-death", "resident-merge", "consent-withdraw-regrant", "cycle-completion"
+  ],
+  "storageCases": [
+    "anonymous-list", "unauthorized-read", "unauthorized-upload", "unauthorized-update", "unauthorized-delete", "cross-parent", "cross-barangay", "caller-path", "traversal", "oversize", "mime-spoof", "quarantine-download", "signed-url-expiry", "audited-download", "orphan-compensation"
+  ],
+  "raceAcceptance": { "materialWinners": 1, "immutableWinningEvents": 1, "partialGraphs": 0, "mandatorySkips": 0 }
+}

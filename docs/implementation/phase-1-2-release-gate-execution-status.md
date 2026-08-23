@@ -11,6 +11,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Packet 2 intermediate revision: `854ce1e11e3b096fc4d6914a5debab8773fcee30`
 - Packet 3 intermediate revision: `0e21c21c926b5001b6c78db1f107859efff63974`
 - Packet 4 intermediate revision: `b35550ac09903ddc57ec9203b92f5cec578ce0ad`
+- Packet 5 intermediate revision: `88625b13b52a5c21471c1806cd2e0d00ce19205d`
 - Production/shared deployment authorized: No
 - Profiling application flag: `false`
 - Phase 2 application flags: `false`
@@ -41,6 +42,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 
 | 4 — Deterministic Phase 1 corrections | locally_complete | Locked the strict aggregate v2 sample contract to include nonparticipating households, returned actual submission row versions, removed hard-coded mutation versions, aligned Captain endorsement and minor derivation, preserved imported resident linkage, rejected normalized duplicate/unknown headers, and replaced direct service-role cycle reads with actor-scoped RPC-backed context. Focused tests pass 12/12; the full suite passes 137/137, typecheck, lint, and the 155-route build. | Packet 5 completed; retain the dedicated database RPC work for Packet 9. |
 | 5 — Phase 1 role interfaces | locally_complete | Added a traceability matrix and extracted Researcher operations, structured Secretary review, and structured aggregate panels. Researcher browser controls now cover prefix, sitios, privacy notice, official snapshot intake, cycle creation, sample register/replacement, assignments, duplicate resolution, and expected-version lifecycle correction. Existing Mother Leader, Captain, and aggregate-only flows remain capability-separated. Focused tests pass 3/3; full suite passes 140/140, typecheck, lint, and the 155-route build. | Begin Packet 6 executable Phase 1 security-suite preparation. Authenticated execution remains pending canonical replay. |
+| 6 — Phase 1 executable security definitions | locally_complete | Added dynamic Phase 1 catalog and seeded pgTAP, a versioned mandatory scenario registry covering all nine roles, account states, JWT boundaries, 16 malicious RPC classes, 10 races, and 15 Storage behaviors, plus strict definition/plan-count validation. Focused tests pass 3/3; full suite passes 143/143, typecheck, lint, and the 155-route build. These are reviewed executable definitions, not database execution evidence. | Packet 7 is blocked until credential rotation and the encrypted authoritative schema/ledger/catalog capture are supplied outside Git. |
 
 ## Human prerequisite lane
 
@@ -117,6 +119,17 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Rollback: revert only the Packet 5 checkpoint. No database, Auth, Storage, worker, external service, evidence envelope, or runtime configuration was changed.
 - External blocker: executable role/RLS/browser proof still requires the authoritative capture and canonical disposable chain.
 - Next exact action: execute Packet 6 only, completing fail-closed Phase 1 pgTAP/JWT/RPC/concurrency suite definitions without claiming database execution.
+
+## Packet 6 implementation record
+
+- Files changed: dynamic Phase 1 catalog pgTAP, seeded fixture-invariant pgTAP, mandatory security-scenario registry and validator, focused source tests, executable-matrix documentation, package command, and this ledger.
+- Migrations added or modified: none.
+- Commands: security-definition validator, focused suite-definition tests, complete Node suite, typecheck, lint, and production build.
+- Results: registry counts are 11 JWT, 16 RPC-abuse, 10 concurrency, and 15 Storage cases; focused 3 passed; full 143 passed; zero failed/skipped; typecheck/lint/build passed. PostgreSQL/PostgREST/Auth/Storage suites were not executed and no evidence was created.
+- Security/RLS impact: the pgTAP catalog suite dynamically checks every application table, canonical module mapping, runtime-off state, fixed definer search paths, Admin isolation, and `PUBLIC`/`anon` execution removal. Concrete denial/no-side-effect and race assertions remain mandatory at execution time.
+- Rollback: revert only the Packet 6 checkpoint. No database, Docker stack, Auth identity, Storage object, external service, evidence envelope, or runtime configuration was changed.
+- External blocker: Packet 7 requires credential-rotation confirmation and a valid encrypted authoritative capture containing schema, ledger, catalog, grants, RLS, and Storage evidence. These have not been supplied.
+- Next exact action: the authorized Supabase owner and database operator provide Packet 1 artifacts outside Git; then validate the capture and select the evidenced baseline branch in Packet 7.
 
 ## Packet 2 implementation record
 

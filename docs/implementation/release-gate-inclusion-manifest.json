@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "b35550ac09903ddc57ec9203b92f5cec578ce0ad",
+  "head": "88625b13b52a5c21471c1806cd2e0d00ce19205d",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 7,
-    "include": 7,
+    "total": 9,
+    "include": 9,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -34,7 +34,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "docs/implementation/phase-1-interface-traceability.md",
+      "path": "docs/implementation/phase-1-executable-security-matrix.md",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -52,7 +52,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/components/profiling/ProfilingRolePanels.tsx",
+      "path": "package.json",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "scripts/validate-phase1-security-scenarios.mjs",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -61,25 +70,34 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/components/profiling/ProfilingWorkspace.tsx",
-      "state": " M",
-      "tracked": true,
+      "path": "supabase/tests/database/phase1/01_catalog_security.sql",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/phase1-completion-gate.test.mjs",
-      "state": " M",
-      "tracked": true,
+      "path": "supabase/tests/seeded/phase1/01_fixture_security_invariants.sql",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/phase1-role-interfaces.test.mjs",
+      "path": "test/gates/phase1-security-scenarios.json",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/phase1-executable-suite-definition.test.mjs",
       "state": "??",
       "tracked": false,
       "classification": "include",

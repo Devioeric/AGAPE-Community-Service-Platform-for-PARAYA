@@ -23,6 +23,7 @@
     "test:db:phase1": "node scripts/run-local-database-gates.mjs --all --scope phase1",
     "test:db:phase2": "node scripts/run-local-database-gates.mjs --all --scope phase2",
     "test:db:gates": "node scripts/run-database-gate-suite.mjs",
+    "test:phase1-security-definitions": "node scripts/validate-phase1-security-scenarios.mjs test/gates/phase1-security-scenarios.json",
     "test:e2e": "next build && node scripts/run-playwright.mjs",
     "test:e2e:list": "playwright test --list",
     "db:start": "supabase start",

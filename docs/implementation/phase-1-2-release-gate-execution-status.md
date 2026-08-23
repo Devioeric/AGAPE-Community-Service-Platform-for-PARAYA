@@ -7,6 +7,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Branch: `release/phase1-phase2-gate-closure`
 - Starting revision: `03c8263074a750613558ca02880a1f368c55317c`
 - Safe checkpoint revision: `1a1c73ceb8334f1b03b66f42af9d2d67928ce05c`
+- Packet 0 intermediate revision: `6ddfda10f58b97c943ac7d148a6eb4e57441886e`
 - Production/shared deployment authorized: No
 - Profiling application flag: `false`
 - Phase 2 application flags: `false`
@@ -18,7 +19,8 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 
 | Packet | Status | Result / blocker | Next exact action |
 |---|---|---|---|
-| 0 — Stabilize dirty tooling | locally_complete | Reviewed the post-checkpoint tooling set, corrected the recorded checkpoint hash, generated all 29 registry templates, fixed deleted-file handling in the inclusion scanner, and passed 122 tests, typecheck, lint, and the 155-route production build. The regenerated manifest contains 59 included paths, zero ambiguous paths, zero unresolved secret findings, and three acknowledged synthetic fixture findings. | Explicitly stage the manifest-approved paths and create the intermediate Packet 0 checkpoint; then begin the human prerequisite lane while Packet 2 remains locally eligible. |
+| 0 — Stabilize dirty tooling | locally_complete | Reviewed the post-checkpoint tooling set, corrected the recorded checkpoint hash, generated all 29 registry templates, fixed deleted-file handling in the inclusion scanner, and passed 122 tests, typecheck, lint, and the 155-route production build. The 60 manifest-approved paths were committed as `6ddfda10f58b97c943ac7d148a6eb4e57441886e`; the tree was clean afterward. | Preserve this checkpoint and begin Packet 1. |
+| 1 — Human prerequisite lane | in_progress | Docker is not installed or not available on `PATH`. No credential-rotation confirmation, Auth configuration evidence, authoritative database capture, named independent reviewers, privacy approval, implementation date/source inventory, legacy-account inventory, document-risk approval, or private evidence-store reference has been supplied. None was inferred. | Authorized owners provide the prerequisites listed below. Local work may proceed with Packet 2, but connected validation and Packet 7 remain blocked. |
 | A — Freeze and checkpoint | locally_complete | Owner approved the inclusion manifest; 756 paths were staged explicitly, four synthetic secret-pattern fixtures were acknowledged, static checks passed, and checkpoint `1a1c73ceb8334f1b03b66f42af9d2d67928ce05c` was created without pushing. External credential rotation remains outstanding. | Authorized Supabase owner rotates/revokes the exposed credential before any connected work. |
 | B — Evidence governance | locally_complete | One artifact registry now drives strict envelopes and 29 generated templates. Verifiers require full release commit R, clean evidence commit E, evidence-only R..E changes, explicit false flags, zero failures/skips, and an outside-repository private bundle index. Focused tests pass 8/8. | Begin Packet C tooling; do not create executed evidence until authoritative suites run. |
 | C — Authoritative DB tooling | locally_complete | The versioned private-capture validator now checks metadata, exact manifest hashes, schema-only safety, explicit empty-ledger semantics, catalog structure, capture IDs, PostgreSQL major, and credential-like material without returning contents. Catalog comparison emits a sanitized object/hash reconciliation matrix and fails on drift. Focused authoritative tests pass 6/6. No private capture was supplied or inferred. | Authorized database operator supplies the encrypted capture outside Git after credential rotation; then run `db:validate-evidence`, inventory, schema equivalence, and catalog equivalence. |
@@ -31,6 +33,19 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 | J — Browser/AI interception | pending | Not started. | Begin after role-specific interfaces and synthetic fixtures. |
 | K — Reconciliation/rollback | pending | Not started. | Run only on disposable synthetic state. |
 | L — Release evidence | blocked | Requires immutable candidate, private artifacts, and independent reviewers. | Do not create executed evidence until all suites pass. |
+
+## Human prerequisite lane
+
+| Required owner | Required artifact or action | Status |
+|---|---|---|
+| Supabase project owner | Rotate and revoke the potentially exposed credential; independently prove the old credential fails; provide sanitized Auth Site URL, redirect, invite, and recovery configuration evidence. | pending |
+| Database operator | Provide the encrypted `agape.authoritative-capture.v1` directory outside Git, including schema, ledger, catalog, grants, RLS, Storage metadata/policies, hashes, and a historical pre-Phase-0 snapshot when available. | pending |
+| Independent database/security reviewer | Review the authoritative capture, baseline equivalence, migration ledger proposal, replay, RLS, grants, and Storage results; must be a different named person from the operator. | pending |
+| Workstation owner | Install and start Docker Desktop using Linux containers so the disposable local Supabase harness can run. | pending — `docker` command unavailable on 2026-08-23 |
+| Privacy Coordinator/DPO | Approve the notice, lawful basis, consent/refusal/correction/withdrawal procedures, processors, retention, incident handling, and synthetic-pilot boundary. | pending |
+| PARAYA Director/Researcher | Provide the official AGAPE implementation date, historical-source inventory, legacy-account inventory, responsible officers, review cutoff, and notification procedure. | pending |
+| Security/privacy owner | Approve document quarantine, MIME/signature validation, risk acceptance, access, and retention conditions; live document access remains disabled. | pending |
+| Release owner | Provide the exact encrypted private evidence-store and artifact-index path outside the repository, plus named operators and distinct reviewers for each evidence class. | pending |
 
 ## Commands executed
 
@@ -62,6 +77,8 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - After Packets B/C and the local Packet E scaffolding, the complete Node suite passed 121 tests with zero failures/skips; typecheck, lint, and the 155-route production build passed.
 - Packet 0 revalidation passed 122 tests with zero failures/skips, typecheck, lint, and the 155-route production build. Evidence template generation reported exactly 29 files.
 - Regenerated the inclusion manifest with 59 included paths, zero ambiguous paths, zero unresolved secret findings, and three acknowledged synthetic-only findings. Fixed the manifest builder so an intentional tracked deletion is classified without trying to open the deleted file.
+- Created Packet 0 intermediate checkpoint `6ddfda10f58b97c943ac7d148a6eb4e57441886e`; it was not pushed and the working tree was clean afterward.
+- Started Packet 1. Verified the `docker` command is unavailable. Recorded every external prerequisite as pending without inspecting credentials or contacting Supabase.
 
 ## Migration, security, and rollback notes
 

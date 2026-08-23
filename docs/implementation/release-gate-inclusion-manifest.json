@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "a9434543e24ae7410a65f9d95b065b17a7d9620d",
+  "head": "854ce1e11e3b096fc4d6914a5debab8773fcee30",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 8,
-    "include": 8,
+    "total": 12,
+    "include": 12,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "scripts/lib/database-gate-config.mjs",
+      "path": "scripts/lib/release-gate-http.mjs",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -52,8 +52,35 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "scripts/lib/local-database-gate.mjs",
-      "state": " M",
+      "path": "supabase/tests/database/phase1/00_scope_smoke.sql",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/tests/fixtures/release-gate-phase1.sql",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/tests/fixtures/release-gate-phase2-supplement.sql",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/tests/fixtures/release-gate-synthetic.sql",
+      "state": " D",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -61,8 +88,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "scripts/run-local-database-gates.mjs",
-      "state": " M",
+      "path": "supabase/tests/seeded/00_release_fixture_integrity.sql",
+      "state": " D",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -70,7 +97,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/database-gate-scopes.json",
+      "path": "supabase/tests/seeded/phase1/00_release_fixture_integrity.sql",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/tests/seeded/phase2/00_release_fixture_integrity.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -91,9 +127,9 @@
       ]
     },
     {
-      "path": "TESTING.md",
-      "state": " M",
-      "tracked": true,
+      "path": "test/security/release-gate-http.test.mjs",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],

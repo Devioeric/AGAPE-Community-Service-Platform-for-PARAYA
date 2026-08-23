@@ -195,12 +195,15 @@ test("database gate source separates reviewed synthetic and legacy seed replays"
   assert.match(source, /db", "reset", "--local", "--no-seed"/);
 });
 
-test("release fixture is synthetic-only and preserves disabled runtime defaults", async () => {
-  const source = await readFile(resolve("supabase/tests/fixtures/release-gate-synthetic.sql"), "utf8");
-  const emails = Array.from(source.matchAll(/'([^']+@[^']+)'/g), (match) => match[1]);
-  assert.ok(emails.length >= 17);
+test("release fixtures are phase-split, synthetic-only, and preserve disabled runtime defaults", async () => {
+  const phase1 = await readFile(resolve("supabase/tests/fixtures/release-gate-phase1.sql"), "utf8");
+  const phase2 = await readFile(resolve("supabase/tests/fixtures/release-gate-phase2-supplement.sql"), "utf8");
+  const emails = Array.from(`${phase1}\n${phase2}`.matchAll(/'([^']+@[^']+)'/g), (match) => match[1]);
+  assert.ok(emails.length >= 26);
   assert.ok(emails.every((email) => email.endsWith("@release-gate.invalid")));
-  assert.doesNotMatch(source, /SET\s+mode\s*=\s*'(?:synthetic|live)'/i);
-  assert.match(source, /SET mode='off'/);
-  assert.match(source, /write_authority='v1'/);
+  assert.doesNotMatch(phase1, /phase2_|partner_entities|proposal_v2_profiles/i);
+  assert.doesNotMatch(`${phase1}\n${phase2}`, /SET\s+mode\s*=\s*'(?:synthetic|live)'/i);
+  assert.match(phase1, /SET mode='off'/);
+  assert.match(phase2, /write_authority='v1'/);
+  assert.match(phase2, /data_mode='synthetic'/);
 });

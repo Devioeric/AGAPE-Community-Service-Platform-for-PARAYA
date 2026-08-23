@@ -1,0 +1,14 @@
+BEGIN;
+SELECT plan(10);
+SELECT is((SELECT count(DISTINCT entity_type) FROM public.partner_entities WHERE data_mode='synthetic'),9::bigint,'all Partner entity types represented');
+SELECT ok(EXISTS(SELECT 1 FROM public.partner_entities WHERE data_mode='live' AND source_key='canary:live'),'live-classified isolation canary exists');
+SELECT is((SELECT count(*) FROM public.historical_programs WHERE data_mode='synthetic'),2::bigint,'verified and unverified synthetic history');
+SELECT ok(EXISTS(SELECT 1 FROM public.proposal_v2_profiles WHERE data_mode='synthetic'),'synthetic structured proposal graph');
+SELECT ok(EXISTS(SELECT 1 FROM public.programs WHERE phase2_data_mode='synthetic'),'synthetic operational program');
+SELECT ok(EXISTS(SELECT 1 FROM public.program_handoffs),'frozen handoff fixture');
+SELECT ok(EXISTS(SELECT 1 FROM public.program_expenditures) AND EXISTS(SELECT 1 FROM public.liquidation_submissions),'program finance fixture');
+SELECT ok(EXISTS(SELECT 1 FROM public.partner_contact_email_outbox WHERE status='suppressed'),'suppressed outbox fixture');
+SELECT is((SELECT count(*) FROM public.phase2_component_runtime WHERE mode<>'off'),0::bigint,'all Phase 2 modes off');
+SELECT is((SELECT count(*) FROM public.phase2_cutover_state WHERE write_authority<>'v1'),0::bigint,'both cutovers remain V1');
+SELECT * FROM finish();
+ROLLBACK;

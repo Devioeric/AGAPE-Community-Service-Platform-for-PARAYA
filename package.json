@@ -21,6 +21,7 @@
     "db:build-sanitized-capture": "node scripts/build-sanitized-authoritative-capture.mjs",
     "db:capture-storage-buckets": "node scripts/capture-storage-buckets.mjs",
     "db:reconciliation-matrix": "node scripts/build-object-reconciliation-matrix.mjs",
+    "db:build-baseline-candidate": "node scripts/build-private-baseline-candidate.mjs",
     "test:db:preflight": "node scripts/run-local-database-gates.mjs --preflight",
     "test:db:replay": "node scripts/run-local-database-gates.mjs --replay-only --scope phase2",
     "test:db:phase1": "node scripts/run-local-database-gates.mjs --all --scope phase1",

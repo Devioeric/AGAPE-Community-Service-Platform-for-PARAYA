@@ -12,6 +12,19 @@ test("release remediation is one forward-only transaction with fail-closed catal
   assert.match(sql, /public domain table % has no permission-module mapping/);
   assert.match(sql, /public domain table % does not have RLS enabled/);
   assert.match(sql, /phase1_deny_override_guard/);
+  assert.match(sql, /p_table='chatbot_logs' THEN 'ai_assistance'/);
+  for (const legacyTable of [
+    "discussion_posts",
+    "discussion_replies",
+    "participation_forms",
+    "qualitative_data",
+    "skill_categories",
+    "system_backups",
+  ]) assert.match(sql, new RegExp(`'${legacyTable}'`));
+  assert.ok(
+    sql.indexOf("DO $enable_domain_rls$") < sql.indexOf("DO $install_deny_overrides$"),
+    "authoritative legacy tables must fail closed before deny-only policies are installed",
+  );
 });
 
 test("profiling RPC execution is deny-by-default and explicitly allowlisted", async () => {

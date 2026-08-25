@@ -152,16 +152,10 @@ export function extractPublicCatalog(publicSchemaSource, extensionSchemaSource =
 export function extractStoragePolicies(storageSchemaSource) {
   const items = [];
   for (const statement of splitSqlStatements(storageSchemaSource)) {
-    let match = matchObject(statement, /^CREATE POLICY\s+"?([^"\r\n]+?)"?\s+ON\s+"?storage"?\."?([^"\s]+)"?/i);
+    const match = matchObject(statement, /^CREATE POLICY\s+"?([^"\r\n]+?)"?\s+ON\s+"?storage"?\."?([^"\s]+)"?/i);
     if (match) {
       const name = identifier(match[1]); const table = identifier(match[2]);
       items.push(statementItem(`storage.policy.${table}.${name}`, statement, { schema: "storage", objectType: "policy", tableName: table, name }));
-      continue;
-    }
-    match = matchObject(statement, /^ALTER TABLE\s+"?storage"?\."?([^"\s]+)"?\s+(ENABLE|FORCE) ROW LEVEL SECURITY/i);
-    if (match) {
-      const table = identifier(match[1]); const mode = match[2].toLowerCase();
-      items.push(statementItem(`storage.rls.${table}.${mode}`, statement, { schema: "storage", objectType: "rls-state", tableName: table, mode }));
     }
   }
   return items.sort((left, right) => left.stableIdentifier.localeCompare(right.stableIdentifier));
@@ -183,4 +177,28 @@ export function sanitizeStorageBuckets(value) {
         : null,
     };
   }).sort((left, right) => left.stableIdentifier.localeCompare(right.stableIdentifier));
+}
+
+function decodeCopyValue(value) {
+  if (value === "\\N") return null;
+  return value.replace(/\\t/g, "\t").replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\\\/g, "\\");
+}
+
+export function extractStorageBucketsFromDataDump(source) {
+  const match = /COPY\s+(?:"?storage"?\.)?"?buckets"?\s*\(([^)]*)\)\s+FROM\s+stdin;\r?\n([\s\S]*?)\r?\n\\\./i.exec(source);
+  if (!match) throw new Error("Storage data dump does not contain a buckets COPY block");
+  const columns = match[1].split(",").map((value) => value.trim().replaceAll('"', ""));
+  const rows = match[2].split(/\r?\n/).filter(Boolean).map((line) => {
+    const values = line.split("\t").map(decodeCopyValue);
+    return Object.fromEntries(columns.map((column, index) => [column, values[index] ?? null]));
+  });
+  return sanitizeStorageBuckets(rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    public: row.public === "t" || row.public === "true",
+    file_size_limit: row.file_size_limit === null ? null : Number(row.file_size_limit),
+    allowed_mime_types: row.allowed_mime_types === null
+      ? null
+      : row.allowed_mime_types.replace(/^\{|\}$/g, "").split(",").filter(Boolean).map((value) => value.replace(/^"|"$/g, "")),
+  })));
 }

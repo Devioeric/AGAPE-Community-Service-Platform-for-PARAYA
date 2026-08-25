@@ -342,10 +342,14 @@ BEGIN
  ELSIF p_action='accept' THEN
   IF NOT public.phase2_current_has_capability('historical_program.review') OR item.status<>'pending_review' OR item.date_precision='unknown' OR item.starts_on IS NULL OR length(btrim(coalesce(p_remarks,'')))<5 THEN RAISE EXCEPTION 'invalid accept transition; eligible date evidence is required' USING ERRCODE='42501'; END IF;
   allowed_quality:=public.phase2_historical_allowed_quality(p_id);
-  IF p_quality NOT IN('complete','partial_verified','partial_unverified','unverified')
-    OR CASE p_quality WHEN 'complete' THEN 4 WHEN 'partial_verified' THEN 3 WHEN 'partial_unverified' THEN 2 ELSE 1 END
-       > CASE allowed_quality WHEN 'complete' THEN 4 WHEN 'partial_verified' THEN 3 WHEN 'partial_unverified' THEN 2 ELSE 1 END
-  THEN RAISE EXCEPTION 'quality exceeds the evidence-supported tier' USING ERRCODE='23514'; END IF; next_status:='accepted';
+  IF p_quality IS NULL OR p_quality NOT IN('complete','partial_verified','partial_unverified','unverified') THEN
+   RAISE EXCEPTION 'quality is required for acceptance' USING ERRCODE='23514';
+  END IF;
+  IF (CASE p_quality WHEN 'complete' THEN 4 WHEN 'partial_verified' THEN 3 WHEN 'partial_unverified' THEN 2 ELSE 1 END)
+       > (CASE allowed_quality WHEN 'complete' THEN 4 WHEN 'partial_verified' THEN 3 WHEN 'partial_unverified' THEN 2 ELSE 1 END) THEN
+   RAISE EXCEPTION 'quality exceeds the evidence-supported tier' USING ERRCODE='23514';
+  END IF;
+  next_status:='accepted';
  ELSIF p_action='archive' THEN
   IF NOT public.phase2_current_has_capability('historical_program.review') OR item.status<>'accepted' OR length(btrim(coalesce(p_remarks,'')))<5 THEN RAISE EXCEPTION 'invalid archive transition' USING ERRCODE='42501'; END IF; next_status:='archived';
  ELSE RAISE EXCEPTION 'unknown historical action' USING ERRCODE='22023'; END IF;

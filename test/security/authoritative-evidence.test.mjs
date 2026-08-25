@@ -14,10 +14,10 @@ import {
 } from "../../scripts/lib/authoritative-evidence.mjs";
 import { compareCatalogCaptures } from "../../scripts/lib/catalog-equivalence.mjs";
 
-async function writeCapture(root, { applied = true, captureId = "AGAPE-CAPTURE-20260823", catalogCount = 1 } = {}) {
+async function writeCapture(root, { applied = true, captureId = "AGAPE-CAPTURE-20260823", catalogCount = 1, environment = "production" } = {}) {
   const values = new Map();
   values.set("capture-metadata.json", JSON.stringify({
-    schema: "agape.authoritative-capture.v1", captureId, environment: "production",
+    schema: "agape.authoritative-capture.v1", captureId, environment,
     projectReference: "agape_sanitized", capturedAt: "2026-08-23T10:00:00Z",
     operator: "Maria Santos (Database Operator)", postgresMajor: 17,
     supabaseCliVersion: "2.114.0", schemaAllowlist: ["public"],
@@ -97,13 +97,13 @@ test("catalog equivalence emits hashes and reconciliation classifications withou
   const authoritative = await mkdtemp(join(tmpdir(), "agape-catalog-authoritative-"));
   const replay = await mkdtemp(join(tmpdir(), "agape-catalog-replay-"));
   await writeCapture(authoritative, { captureId: "AGAPE-AUTHORITATIVE-20260823" });
-  await writeCapture(replay, { captureId: "AGAPE-REPLAY-20260823" });
+  await writeCapture(replay, { captureId: "AGAPE-REPLAY-20260823", environment: "disposable-clone" });
   const matched = await compareCatalogCaptures({ authoritativeCapture: authoritative, replayCapture: replay });
   assert.equal(matched.equivalent, true, matched.problems.join("; "));
   assert.equal(matched.counts.differences, 0);
 
   const drift = await mkdtemp(join(tmpdir(), "agape-catalog-drift-"));
-  await writeCapture(drift, { captureId: "AGAPE-DRIFT-20260823", catalogCount: 2 });
+  await writeCapture(drift, { captureId: "AGAPE-DRIFT-20260823", catalogCount: 2, environment: "disposable-clone" });
   const changed = await compareCatalogCaptures({ authoritativeCapture: authoritative, replayCapture: drift });
   assert.equal(changed.equivalent, false);
   assert.ok(changed.rows.some((row) => row.classification === "Definition drift"));

@@ -51,10 +51,14 @@ async function captureObjects(captureDirectory) {
   return { objects, duplicates };
 }
 
-export async function compareCatalogCaptures({ authoritativeCapture, replayCapture }) {
+export async function compareCatalogCaptures({
+  authoritativeCapture, replayCapture,
+  authoritativeAllowedEnvironments = ["staging", "production"],
+  replayAllowedEnvironments = ["disposable-clone"],
+}) {
   const [authoritativeValidation, replayValidation] = await Promise.all([
-    validateAuthoritativeCapture({ captureDirectory: authoritativeCapture }),
-    validateAuthoritativeCapture({ captureDirectory: replayCapture }),
+    validateAuthoritativeCapture({ captureDirectory: authoritativeCapture, allowedEnvironments: authoritativeAllowedEnvironments }),
+    validateAuthoritativeCapture({ captureDirectory: replayCapture, allowedEnvironments: replayAllowedEnvironments }),
   ]);
   const problems = [];
   if (!authoritativeValidation.valid) problems.push("authoritative capture failed validation");

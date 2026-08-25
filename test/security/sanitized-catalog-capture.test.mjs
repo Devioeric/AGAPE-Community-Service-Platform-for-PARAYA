@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractPublicCatalog, extractStoragePolicies, sanitizeStorageBuckets, splitSqlStatements } from "../../scripts/lib/sanitized-catalog-capture.mjs";
+import { extractPublicCatalog, extractStorageBucketsFromDataDump, extractStoragePolicies, sanitizeStorageBuckets, splitSqlStatements } from "../../scripts/lib/sanitized-catalog-capture.mjs";
 
 test("DDL splitting preserves function bodies containing semicolons", () => {
   const statements = splitSqlStatements(`CREATE FUNCTION public.f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN PERFORM 1; END; $$;\nCREATE TABLE public.t (id uuid);`);
@@ -35,5 +35,14 @@ test("Storage sanitizer allowlists metadata and rejects unsafe bucket names", ()
   });
   assert.throws(() => sanitizeStorageBuckets([{ id: "../unsafe" }]), /unsafe/);
   const policies = extractStoragePolicies("CREATE POLICY p ON storage.objects FOR SELECT USING (true); ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;");
-  assert.equal(policies.length, 2);
+  assert.equal(policies.length, 1);
+});
+
+test("Storage bucket COPY parsing emits only allowlisted metadata", () => {
+  const dump = 'COPY "storage"."buckets" ("id", "name", "owner", "public", "file_size_limit", "allowed_mime_types") FROM stdin;\nprivate-docs\tprivate-docs\tignored-owner\tf\t10485760\t{application/pdf}\n\\.\n';
+  assert.deepEqual(extractStorageBucketsFromDataDump(dump), [{
+    stableIdentifier: "storage.bucket.private-docs", name: "private-docs", public: false,
+    fileSizeLimit: 10485760, allowedMimeTypes: ["application/pdf"],
+  }]);
+  assert.doesNotMatch(JSON.stringify(extractStorageBucketsFromDataDump(dump)), /ignored-owner/);
 });

@@ -192,7 +192,7 @@ SELECT q.id,
       ELSE 'draft' END,
  CASE WHEN m.partner_id IS NULL THEN 'paraya_internal' ELSE 'partner_document' END,m.partner_id,
  CASE WHEN creator.role IN('paraya_director','paraya_associate','paraya_researcher') THEN q.created_by ELSE staff.id END,
- c.id,q.start_date,q.end_date,true
+ c.id,q.timeline_start,q.timeline_end,true
 FROM public.project_proposals q JOIN public.users creator ON creator.id=q.created_by
 CROSS JOIN LATERAL(SELECT id FROM public.proposal_project_categories WHERE code='legacy_unstructured')c
 CROSS JOIN LATERAL(SELECT id FROM public.users WHERE role IN('paraya_director','paraya_associate','paraya_researcher') AND status='active' ORDER BY CASE role WHEN 'paraya_associate' THEN 1 WHEN 'paraya_researcher' THEN 2 ELSE 3 END,created_at LIMIT 1)staff
@@ -203,10 +203,18 @@ INSERT INTO public.proposal_target_areas(proposal_id,barangay_id,is_lead)
 SELECT q.id,q.barangay_id,true FROM public.project_proposals q WHERE q.barangay_id IS NOT NULL
 ON CONFLICT DO NOTHING;
 INSERT INTO public.proposal_beneficiary_estimates(proposal_id,category_code,target_area_id,calculated_count,is_suppressed,final_count,source_description,source_metadata,as_of_date)
-SELECT q.id,'legacy_free_text',t.id,NULL,false,greatest(coalesce(q.expected_beneficiary_count,1),1),q.target_beneficiaries,
- jsonb_build_object('kind','legacy_manual','original_count',q.expected_beneficiary_count),coalesce(q.updated_at::date,q.created_at::date,current_date)
+SELECT q.id,'legacy_free_text',t.id,NULL,false,legacy_count.value,q.target_beneficiaries,
+ jsonb_build_object('kind','legacy_manual','original_count',legacy_count.value),coalesce(q.updated_at::date,q.created_at::date,current_date)
 FROM public.project_proposals q JOIN public.proposal_target_areas t ON t.proposal_id=q.id AND t.is_lead
-WHERE NOT EXISTS(SELECT 1 FROM public.proposal_beneficiary_estimates e WHERE e.proposal_id=q.id);
+CROSS JOIN LATERAL (
+ SELECT CASE
+   WHEN coalesce(to_jsonb(q)->>'expected_beneficiary_count','') ~ '^[1-9][0-9]*$'
+   THEN (to_jsonb(q)->>'expected_beneficiary_count')::integer
+   ELSE NULL
+ END AS value
+) legacy_count
+WHERE legacy_count.value IS NOT NULL
+  AND NOT EXISTS(SELECT 1 FROM public.proposal_beneficiary_estimates e WHERE e.proposal_id=q.id);
 INSERT INTO public.proposal_partner_links(proposal_id,partner_id,partner_role,created_by)
 SELECT q.id,m.partner_id,'originating_proponent',q.created_by FROM public.project_proposals q JOIN public.legacy_account_partner_mappings m ON m.legacy_user_id=q.created_by
 ON CONFLICT DO NOTHING;
@@ -226,7 +234,7 @@ FROM public.proposal_budget_revisions r WHERE r.proposal_id=p.proposal_id AND p.
 
 INSERT INTO public.proposal_versions(proposal_id,version_number,reason,snapshot,canonical_hash,created_by,created_at)
 SELECT q.id,1,'imported_v1',
- jsonb_build_object('title',q.title,'rationale',q.rationale,'objectives',q.objectives,'target_beneficiaries',q.target_beneficiaries,'expected_beneficiary_count',q.expected_beneficiary_count,'barangay_id',q.barangay_id,'start_date',q.start_date,'end_date',q.end_date,'budget',q.budget,'legacy_status',q.status),
+ jsonb_build_object('title',q.title,'rationale',q.rationale,'objectives',q.objectives,'target_beneficiaries',q.target_beneficiaries,'expected_beneficiary_count',to_jsonb(q)->'expected_beneficiary_count','barangay_id',q.barangay_id,'start_date',q.timeline_start,'end_date',q.timeline_end,'budget',q.budget,'legacy_status',q.status),
  encode(extensions.digest(convert_to(jsonb_build_object('id',q.id,'title',q.title,'updated_at',q.updated_at)::text,'UTF8'),'sha256'),'hex'),
  q.created_by,q.created_at FROM public.project_proposals q ON CONFLICT(proposal_id,version_number) DO NOTHING;
 UPDATE public.proposal_v2_profiles p SET active_version_id=v.id FROM public.proposal_versions v

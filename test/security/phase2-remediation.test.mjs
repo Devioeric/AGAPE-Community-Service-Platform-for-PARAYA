@@ -48,3 +48,10 @@ test("email delivery does not log contact addresses or provider bodies", async (
   assert.match(worker, /lease_expires_at/);
   assert.match(worker, /partner_contact_email_events/);
 });
+
+test("historical acceptance requires an explicit evidence-supported quality tier", async () => {
+  const sql = await read("supabase/migrations/20260818000710_phase2_partner_history_operations.sql");
+  assert.match(sql, /p_quality IS NULL OR p_quality NOT IN/);
+  assert.match(sql, /quality is required for acceptance/);
+  assert.match(sql, /quality exceeds the evidence-supported tier/);
+});

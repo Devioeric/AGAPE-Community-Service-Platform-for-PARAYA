@@ -7,6 +7,13 @@
 
 BEGIN;
 
+-- The reconciled pre-Phase-0 schema predates workflow confirmation tracking.
+-- The authoritative migration ledger for the sole AGAPE backend contains no
+-- timestamped migrations, so this unapplied migration owns the additive
+-- introduction of the column that its guards and policies require below.
+ALTER TABLE public.program_signups
+  ADD COLUMN IF NOT EXISTS confirmed_at timestamptz;
+
 DO $migration_check$
 DECLARE
   required_table text;

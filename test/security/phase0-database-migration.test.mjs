@@ -156,6 +156,12 @@ test("program signups allow only safe volunteer self-service through direct RLS"
   );
 
   assert.match(sql, /'public\.program_signups'/);
+  const confirmationColumn = sql.indexOf("ADD COLUMN IF NOT EXISTS confirmed_at timestamptz");
+  const confirmationPreflight = sql.indexOf("DO $program_signup_column_check$");
+  assert.ok(
+    confirmationColumn >= 0 && confirmationColumn < confirmationPreflight,
+    "the migration must add confirmation tracking before validating dependent guards",
+  );
   assert.match(sql, /DO \$program_signup_column_check\$/);
   for (const requiredColumn of [
     "program_id",

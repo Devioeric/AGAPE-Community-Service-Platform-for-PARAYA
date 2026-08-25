@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
-import { parseCapturedLedger, validateAuthoritativeCapture } from "./lib/authoritative-evidence.mjs";
+import { REQUIRED_CAPTURE_FILES, parseCapturedLedger, sha256Buffer, validateAuthoritativeCapture } from "./lib/authoritative-evidence.mjs";
+import { compareCatalogCaptures } from "./lib/catalog-equivalence.mjs";
 import { loadDatabaseGateScopeManifest, scopeConfiguration } from "./lib/database-gate-config.mjs";
 import {
   BASELINE_FILE, collectStaticPreflightFailures, DISPOSABLE_CONFIRMATION,
@@ -10,6 +11,7 @@ import {
   selectMigrationNames, validateDisposableProjectConfig, validateLocalSupabaseStatus,
 } from "./lib/local-database-gate.mjs";
 import { compareSchemaDumps } from "./lib/migration-governance.mjs";
+import { extractPublicCatalog, extractStoragePolicies, sanitizeStorageBuckets } from "./lib/sanitized-catalog-capture.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
@@ -18,26 +20,30 @@ function usage() {
   console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
+  [--reconciliation-configuration <private-sql>]
   [--artifact-dir <outside-repository-directory>]`);
 }
 
 function parse(argv) {
-  const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, artifactDirectory: null };
+  const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (["--preflight", "--replay-only", "--all"].includes(key)) options.mode = key;
-    else if (["--scope", "--baseline-candidate", "--capture-dir", "--artifact-dir"].includes(key)) {
+    else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
       if (!value || value.startsWith("--")) throw new Error(`${key} requires a value`);
       if (key === "--scope") options.scope = value;
       else if (key === "--baseline-candidate") options.baselineCandidate = resolve(value);
       else if (key === "--capture-dir") options.captureDirectory = resolve(value);
+      else if (key === "--reconciliation-configuration") options.reconciliationConfiguration = resolve(value);
       else options.artifactDirectory = resolve(value);
     } else if (key === "--help") options.help = true;
     else throw new Error(`unknown option ${key}`);
   }
   if (!["phase1", "phase2", "reconciliation-applied", "reconciliation-full"].includes(options.scope)) throw new Error("invalid --scope");
-  if (options.scope.startsWith("reconciliation-") && (!options.baselineCandidate || !options.captureDirectory)) throw new Error("reconciliation scope requires --baseline-candidate and --capture-dir");
+  if (options.scope.startsWith("reconciliation-") && (!options.baselineCandidate || !options.captureDirectory || !options.reconciliationConfiguration)) {
+    throw new Error("reconciliation scope requires --baseline-candidate, --capture-dir, and --reconciliation-configuration");
+  }
   return options;
 }
 
@@ -66,7 +72,8 @@ if (options.scope.startsWith("reconciliation-")) {
 }
 
 const failures = await collectStaticPreflightFailures(root, process.env, {
-  scope: options.scope, baselineCandidate: options.baselineCandidate, appliedVersions, scopeManifest,
+  scope: options.scope, baselineCandidate: options.baselineCandidate,
+  reconciliationConfiguration: options.reconciliationConfiguration, appliedVersions, scopeManifest,
 });
 if (options.artifactDirectory && !isArtifactDirectoryOutsideRepository(root, options.artifactDirectory)) {
   failures.push("--artifact-dir must resolve outside the repository");
@@ -121,6 +128,7 @@ async function assertLocalStatus(isolated) {
   catch { throw new Error("Supabase status did not return valid redacted JSON"); }
   const statusFailures = validateLocalSupabaseStatus(status);
   if (statusFailures.length) throw new Error(`Unsafe Supabase status: ${statusFailures.join("; ")}`);
+  return status;
 }
 
 async function stopStack(isolated) {
@@ -149,8 +157,67 @@ async function disposeProject(isolated, attemptedStart) {
 
 async function newIsolatedProject() {
   return prepareIsolatedSupabaseProject(root, {
-    migrationNames, baselineCandidate: options.baselineCandidate, copyPaths,
+    migrationNames, baselineCandidate: options.baselineCandidate,
+    reconciliationConfiguration: options.reconciliationConfiguration, copyPaths,
   });
+}
+
+async function writeJson(path, value) {
+  await mkdir(resolve(path, ".."), { recursive: true });
+  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+async function captureReplayCatalog({ isolated, cycle, publicSchema }) {
+  if (!options.artifactDirectory || !options.scope.startsWith("reconciliation-")) return null;
+  const captureDirectory = join(options.artifactDirectory, `${options.scope}-cycle-${cycle}-catalog`);
+  const storageDump = join(isolated.privateRoot, `storage-${cycle}.sql`);
+  const fullDump = join(isolated.privateRoot, `full-${cycle}.sql`);
+  await supabase(isolated, ["db", "dump", "--local", "--schema", "storage", "--file", storageDump], `Capturing Storage catalog replay ${cycle}`, 240_000);
+  await supabase(isolated, ["db", "dump", "--local", "--file", fullDump], `Capturing extension catalog replay ${cycle}`, 240_000);
+  console.log(`Capturing sanitized bucket source replay ${cycle}`);
+  const bucketResult = await runProcess("docker", [
+    "exec", `supabase_db_${DISPOSABLE_CONFIRMATION}`, "psql", "-U", "postgres", "-d", "postgres", "-At", "-F", "\t", "-c",
+    "SELECT id,name,public,COALESCE(file_size_limit::text,''),COALESCE(array_to_json(allowed_mime_types)::text,'null') FROM storage.buckets ORDER BY id",
+  ], { cwd: isolated.workspace, env: cliEnv, timeoutMs: 30_000 });
+  if (bucketResult.code !== 0 || bucketResult.truncated) throw new Error("read-only disposable bucket query failed");
+  const replayBuckets = sanitizeStorageBuckets(bucketResult.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+    const [id, name, isPublic, fileSizeLimit, mimeJson] = line.split("\t");
+    if (!id || !name || !["t", "f"].includes(isPublic)) throw new Error("disposable bucket query returned a malformed row");
+    return { id, name, public: isPublic === "t", file_size_limit: fileSizeLimit ? Number(fileSizeLimit) : null, allowed_mime_types: JSON.parse(mimeJson || "null") };
+  }));
+  const [storageSchema, extensionSchema] = await Promise.all([readFile(storageDump, "utf8"), readFile(fullDump, "utf8")]);
+  const catalog = extractPublicCatalog(publicSchema, extensionSchema);
+  const authoritativeExtensionCatalog = JSON.parse(await readFile(join(options.captureDirectory, "catalog", "extensions.json"), "utf8"));
+  const extensionAllowlist = new Set((authoritativeExtensionCatalog.objects ?? []).map((item) => item.stableIdentifier));
+  catalog.extensions = catalog.extensions.filter((item) => extensionAllowlist.has(item.stableIdentifier));
+  const captureId = `AGAPE-REPLAY-${options.scope.toUpperCase()}-${cycle}-${Date.now()}`;
+  const envelope = (objects, source) => ({ captureId, source, objects });
+  const versions = migrationNames.map((name) => name.slice(0, 14));
+  const files = new Map([
+    ["capture-metadata.json", { schema: "agape.authoritative-capture.v1", captureId, environment: "disposable-clone", projectReference: "agape_release_gate", capturedAt: new Date().toISOString(), operator: "AGAPE Harness (Automation)", postgresMajor: 17, supabaseCliVersion: "2.114.0", schemaAllowlist: ["public"], timestampedMigrationsApplied: versions.length > 0 }],
+    ["ledger/catalog.json", envelope(versions.map((version) => ({ stableIdentifier: `migration.${version}`, version })), "disposable-replay")],
+    ["catalog/tables-columns.json", envelope(catalog.tablesColumns, "replay-public-schema")],
+    ["catalog/constraints-indexes.json", envelope(catalog.constraintsIndexes, "replay-public-schema")],
+    ["catalog/functions.json", envelope(catalog.functions, "replay-public-schema")],
+    ["catalog/triggers.json", envelope(catalog.triggers, "replay-public-schema")],
+    ["catalog/rls-policies.json", envelope(catalog.rlsPolicies, "replay-public-schema")],
+    ["catalog/grants-default-privileges.json", envelope(catalog.grantsDefaultPrivileges, "replay-public-schema")],
+    ["catalog/extensions.json", envelope(catalog.extensions, "replay-full-schema")],
+    ["storage/buckets.json", envelope(replayBuckets, "replay-read-only-database-query")],
+    ["storage/policies.json", envelope(extractStoragePolicies(storageSchema), "replay-storage-schema")],
+  ]);
+  await mkdir(join(captureDirectory, "schema"), { recursive: true });
+  await writeFile(join(captureDirectory, "schema", "public-schema.sql"), publicSchema, "utf8");
+  await mkdir(join(captureDirectory, "ledger"), { recursive: true });
+  await writeFile(join(captureDirectory, "ledger", "versions.txt"), `${versions.join("\n")}\n`, "utf8");
+  for (const [name, value] of files) await writeJson(join(captureDirectory, ...name.split("/")), value);
+  const manifest = [];
+  for (const name of REQUIRED_CAPTURE_FILES) {
+    const source = await readFile(join(captureDirectory, ...name.split("/")));
+    manifest.push(`${sha256Buffer(source)}  ${name}`);
+  }
+  await writeFile(join(captureDirectory, "manifest.sha256"), `${manifest.join("\n")}\n`, "utf8");
+  return captureDirectory;
 }
 
 async function replayCycle(number, runAssertions) {
@@ -160,7 +227,7 @@ async function replayCycle(number, runAssertions) {
   let operationError = null;
   try {
     attemptedStart = true;
-    await supabase(isolated, ["start"], `Starting clean ${options.scope} replay ${number}`);
+    await supabase(isolated, ["start"], `Starting clean ${options.scope} replay ${number}`, 900_000);
     await assertLocalStatus(isolated);
     await supabase(isolated, ["db", "reset", "--local", "--no-seed"], `Replaying selected migrations for cycle ${number}`, 360_000);
     if (runAssertions && !options.scope.startsWith("reconciliation-")) {
@@ -171,7 +238,14 @@ async function replayCycle(number, runAssertions) {
       }
     }
     await supabase(isolated, ["db", "dump", "--local", "--schema", "public", "--file", dumpPath], `Capturing schema-only replay ${number}`, 240_000);
-    return readFile(dumpPath, "utf8");
+    const source = await readFile(dumpPath, "utf8");
+    if (options.artifactDirectory && options.scope.startsWith("reconciliation-")) {
+      await mkdir(options.artifactDirectory, { recursive: true });
+      if (!isArtifactDirectoryOutsideRepository(root, options.artifactDirectory)) throw new Error("replay schema output must remain outside the repository");
+      await writeFile(join(options.artifactDirectory, `${options.scope}-cycle-${number}-public-schema.sql`), source, { encoding: "utf8", flag: "wx" });
+    }
+    const catalogCapture = await captureReplayCatalog({ isolated, cycle: number, publicSchema: source });
+    return { source, catalogCapture };
   } catch (error) {
     operationError = error;
     throw error;
@@ -198,7 +272,7 @@ async function seededCompatibilityCycle({ label, seedPaths, assertions = [] }) {
   let operationError = null;
   try {
     await configureSeed(isolated, seedPaths); attemptedStart = true;
-    await supabase(isolated, ["start"], `Starting ${label}`); await assertLocalStatus(isolated);
+    await supabase(isolated, ["start"], `Starting ${label}`, 900_000); await assertLocalStatus(isolated);
     await supabase(isolated, ["db", "reset", "--local"], `Replaying migrations with ${label}`, 360_000);
     for (const assertionPath of assertions) {
       const assertionLabel = `Validating ${label} from ${assertionPath}`;
@@ -217,7 +291,7 @@ async function seededCompatibilityCycle({ label, seedPaths, assertions = [] }) {
   }
 }
 
-async function writeResultBundle({ schemaHash, catalogDigest }) {
+async function writeResultBundle({ schemaHash, catalogDigest, authoritativeSchemaHash = null, authoritativeEquivalent = null }) {
   if (!options.artifactDirectory) return;
   await mkdir(options.artifactDirectory, { recursive: true });
   const artifactDirectory = await realpath(options.artifactDirectory);
@@ -234,6 +308,8 @@ async function writeResultBundle({ schemaHash, catalogDigest }) {
     command,
     migrationListHash: createHash("sha256").update(`${migrationNames.join("\n")}\n`).digest("hex"),
     schemaHash,
+    authoritativeSchemaHash,
+    authoritativeEquivalent,
     catalogDigest,
     catalogDigestSource: "normalized-public-schema",
     passedCases: caseCounts.passed,
@@ -258,8 +334,39 @@ async function writeResultBundle({ schemaHash, catalogDigest }) {
 try {
   const first = await replayCycle(1, false);
   const second = await replayCycle(2, options.mode === "--all");
-  const comparison = compareSchemaDumps(first, second);
+  const comparison = compareSchemaDumps(first.source, second.source);
   if (!comparison.equivalent) throw new Error(`clean replay schemas differ at normalized line ${comparison.firstDifferentLine ?? "unknown"}`);
+  let authoritativeComparison = null;
+  if (options.scope === "reconciliation-applied") {
+    const authoritativeSchema = await readFile(join(options.captureDirectory, "schema", "public-schema.sql"), "utf8");
+    authoritativeComparison = compareSchemaDumps(authoritativeSchema, first.source);
+    if (!authoritativeComparison.equivalent) {
+      throw new Error(`authoritative and replay schemas differ at normalized line ${authoritativeComparison.firstDifferentLine ?? "unknown"}; private replay dumps were retained for review`);
+    }
+  }
+  let catalogComparison = null;
+  if (options.scope.startsWith("reconciliation-") && first.catalogCapture && second.catalogCapture) {
+    if (options.scope === "reconciliation-applied") {
+      const [firstCatalog, secondCatalog] = await Promise.all([
+        compareCatalogCaptures({ authoritativeCapture: options.captureDirectory, replayCapture: first.catalogCapture }),
+        compareCatalogCaptures({ authoritativeCapture: options.captureDirectory, replayCapture: second.catalogCapture }),
+      ]);
+      if (!firstCatalog.equivalent || !secondCatalog.equivalent) {
+        const differences = Math.max(firstCatalog.counts?.differences ?? 0, secondCatalog.counts?.differences ?? 0);
+        throw new Error(`authoritative and replay catalogs differ across ${differences} object(s); private hash-only captures were retained for review`);
+      }
+      catalogComparison = firstCatalog;
+    } else {
+      const deterministicCatalog = await compareCatalogCaptures({
+        authoritativeCapture: first.catalogCapture, replayCapture: second.catalogCapture,
+        authoritativeAllowedEnvironments: ["disposable-clone"], replayAllowedEnvironments: ["disposable-clone"],
+      });
+      if (!deterministicCatalog.equivalent) {
+        throw new Error(`full target replay catalogs differ across ${deterministicCatalog.counts?.differences ?? 0} object(s)`);
+      }
+      catalogComparison = deterministicCatalog;
+    }
+  }
   if (options.mode === "--all" && !options.scope.startsWith("reconciliation-")) {
     await seededCompatibilityCycle({
       label: `reviewed ${options.scope} synthetic fixture`,
@@ -268,7 +375,12 @@ try {
     });
     await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
   }
-  await writeResultBundle({ schemaHash: comparison.authoritative.sha256, catalogDigest: comparison.authoritative.sha256 });
+  await writeResultBundle({
+    schemaHash: comparison.authoritative.sha256,
+    catalogDigest: catalogComparison?.matrixDigest ?? comparison.authoritative.sha256,
+    authoritativeSchemaHash: authoritativeComparison?.authoritative.sha256 ?? null,
+    authoritativeEquivalent: authoritativeComparison?.equivalent ?? null,
+  });
   console.log(`Clean replay SHA-256: ${comparison.authoritative.sha256}`);
   console.log("Disposable replay completed. This console result is not release evidence by itself.");
 } catch (error) {

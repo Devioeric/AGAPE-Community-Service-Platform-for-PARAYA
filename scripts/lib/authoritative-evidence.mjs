@@ -76,11 +76,11 @@ export function parseCapturedLedger(source, timestampedMigrationsApplied) {
   return { versions, problems };
 }
 
-export function validateCaptureMetadata(metadata) {
+export function validateCaptureMetadata(metadata, { allowedEnvironments = ["staging", "production"] } = {}) {
   const problems = [];
   if (metadata?.schema !== AUTHORITATIVE_CAPTURE_SCHEMA) problems.push("capture metadata schema is unsupported");
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$/.test(metadata?.captureId ?? "")) problems.push("captureId is missing or malformed");
-  if (!["staging", "production"].includes(metadata?.environment)) problems.push("capture environment must be staging or production");
+  if (!allowedEnvironments.includes(metadata?.environment)) problems.push(`capture environment must be ${allowedEnvironments.join(" or ")}`);
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/.test(metadata?.projectReference ?? "")) problems.push("projectReference must be sanitized");
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(metadata?.capturedAt ?? "")) problems.push("capturedAt must be an ISO UTC timestamp");
   if (!/^\S+(?:\s+\S+)+\s+\([^()]+\)$/.test(metadata?.operator ?? "")) problems.push("operator must be a named person and role");
@@ -101,7 +101,7 @@ async function readRequiredFile(captureDirectory, relativePath, problems) {
 }
 
 /** Validate an authorized sanitized capture without returning file contents. */
-export async function validateAuthoritativeCapture({ captureDirectory, expectedPostgresMajor = 17 }) {
+export async function validateAuthoritativeCapture({ captureDirectory, expectedPostgresMajor = 17, allowedEnvironments } = {}) {
   const root = resolve(captureDirectory);
   const problems = [];
   const files = new Map();
@@ -114,7 +114,7 @@ export async function validateAuthoritativeCapture({ captureDirectory, expectedP
   let metadata = null;
   try { metadata = JSON.parse(files.get("capture-metadata.json").toString("utf8")); }
   catch { problems.push("capture-metadata.json is not valid JSON"); }
-  if (metadata) problems.push(...validateCaptureMetadata(metadata));
+  if (metadata) problems.push(...validateCaptureMetadata(metadata, { allowedEnvironments }));
   if (metadata?.postgresMajor !== expectedPostgresMajor) problems.push(`PostgreSQL major must be ${expectedPostgresMajor}`);
 
   const manifest = parseManifest(files.get("manifest.sha256").toString("utf8"));

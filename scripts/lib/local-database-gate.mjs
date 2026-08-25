@@ -108,7 +108,7 @@ function safeSupabaseRelativePath(value) {
 }
 
 export async function prepareIsolatedSupabaseProject(root, {
-  migrationNames = null, baselineCandidate = null, copyPaths = [],
+  migrationNames = null, baselineCandidate = null, reconciliationConfiguration = null, copyPaths = [],
 } = {}) {
   const privateRoot = await mkdtemp(join(tmpdir(), "agape-release-gate-"));
   const workspace = join(privateRoot, "workspace");
@@ -121,6 +121,9 @@ export async function prepareIsolatedSupabaseProject(root, {
   for (const name of names) {
     if (name === BASELINE_FILE && baselineCandidate) await cp(resolve(baselineCandidate), join(targetMigrations, BASELINE_FILE));
     else await cp(join(source, "migrations", name), join(targetMigrations, name));
+  }
+  if (reconciliationConfiguration) {
+    await cp(resolve(reconciliationConfiguration), join(targetMigrations, "20260815000001_reconciliation_configuration.sql"));
   }
   for (const rawPath of copyPaths) {
     const path = safeSupabaseRelativePath(rawPath);
@@ -206,7 +209,7 @@ export async function findMissingGateInputs(root, relativePaths) {
 }
 
 export async function collectStaticPreflightFailures(root, env = process.env, {
-  scope = "phase2", baselineCandidate = null, appliedVersions = [], scopeManifest = null,
+  scope = "phase2", baselineCandidate = null, reconciliationConfiguration = null, appliedVersions = [], scopeManifest = null,
 } = {}) {
   const failures = [];
   const migrationDir = resolve(root, "supabase", "migrations");
@@ -232,6 +235,11 @@ export async function collectStaticPreflightFailures(root, env = process.env, {
       else {
         try { await access(resolve(baselineCandidate), fsConstants.R_OK); }
         catch { failures.push("private baseline candidate is missing or unreadable"); }
+      }
+      if (!reconciliationConfiguration) failures.push("reconciliation replay requires private environment configuration");
+      else {
+        try { await access(resolve(reconciliationConfiguration), fsConstants.R_OK); }
+        catch { failures.push("private reconciliation configuration is missing or unreadable"); }
       }
       const selected = selectMigrationNames(migrationNames, { scope, appliedVersions, scopeManifest: manifest });
       failures.push(...inspectMigrationNames([BASELINE_FILE, ...selected.filter((name) => name !== BASELINE_FILE)]));

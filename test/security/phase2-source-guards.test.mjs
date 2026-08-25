@@ -43,3 +43,11 @@ test("Phase 2 V2 routes use reviewed RPCs and never select star", async () => {
     assert.match(source, /\.rpc\(/);
   }
 });
+
+test("legacy proposal backfill uses the authoritative V1 timeline and does not invent counts", async () => {
+  const sql = await read("supabase/migrations/20260818000200_phase2_proposal_finance_foundation.sql");
+  assert.match(sql, /q\.timeline_start,q\.timeline_end,true/);
+  assert.match(sql, /to_jsonb\(q\)->>'expected_beneficiary_count'/);
+  assert.match(sql, /WHERE legacy_count\.value IS NOT NULL/);
+  assert.doesNotMatch(sql, /q\.start_date|q\.end_date|q\.expected_beneficiary_count/);
+});

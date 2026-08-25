@@ -19,21 +19,44 @@ RETURNS text LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,public AS $functi
     WHEN p_table LIKE 'proposal%' OR p_table='project_proposals' THEN 'proposals'
     WHEN p_table LIKE 'program%' OR p_table='activity_photos' THEN 'programs'
     WHEN p_table LIKE 'volunteer%' THEN 'volunteers'
+    WHEN p_table='participation_forms' THEN 'volunteers'
     WHEN p_table LIKE 'survey%' THEN 'surveys'
     WHEN p_table='community_needs' THEN 'community_needs'
     WHEN p_table='field_observations' THEN 'observations'
-    WHEN p_table IN('community_skills','community_assets','barangay_skills','barangay_assets') THEN 'skills_assets'
+    WHEN p_table IN('community_skills','community_assets','barangay_skills','barangay_assets','skill_categories') THEN 'skills_assets'
     WHEN p_table='attendance' THEN 'attendance'
     WHEN p_table='activity_logs' THEN 'activity_logs'
     WHEN p_table LIKE 'donation%' THEN 'donations'
-    WHEN p_table LIKE 'impact%' OR p_table LIKE 'qualitative_impact%' OR p_table LIKE 'follow_up%' THEN 'impact'
+    WHEN p_table LIKE 'impact%' OR p_table LIKE 'qualitative_impact%' OR p_table LIKE 'follow_up%' OR p_table='followup_assessments' OR p_table='qualitative_data' THEN 'impact'
     WHEN p_table LIKE 'analytics%' THEN 'analytics'
     WHEN p_table LIKE 'ai_report%' THEN 'reports'
-    WHEN p_table IN('notifications','forum_threads','forum_posts','forum_comments') THEN 'communication'
+    WHEN p_table='chatbot_logs' THEN 'ai_assistance'
+    WHEN p_table IN('notifications','forum_threads','forum_posts','forum_comments','discussion_posts','discussion_replies') THEN 'communication'
     WHEN p_table='domain_correction_events' THEN 'audit_logs'
+    WHEN p_table='system_backups' THEN 'audit_logs'
     WHEN p_table LIKE 'profiling%' OR p_table IN('barangay_sitios','mother_leader_sitio_assignments','official_population_snapshots','household_profiles') THEN 'profiling'
     ELSE NULL END;
 $function$;
+
+-- Several authoritative legacy tables predate RLS. Fail closed before adding
+-- the restrictive deny-only policy; service-role compatibility reads remain
+-- possible, while ordinary authenticated access requires an explicit
+-- permissive policy as well as this guard.
+DO $enable_domain_rls$
+DECLARE item record;
+BEGIN
+  FOR item IN
+    SELECT c.relname FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+    WHERE n.nspname='public' AND c.relkind IN('r','p')
+      AND c.relname NOT IN('spatial_ref_sys','schema_migrations')
+      AND c.relname NOT LIKE 'pg_%'
+      AND public.phase1_permission_module_for_table(c.relname) IS NOT NULL
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',item.relname);
+  END LOOP;
+END;
+$enable_domain_rls$;
 
 CREATE OR REPLACE FUNCTION public.phase1_current_permission_module_allowed(p_module text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $function$

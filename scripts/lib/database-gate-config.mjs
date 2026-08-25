@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 export const DATABASE_GATE_SCOPE_FILE = "supabase/database-gate-scopes.json";
 export const DATABASE_GATE_SCOPE_SCHEMA = "agape.database-gate-scopes.v1";
 export const EXPECTED_SUPABASE_CLI_VERSION = "2.114.0";
-export const EXPECTED_POSTGRES_MAJOR = 15;
+export const EXPECTED_POSTGRES_MAJOR = 17;
 export const EXPECTED_SOURCE_PROJECT_ID = "agape-local";
 export const EXPECTED_DISPOSABLE_PROJECT_ID = "agape-release-gate";
 

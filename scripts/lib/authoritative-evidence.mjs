@@ -101,7 +101,7 @@ async function readRequiredFile(captureDirectory, relativePath, problems) {
 }
 
 /** Validate an authorized sanitized capture without returning file contents. */
-export async function validateAuthoritativeCapture({ captureDirectory, expectedPostgresMajor = 15 }) {
+export async function validateAuthoritativeCapture({ captureDirectory, expectedPostgresMajor = 17 }) {
   const root = resolve(captureDirectory);
   const problems = [];
   const files = new Map();

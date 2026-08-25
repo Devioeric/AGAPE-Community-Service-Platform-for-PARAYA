@@ -106,7 +106,7 @@ test("scope manifest locks CLI, PostgreSQL, ports, and explicit Phase scopes", (
   wrongCli.supabaseCliVersion = "2.113.0";
   assert.match(validateDatabaseGateScopeManifest(wrongCli).join("\n"), /CLI version/);
   const wrongPostgres = structuredClone(scopeManifest);
-  wrongPostgres.postgresMajorVersion = 16;
+  wrongPostgres.postgresMajorVersion = 15;
   assert.match(validateDatabaseGateScopeManifest(wrongPostgres).join("\n"), /PostgreSQL major/);
   assert.deepEqual(validateInstalledSupabaseCliPackage({ version: "2.114.0" }), []);
   assert.match(validateInstalledSupabaseCliPackage({ version: "2.115.0" }).join("\n"), /exactly 2\.114\.0/);

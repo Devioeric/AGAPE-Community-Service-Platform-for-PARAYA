@@ -97,7 +97,7 @@ timestamps or concatenate them into a baseline.
 
 ## Canonical schema capture
 
-Use PostgreSQL 15 tooling to match `supabase/config.toml`. Capture schema only
+Use PostgreSQL 17 tooling to match the authoritative staging database and `supabase/config.toml`. Capture schema only
 from the authoritative reconciled environment through an approved read-only
 connection. Use the same `pg_dump` major version, schema list, and options for
 the authoritative and replay captures. Keep owner-independent output, but retain

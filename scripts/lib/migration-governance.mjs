@@ -193,7 +193,7 @@ export function analyzeMigrationEntries(entries, { ledgerVersions = null } = {})
   };
 }
 
-export async function readLedgerVersions(path) {
+export async function readLedgerVersions(path, { allowEmpty = false } = {}) {
   const source = await readFile(path, "utf8");
   const lines = source.replace(/^\uFEFF/, "").split(/\r?\n/);
   const versions = [];
@@ -205,7 +205,7 @@ export async function readLedgerVersions(path) {
     }
     versions.push(value);
   }
-  if (!versions.length) throw new Error("Ledger capture is empty.");
+  if (!versions.length && !allowEmpty) throw new Error("Ledger capture is empty; an explicit validated no-migrations confirmation is required.");
   if (new Set(versions).size !== versions.length) throw new Error("Ledger capture contains duplicate versions.");
   return versions;
 }

@@ -12,17 +12,21 @@ Options:
   --json             Print stable JSON instead of the human-readable report.
   --ledger <path>    Compare against a private text capture containing one
                      14-digit supabase_migrations version per line.
+  --empty-ledger-confirmed
+                     Accept an empty ledger only after the authoritative
+                     capture validator confirms no timestamped migrations.
   --help             Show this help.
 
 This command is read-only. It never creates, renames, archives, or applies SQL.`);
 }
 
 function parseArguments(argv) {
-  const options = { check: false, json: false, ledger: null };
+  const options = { check: false, json: false, ledger: null, emptyLedgerConfirmed: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--check") options.check = true;
     else if (argument === "--json") options.json = true;
+    else if (argument === "--empty-ledger-confirmed") options.emptyLedgerConfirmed = true;
     else if (argument === "--ledger") {
       const value = argv[index + 1];
       if (!value || value.startsWith("--")) throw new Error("--ledger requires a file path.");
@@ -83,7 +87,10 @@ async function main() {
 
   try {
     const root = resolve(import.meta.dirname, "..");
-    const ledgerVersions = options.ledger ? await readLedgerVersions(options.ledger) : null;
+    if (options.emptyLedgerConfirmed && !options.ledger) throw new Error("--empty-ledger-confirmed requires --ledger");
+    const ledgerVersions = options.ledger
+      ? await readLedgerVersions(options.ledger, { allowEmpty: options.emptyLedgerConfirmed })
+      : null;
     const report = await inventoryMigrationDirectory(resolve(root, "supabase/migrations"), { ledgerVersions });
     if (options.json) console.log(JSON.stringify(report, null, 2));
     else printHuman(report);

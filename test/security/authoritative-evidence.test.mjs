@@ -19,7 +19,7 @@ async function writeCapture(root, { applied = true, captureId = "AGAPE-CAPTURE-2
   values.set("capture-metadata.json", JSON.stringify({
     schema: "agape.authoritative-capture.v1", captureId, environment: "production",
     projectReference: "agape_sanitized", capturedAt: "2026-08-23T10:00:00Z",
-    operator: "Maria Santos (Database Operator)", postgresMajor: 15,
+    operator: "Maria Santos (Database Operator)", postgresMajor: 17,
     supabaseCliVersion: "2.114.0", schemaAllowlist: ["public"],
     timestampedMigrationsApplied: applied,
   }));

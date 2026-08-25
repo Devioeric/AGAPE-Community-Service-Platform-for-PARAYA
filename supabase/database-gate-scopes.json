@@ -1,7 +1,7 @@
 {
   "schema": "agape.database-gate-scopes.v1",
   "supabaseCliVersion": "2.114.0",
-  "postgresMajorVersion": 15,
+  "postgresMajorVersion": 17,
   "sourceProjectId": "agape-local",
   "disposableProjectId": "agape-release-gate",
   "ports": {

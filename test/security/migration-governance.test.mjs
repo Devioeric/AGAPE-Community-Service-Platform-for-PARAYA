@@ -8,7 +8,11 @@ import {
   extractCombinedMembers,
   extractUsersRoleConstraintSets,
   normalizeSchemaDump,
+  readLedgerVersions,
 } from "../../scripts/lib/migration-governance.mjs";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 function entry(name, sql = "SELECT 1;", sha256 = "fixture") {
   return { name, sql, sha256, ...classifyMigrationName(name) };
@@ -51,6 +55,14 @@ test("ledger comparison distinguishes applied gaps from later pending migrations
   assert.deepEqual(report.ledger.gapsBeforeLatest, ["20260816000100"]);
   assert.deepEqual(report.ledger.pendingAfterLatest, ["20260816000300"]);
   assert.ok(report.hazards.some((item) => item.code === "LOCAL_LEDGER_GAPS"));
+});
+
+test("an empty ledger requires explicit authoritative confirmation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "agape-empty-ledger-"));
+  const path = join(root, "versions.txt");
+  await writeFile(path, "");
+  await assert.rejects(readLedgerVersions(path), /explicit validated/);
+  assert.deepEqual(await readLedgerVersions(path, { allowEmpty: true }), []);
 });
 
 test("schema comparison ignores only known pg_dump noise and remains fail-closed", () => {

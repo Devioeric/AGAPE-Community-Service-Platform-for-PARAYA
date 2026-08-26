@@ -121,12 +121,22 @@ export const proposalTargetSchema = z.strictObject({ barangayId: id, sitioId: id
 export const proposalNeedSchema = z.strictObject({ needId: id, targetAreaKey: z.string().trim().min(1).max(100), intendedCoverage: z.enum(["full", "partial"]), plannedBeneficiaryCount: z.number().int().positive().nullable().optional(), plannedBeneficiaryPercentage: z.number().min(0).max(100).nullable().optional(), notes: z.string().trim().max(500).nullable().optional() });
 export const proposalBudgetItemSchema = z.strictObject({ categoryId: id, kind: z.enum(["cash", "in_kind"]), description: z.string().trim().min(1).max(500), quantity: quantityStringSchema, unit: z.string().trim().min(1).max(40), unitCost: decimalStringSchema, inKindValuation: decimalStringSchema.nullable().optional(), notes: z.string().trim().max(500).nullable().optional(), sortOrder: z.number().int().min(0).max(10000) });
 export const proposalFundingSourceSchema = z.strictObject({ type: z.enum(["internal_dyci", "external", "cash_donation", "in_kind_donation", "partner_contribution", "other"]), state: z.enum(["expected", "confirmed"]), partnerId: id.nullable().optional(), cashValue: decimalStringSchema, inKindValue: decimalStringSchema, notes: z.string().trim().max(500).nullable().optional() });
+export const proposalBeneficiaryEstimateSchema = z.strictObject({
+  categoryCode: z.string().trim().min(1).max(80), targetAreaKey: z.string().trim().min(1).max(100),
+  evidenceSnapshotId: id.nullable().optional(), finalCount: z.number().int().positive(),
+  manualSourceDescription: z.string().trim().min(10).max(500).nullable().optional(),
+  overrideReason: z.string().trim().min(10).max(1000).nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (!value.evidenceSnapshotId && !value.manualSourceDescription) ctx.addIssue({ code: "custom", message: "Manual estimates require a source description" });
+  if (value.evidenceSnapshotId && value.manualSourceDescription) ctx.addIssue({ code: "custom", message: "Planning-cube estimates cannot include a manual source" });
+});
 export const proposalDraftGraphSchema = z.strictObject({
   title: shortText, description: z.string().trim().min(1).max(5000), originChannel: z.enum(["paraya_internal", "partner_document", "barangay_referral"]),
   originatingPartnerId: id.nullable().optional(), responsibleOfficerId: id, projectCategoryId: id,
   startsOn: isoDate, endsOn: isoDate, targets: z.array(proposalTargetSchema).min(1).max(100), needs: z.array(proposalNeedSchema).min(1).max(100),
   beneficiaryCategoryCodes: z.array(z.string().trim().min(1).max(80)).min(1).max(30), finalBeneficiaryCount: z.number().int().positive(),
   beneficiarySourceDescription: z.string().trim().min(10).max(500), sdgNumbers: z.array(z.number().int().min(1).max(17)).min(1).max(17),
+  beneficiaryEstimates: z.array(proposalBeneficiaryEstimateSchema).max(100).default([]),
   zeroCash: z.boolean(), zeroCashJustification: z.string().trim().max(500).nullable().optional(), budgetItems: z.array(proposalBudgetItemSchema).min(1).max(500),
   fundingSources: z.array(proposalFundingSourceSchema).max(100), expectedVersion: z.number().int().nonnegative().optional(),
 }).superRefine((value, ctx) => {
@@ -142,6 +152,12 @@ export const proposalDraftGraphSchema = z.strictObject({
     if (!target.sitioId && Array.from(seen).some((candidate) => candidate.startsWith(`${target.barangayId}:`) && candidate !== key)) ctx.addIssue({ code: "custom", message: "Barangay-wide and sitio targets cannot coexist" });
   }
   if (value.zeroCash && !value.zeroCashJustification) ctx.addIssue({ code: "custom", message: "Zero-cash proposals require a justification" });
+  if (value.zeroCash && value.budgetItems.some((item) => item.kind === "cash" && item.unitCost !== "0" && item.unitCost !== "0.00")) ctx.addIssue({ code: "custom", message: "Zero-cash proposals cannot contain cash items" });
+  if (value.zeroCash && !value.budgetItems.some((item) => item.kind === "in_kind")) ctx.addIssue({ code: "custom", message: "Zero-cash proposals require an in-kind item" });
+  if (!value.zeroCash && !value.budgetItems.some((item) => item.kind === "cash")) ctx.addIssue({ code: "custom", message: "Cash proposals require a cash item" });
+  for (const source of value.fundingSources) {
+    if (source.type === "partner_contribution" && !source.partnerId) ctx.addIssue({ code: "custom", message: "Partner contributions require a Partner" });
+  }
 });
 export type ProposalDraftGraphInput = z.infer<typeof proposalDraftGraphSchema>;
 export function toProposalGraphRpcPayload(value: ProposalDraftGraphInput) {
@@ -154,6 +170,9 @@ export function toProposalGraphRpcPayload(value: ProposalDraftGraphInput) {
       planned_beneficiary_count: item.plannedBeneficiaryCount ?? null, planned_beneficiary_percentage: item.plannedBeneficiaryPercentage ?? null, notes: item.notes ?? null })),
     beneficiary_category_codes: value.beneficiaryCategoryCodes, final_beneficiary_count: value.finalBeneficiaryCount,
     beneficiary_source_description: value.beneficiarySourceDescription, sdg_numbers: value.sdgNumbers,
+    beneficiary_estimates: value.beneficiaryEstimates.map((item) => ({ category_code: item.categoryCode,
+      target_area_key: item.targetAreaKey, evidence_snapshot_id: item.evidenceSnapshotId ?? null, final_count: item.finalCount,
+      manual_source_description: item.manualSourceDescription ?? null, override_reason: item.overrideReason ?? null })),
     zero_cash: value.zeroCash, zero_cash_justification: value.zeroCashJustification ?? null,
     budget_items: value.budgetItems.map((item) => ({ category_id: item.categoryId, item_kind: item.kind, description: item.description,
       quantity: item.quantity, unit: item.unit, unit_cost: item.unitCost, in_kind_valuation: item.inKindValuation ?? null,
@@ -162,9 +181,29 @@ export function toProposalGraphRpcPayload(value: ProposalDraftGraphInput) {
       cash_value: item.cashValue, in_kind_value: item.inKindValue, notes: item.notes ?? null })),
   };
 }
-export const proposalWorkflowSchema = z.strictObject({ action: z.enum(["submit", "pass_pre_screening", "confirm_evidence", "request_revision", "finance_clear", "finance_return", "director_approve", "director_reject"]), expectedVersion: z.number().int().positive(), remarks: z.string().trim().max(2000).optional(), acknowledgedWarningCodes: z.array(z.string().trim().min(1).max(80)).max(100).default([]) });
+export const proposalWorkflowSchema = z.strictObject({ action: z.enum(["submit", "pass_pre_screening", "confirm_evidence", "request_revision", "finance_clear", "finance_return", "director_approve", "director_reject"]), expectedVersion: z.number().int().positive(), remarks: z.string().trim().max(2000).optional(), acknowledgedWarningCodes: z.array(z.string().trim().regex(/^[a-z][a-z0-9_]{0,79}$/)).max(100).default([]) }).superRefine((value, ctx) => {
+  if (value.action !== "submit" && value.acknowledgedWarningCodes.length) ctx.addIssue({ code: "custom", message: "Warnings are acknowledged only during submission" });
+});
 
-export const programExpenditureSchema = z.strictObject({ budgetItemId: id, amount: decimalStringSchema, spentOn: isoDate, payeeLabel: z.string().trim().max(160).nullable().optional(), description: z.string().trim().min(1).max(500), receiptDocumentId: id.nullable().optional(), receiptExceptionReason: z.string().trim().min(10).max(500).nullable().optional() }).superRefine((value, ctx) => {
+export const beneficiaryEstimateRequestSchema = z.strictObject({ categoryCode: z.string().trim().min(1).max(80), barangayId: id, sitioId: id.nullable().optional(), evidenceSnapshotId: id });
+
+export const programAllocationItemSchema = z.strictObject({
+  sourceItemId: id.nullable().optional(), categoryId: id, kind: z.enum(["cash", "in_kind"]),
+  description: z.string().trim().min(1).max(500), allocatedAmount: decimalStringSchema,
+  sortOrder: z.number().int().min(0).max(10000),
+}).refine((value) => value.allocatedAmount !== "0" && value.allocatedAmount !== "0.0" && value.allocatedAmount !== "0.00", { message: "Allocation amount must be positive", path: ["allocatedAmount"] });
+export const programAllocationPrepareSchema = z.strictObject({
+  expectedActiveVersion: z.number().int().positive(), reason: z.string().trim().min(5).max(1000),
+  items: z.array(programAllocationItemSchema).min(1).max(500),
+});
+export const programAllocationActionSchema = z.strictObject({
+  action: z.enum(["submit", "return", "activate"]), expectedVersion: z.number().int().positive(),
+  reason: z.string().trim().max(1000).optional(),
+}).superRefine((value, ctx) => {
+  if (value.action === "return" && (!value.reason || value.reason.length < 5)) ctx.addIssue({ code: "custom", message: "A return reason is required" });
+});
+
+export const programExpenditureSchema = z.strictObject({ budgetItemId: id, amount: decimalStringSchema, spentOn: isoDate, payeeLabel: z.string().trim().max(160).nullable().optional(), description: z.string().trim().min(1).max(500), receiptDocumentId: id.nullable().optional(), receiptExceptionReason: z.string().trim().min(10).max(500).nullable().optional(), varianceExplanation: z.string().trim().min(10).max(1000).nullable().optional() }).superRefine((value, ctx) => {
   if (!value.receiptDocumentId && !value.receiptExceptionReason) ctx.addIssue({ code: "custom", message: "A cash expenditure requires receipt evidence or an exception reason" });
 });
 export const expenditureReviewSchema = z.strictObject({ action: z.enum(["verify", "return"]), expectedVersion: z.number().int().positive(), reason: z.string().trim().max(1000).default("") }).superRefine((value, ctx) => {
@@ -174,6 +213,7 @@ export const expenditureCorrectionSchema = z.strictObject({ expectedVersion: z.n
 export const expenditureVoidSchema = z.strictObject({ expectedVersion: z.number().int().positive(), reason: z.string().trim().min(5).max(1000) });
 export const liquidationSummarySchema = z.strictObject({ periodStart: isoDate, periodEnd: isoDate, narrative: z.string().trim().min(10).max(2000), exceptionNotes: z.string().trim().max(1000).nullable().optional() }).refine((value) => value.periodEnd >= value.periodStart, { message: "Period end cannot precede period start", path: ["periodEnd"] });
 export const liquidationCreateSchema = z.strictObject({ summary: liquidationSummarySchema, expenditureIds: z.array(id).min(1).max(1000) });
+export const liquidationUpdateSchema = liquidationCreateSchema.extend({ expectedVersion: z.number().int().positive() });
 export const liquidationActionSchema = z.strictObject({ action: z.enum(["submit", "return", "verify", "void"]), expectedVersion: z.number().int().positive(), remarks: z.string().trim().max(2000).optional() }).superRefine((value, ctx) => { if (["return", "verify", "void"].includes(value.action) && !value.remarks) ctx.addIssue({ code: "custom", message: "Remarks are required" }); });
 
 export function parseStrict<T>(schema: z.ZodType<T>, input: unknown): { ok: true; data: T } | { ok: false; issues: string[] } {

@@ -12,8 +12,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!isPhase2ComponentEnabled("program_finance")) return phase2DisabledResponse("program_finance");
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid handoff request", issues: body.error.issues }, { status: 400 });
-  const { data, error } = await auth.supabase.rpc("phase2_handoff_proposal", { p_proposal_id: params.id, p_expected_version: body.data.expectedVersion });
+  const { data, error } = await auth.supabase.rpc("phase2_handoff_proposal_v2", { p_proposal_id: params.id, p_expected_version: body.data.expectedVersion });
   if (error) return phase2RpcError(error);
-  const row = Array.isArray(data) ? data[0] : data;
-  return NextResponse.json({ data: row });
+  return NextResponse.json({ data });
 }

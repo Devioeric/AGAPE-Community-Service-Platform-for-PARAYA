@@ -10,10 +10,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const parsed = parseStrict(programExpenditureSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid expenditure", issues: parsed.issues }, { status: 400 });
   const value = parsed.data;
-  const { data, error } = await auth.supabase.rpc("phase2_record_expenditure", { p_program_id: params.id, p_payload: {
+  const { data, error } = await auth.supabase.rpc("phase2_record_expenditure_v2", { p_program_id: params.id, p_payload: {
     budget_item_id: value.budgetItemId, amount: value.amount, spent_on: value.spentOn, payee_label: value.payeeLabel ?? null,
     description: value.description, receipt_document_id: value.receiptDocumentId ?? null, receipt_exception_reason: value.receiptExceptionReason ?? null,
+    variance_explanation: value.varianceExplanation ?? null,
   } });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data } }, { status: 201 });
+  return NextResponse.json({ data }, { status: 201 });
 }

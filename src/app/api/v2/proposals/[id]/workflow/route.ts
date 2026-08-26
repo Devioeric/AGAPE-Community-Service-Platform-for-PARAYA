@@ -10,10 +10,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const parsed = parseStrict(proposalWorkflowSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid proposal action", issues: parsed.issues }, { status: 400 });
   if (["finance_clear", "finance_return"].includes(parsed.data.action) && !isPhase2ComponentEnabled("program_finance")) return phase2DisabledResponse("program_finance");
-  const { data, error } = await auth.supabase.rpc("phase2_apply_proposal_action", {
+  const { data, error } = await auth.supabase.rpc("phase2_apply_proposal_action_v2", {
     p_proposal_id: params.id, p_action: parsed.data.action, p_expected_version: parsed.data.expectedVersion,
     p_remarks: parsed.data.remarks ?? null, p_warning_codes: parsed.data.acknowledgedWarningCodes,
   });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: params.id, status: data } });
+  return NextResponse.json({ data });
 }

@@ -9,7 +9,16 @@ export async function POST(request: Request) {
   if (!isPhase2ComponentEnabled("proposals")) return phase2DisabledResponse("proposals");
   const parsed = parseStrict(proposalDraftGraphSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid proposal graph", issues: parsed.issues }, { status: 400 });
-  const { data, error } = await auth.supabase.rpc("phase2_save_proposal_graph", { p_proposal_id: null, p_expected_version: 0, p_payload: toProposalGraphRpcPayload(parsed.data) });
+  const { data, error } = await auth.supabase.rpc("phase2_save_proposal_graph_v2", { p_proposal_id: null, p_expected_version: 0, p_payload: toProposalGraphRpcPayload(parsed.data) });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data } }, { status: 201 });
+  return NextResponse.json({ data }, { status: 201 });
+}
+
+export async function GET() {
+  const auth = await authorizeCapability("proposal.read");
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!isPhase2ComponentEnabled("proposals")) return phase2DisabledResponse("proposals");
+  const { data, error } = await auth.supabase.rpc("phase2_list_proposals");
+  if (error) return phase2RpcError(error);
+  return NextResponse.json({ data: data ?? [] });
 }

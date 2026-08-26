@@ -19,9 +19,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const parsed = parseStrict(proposalDraftGraphSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid proposal graph", issues: parsed.issues }, { status: 400 });
   if (!parsed.data.expectedVersion) return NextResponse.json({ error: "expectedVersion is required" }, { status: 400 });
-  const { data, error } = await auth.supabase.rpc("phase2_save_proposal_graph", {
+  const { data, error } = await auth.supabase.rpc("phase2_save_proposal_graph_v2", {
     p_proposal_id: params.id, p_expected_version: parsed.data.expectedVersion, p_payload: toProposalGraphRpcPayload(parsed.data),
   });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data } });
+  return NextResponse.json({ data });
 }

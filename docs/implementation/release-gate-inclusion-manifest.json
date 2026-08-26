@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "8ef75b8aae6a89892974795e166103df5d642ffd",
+  "head": "7d7cc6a1debb8966045e854937865ccfc249fdd1",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 20,
-    "include": 20,
+    "total": 23,
+    "include": 23,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/[id]/route.ts",
+      "path": "src/app/api/v2/finance/proposals/[id]/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,16 +52,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/[id]/workflow/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/historical-programs/analytics/route.ts",
+      "path": "src/app/api/v2/programs/[id]/finance/allocations/[revisionId]/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -70,16 +61,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/imports/[batchId]/duplicates/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/historical-programs/imports/[batchId]/route.ts",
+      "path": "src/app/api/v2/programs/[id]/finance/allocations/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -88,7 +70,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/imports/preview/route.ts",
+      "path": "src/app/api/v2/programs/[id]/finance/expenditures/[expenditureId]/correct/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -97,7 +79,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/imports/template/route.ts",
+      "path": "src/app/api/v2/programs/[id]/finance/expenditures/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -106,7 +88,70 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/historical-programs/route.ts",
+      "path": "src/app/api/v2/programs/[id]/finance/liquidations/[liquidationId]/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/programs/[id]/finance/liquidations/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/[id]/handoff/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/[id]/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/[id]/workflow/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/beneficiary-estimates/route.ts",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/catalog/route.ts",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/proposals/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -116,15 +161,6 @@
     },
     {
       "path": "src/lib/phase2/contracts.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/phase2/historical-import.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -151,7 +187,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818000870_phase2_historical_vertical_completion.sql",
+      "path": "supabase/migrations/20260818000880_phase2_proposal_finance_vertical_completion.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -169,7 +205,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/tests/seeded/phase2/02_historical_vertical_workflows.sql",
+      "path": "supabase/tests/seeded/phase2/03_proposal_finance_vertical_workflows.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -190,16 +226,7 @@
       ]
     },
     {
-      "path": "test/security/phase2-contracts.test.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/phase2-historical-vertical-completion.test.mjs",
+      "path": "test/security/phase2-proposal-finance-vertical.test.mjs",
       "state": "??",
       "tracked": false,
       "classification": "include",

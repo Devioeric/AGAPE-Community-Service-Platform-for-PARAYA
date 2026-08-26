@@ -10,11 +10,12 @@ export async function POST(request: Request, { params }: { params: { id: string;
   const parsed = parseStrict(expenditureCorrectionSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid correction", issues: parsed.issues }, { status: 400 });
   const value = parsed.data.replacement;
-  const { data, error } = await auth.supabase.rpc("phase2_correct_expenditure", { p_program_id: params.id, p_id: params.expenditureId,
+  const { data, error } = await auth.supabase.rpc("phase2_correct_expenditure_v2", { p_program_id: params.id, p_id: params.expenditureId,
     p_expected_version: parsed.data.expectedVersion, p_reason: parsed.data.reason, p_replacement_payload: {
       budget_item_id: value.budgetItemId, amount: value.amount, spent_on: value.spentOn, payee_label: value.payeeLabel ?? null,
       description: value.description, receipt_document_id: value.receiptDocumentId ?? null, receipt_exception_reason: value.receiptExceptionReason ?? null,
+      variance_explanation: value.varianceExplanation ?? null,
     } });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data, replacesId: params.expenditureId } });
+  return NextResponse.json({ data });
 }

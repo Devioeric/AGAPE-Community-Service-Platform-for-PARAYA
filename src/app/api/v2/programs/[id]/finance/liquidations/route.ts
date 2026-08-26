@@ -9,10 +9,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!isPhase2ComponentEnabled("program_finance")) return phase2DisabledResponse("program_finance");
   const body = parseStrict(liquidationCreateSchema, await request.json().catch(() => null));
   if (!body.ok) return NextResponse.json({ error: "Invalid liquidation", issues: body.issues }, { status: 400 });
-  const { data, error } = await auth.supabase.rpc("phase2_create_liquidation", { p_program_id: params.id, p_summary: {
+  const { data, error } = await auth.supabase.rpc("phase2_create_liquidation_v2", { p_program_id: params.id, p_summary: {
     period_start: body.data.summary.periodStart, period_end: body.data.summary.periodEnd,
     narrative: body.data.summary.narrative, exception_notes: body.data.summary.exceptionNotes ?? null,
   }, p_expenditure_ids: body.data.expenditureIds });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data } }, { status: 201 });
+  return NextResponse.json({ data }, { status: 201 });
 }

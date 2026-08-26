@@ -20,7 +20,7 @@ const ACTIVE_SYNTHETIC_IDS = [
 ];
 
 export function phase1BrowserGateContract() {
-  return { schema: "agape.phase1-browser-gates.v1", cases: 8, aiRequests: 2, workers: 1, finalState: { profilingMode: "off" } };
+  return { schema: "agape.phase1-browser-gates.v1", cases: 10, aiRequests: 2, workers: 1, finalState: { profilingMode: "off" } };
 }
 
 async function startAiRecorder() {
@@ -96,6 +96,20 @@ async function stopServer(server) {
   ]);
 }
 
+async function clearDisposableMailpit() {
+  const origin = "http://127.0.0.1:54324";
+  const removed = await fetch(`${origin}/api/v1/messages`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.ok(removed.ok, "disposable Mailpit cleanup failed");
+  const listed = await fetch(`${origin}/api/v1/messages?start=0&limit=1`, { cache: "no-store" });
+  assert.ok(listed.ok, "disposable Mailpit cleanup verification failed");
+  const state = await listed.json();
+  assert.equal(state?.total, 0, "disposable Mailpit retained stale one-time links");
+}
+
 export async function runPhase1BrowserGates({ root, apiUrl, anonKey, serviceRoleKey, readWorkflowFingerprint, expectedPort = 54321 }) {
   assert.equal(typeof serviceRoleKey, "string", "local disposable service-role key is unavailable");
   assert.ok(serviceRoleKey.length >= 20, "local disposable service-role key is malformed");
@@ -108,7 +122,11 @@ export async function runPhase1BrowserGates({ root, apiUrl, anonKey, serviceRole
   }, { accessToken: directorToken });
   assert.ok(entered.ok && entered.data?.mode === "synthetic", "browser gate could not enter disposable synthetic mode");
 
-  const baseUrl = "http://127.0.0.1:3100";
+  // Next.js canonicalizes route-handler redirects to localhost in this local
+  // production server. Keep the browser origin consistent so PKCE cookies are
+  // not stranded on 127.0.0.1 during password recovery.
+  const baseUrl = "http://localhost:3100";
+  await clearDisposableMailpit();
   const aiRecorder = await startAiRecorder();
   let workflowBefore;
   const env = isolatedChildEnvironment();
@@ -125,6 +143,8 @@ export async function runPhase1BrowserGates({ root, apiUrl, anonKey, serviceRole
     AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED: "false",
     AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED: "false",
     AGAPE_PHASE1_E2E: "true",
+    AGAPE_LOCAL_MAILPIT_URL: "http://127.0.0.1:54324",
+    NEXT_PUBLIC_APP_URL: baseUrl,
     PLAYWRIGHT_BASE_URL: baseUrl,
     LOCAL_AI_BASE_URL: "http://127.0.0.1:3110/v1",
     LOCAL_AI_API_KEY: "synthetic-local-ai-key",
@@ -138,7 +158,7 @@ export async function runPhase1BrowserGates({ root, apiUrl, anonKey, serviceRole
     workflowBefore = await readWorkflowFingerprint();
     const build = await runProcess(process.execPath, [next, "build"], { cwd: root, env, timeoutMs: 480_000 });
     if (build.code !== 0 || build.truncated) throw new Error(`Phase 1 local browser build failed:\n${build.stderr || build.stdout}`);
-    server = spawn(process.execPath, [next, "start", "-H", "127.0.0.1", "-p", "3100"], {
+    server = spawn(process.execPath, [next, "start", "-H", "localhost", "-p", "3100"], {
       cwd: root, env, windowsHide: true, shell: false, stdio: ["ignore", "pipe", "pipe"],
     });
     let serverOutput = "";

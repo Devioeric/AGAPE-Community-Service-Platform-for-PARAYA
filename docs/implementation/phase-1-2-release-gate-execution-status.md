@@ -331,6 +331,49 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Rollback: before deployment, revert the scoped canonical-promotion checkpoint to return the archived files to their prior tracked locations. Never remove the private authoritative capture or weaken security migrations. A future connected ledger proposal remains tracking-only, explicitly authorized, and separately evidenced.
 - Next exact action: regenerate the inclusion manifest and filename/count-only secret scan, stage only the canonical baseline, archive, manifest, version correction, test, and ledger updates, then create a normal development checkpoint. Do not designate release candidate `R` yet.
 
+## Disposable Auth recovery and invitation completion record
+
+- Status: `locally_complete`. This is a normal development packet and does not
+  designate release candidate `R`, create executed evidence, or activate a
+  shared environment.
+- Files changed: local Mailpit test support, authenticated Phase 1 browser
+  workflows, recovery and invitation pages, a protected server sign-out route,
+  middleware, disposable Auth redirect configuration, replay scopes, database
+  catalog assertions, source contracts, and this informational ledger.
+- Migration added: `20260818000920_phase1_invitation_completion_boundary.sql`.
+  It is additive and forward-only. The fixed-search-path SECURITY DEFINER
+  function returns only a boolean proving that the current authenticated Auth
+  invite matches its own pending inactive approved-role account. It does not
+  expose `public.users`, weaken active-account/capability RLS, or grant anon or
+  PUBLIC execution.
+- Auth behavior: the local recovery flow consumes the real one-time Mailpit
+  link, updates the password, clears the SSR session through an independently
+  authenticated no-body sign-out endpoint, returns to login, and authenticates
+  with the new password. The invitation flow consumes only an invite-type
+  implicit session, activates only the matching pending profile through the
+  audited service endpoint, and reaches the returned role home.
+- Commands: focused Auth/scope/source tests; full Node tests; typecheck; lint;
+  production build; complete Phase 1 two-replay database gate; and two complete
+  authenticated Phase 1 browser reruns after final hardening.
+- Results: 204/204 static tests pass; typecheck and lint pass; all 163 generated
+  build pages/routes pass; two clean Phase 1 replays match at
+  `13b7c02c3a61790f5699fec26ad9a00a38a788bf367a2b9020212643b25345ab`;
+  catalog tests pass 15/15; seeded fixture tests pass 22/22; behavioral gates
+  pass 99/99; legacy-seed compatibility passes; and authenticated browser gates
+  pass 10/10 with zero mandatory skips.
+- Isolation/final state: all Auth links and endpoints were loopback-only, all
+  recipients used `.invalid`, Mailpit was cleared before each suite, the
+  disposable stack was removed, profiling returned to `off`, feature flags
+  remained false outside the verified child process, no remote account or data
+  was mutated, and no real personal data was used.
+- Rollback: before deployment, revert this development checkpoint to remove the
+  new route/function/tests and restore the prior page behavior. Never weaken
+  active-account RLS, expose pending user rows, restore client-only SSR signout,
+  or accept non-local Auth links in the executable gate.
+- Next exact action: create the reviewed development checkpoint, then rerun the
+  complete Phase 2 replay and authenticated browser/AI regression against the
+  full chain. Packet 18 remains externally blocked after local regressions pass.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

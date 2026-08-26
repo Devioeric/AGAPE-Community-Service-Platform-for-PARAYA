@@ -32,7 +32,8 @@
         "20260818000810_phase1_stable_submission_creation.sql",
         "20260818000820_phase1_private_storage_boundary.sql",
         "20260818000830_phase1_submission_detail_boundary.sql",
-        "20260818000840_phase1_ai_report_compatibility.sql"
+        "20260818000840_phase1_ai_report_compatibility.sql",
+        "20260818000920_phase1_invitation_completion_boundary.sql"
       ],
       "databaseTestPaths": ["tests/database/phase1"],
       "fixtureSeedPaths": ["tests/fixtures/release-gate-phase1.sql"],
@@ -77,7 +78,8 @@
         "20260818000880_phase2_proposal_finance_vertical_completion.sql",
         "20260818000890_phase2_interface_storage_job_completion.sql",
         "20260818000900_phase2_executable_gate_corrections.sql",
-        "20260818000910_phase2_solo_development_account_preservation.sql"
+        "20260818000910_phase2_solo_development_account_preservation.sql",
+        "20260818000920_phase1_invitation_completion_boundary.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

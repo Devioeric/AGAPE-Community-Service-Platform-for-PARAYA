@@ -27,7 +27,7 @@ port = 54324
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback", "http://127.0.0.1:3000/reset-password", "http://127.0.0.1:3000/accept-invite"]
+additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback", "http://127.0.0.1:3000/auth/callback?next=/reset-password", "http://127.0.0.1:3000/reset-password", "http://127.0.0.1:3000/accept-invite", "http://127.0.0.1:3100/auth/callback", "http://127.0.0.1:3100/auth/callback?next=/reset-password", "http://127.0.0.1:3100/reset-password", "http://127.0.0.1:3100/accept-invite", "http://localhost:3100/auth/callback", "http://localhost:3100/auth/callback?next=/reset-password", "http://localhost:3100/reset-password", "http://localhost:3100/accept-invite"]
 jwt_expiry = 3600
 enable_signup = true
 

@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { waitForDisposableAuthLink } from "./support/local-mailpit";
 
 const PASSWORD = "SyntheticReleaseGateOnly!2026";
+const RECOVERED_PASSWORD = "SyntheticReleaseGateRecovered!2026";
 
 async function signIn(page: Page, account: string, expectedHome: RegExp) {
   await page.goto("/login");
@@ -16,6 +18,11 @@ async function selectCycle(page: Page, name: string) {
   expect(value).toBeTruthy();
   await select.selectOption(value!);
   await expect(select.locator("option:checked")).toContainText(name);
+}
+
+async function followDisposableAuthLink(page: Page, link: string, expectedPath: RegExp) {
+  await page.evaluate((target) => { window.location.assign(target); }, link);
+  await expect(page).toHaveURL(expectedPath, { timeout: 15_000 });
 }
 
 if (process.env.AGAPE_PHASE1_E2E === "true") {
@@ -105,6 +112,58 @@ if (process.env.AGAPE_PHASE1_E2E === "true") {
       await expect(assignment).toContainText("Synthetic Barangay Alpha");
       await expect(assignment).toContainText("Synthetic Barangay Beta");
       expect(requestedPaths).not.toContain("/api/partnerships");
+    });
+
+    test("Password recovery follows the disposable captured email link", async ({ page }) => {
+      const email = "volunteer@release-gate.invalid";
+      await page.goto("/forgot-password");
+      await page.getByLabel("Email address").fill(email);
+      await page.getByRole("button", { name: "Send Reset Link" }).click();
+      await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+
+      const recoveryLink = await waitForDisposableAuthLink(email);
+      await followDisposableAuthLink(page, recoveryLink, /\/reset-password(?:\?|$)/);
+      await expect(page.getByRole("heading", { name: "Choose a New Password" })).toBeVisible();
+      await page.getByLabel("New password", { exact: true }).fill(RECOVERED_PASSWORD);
+      await page.getByLabel("Confirm new password", { exact: true }).fill(RECOVERED_PASSWORD);
+      await page.getByRole("button", { name: "Update Password" }).click();
+      await expect(page.getByRole("heading", { name: "Password Updated" })).toBeVisible();
+      await expect(page).toHaveURL(/\/login(?:\?|$)/, { timeout: 10_000 });
+
+      await page.getByLabel("Email address").fill(email);
+      await page.getByLabel("Password").fill(RECOVERED_PASSWORD);
+      await page.getByRole("button", { name: "Sign In" }).click();
+      await expect(page).toHaveURL(/\/volunteer(?:\/)?$/);
+    });
+
+    test("Administrator invitation activates only the disposable pending account", async ({ browser, page }) => {
+      const email = "invited-browser@release-gate.invalid";
+      await signIn(page, "admin", /\/admin(?:\/)?$/);
+      const invitation = await page.evaluate(async (recipient) => {
+        const response = await fetch("/api/admin/invite", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: recipient, role: "volunteer", barangay_id: null }),
+        });
+        return { status: response.status, body: await response.json().catch(() => ({})) };
+      }, email);
+      expect(invitation).toMatchObject({ status: 200, body: { success: true } });
+
+      const invitationLink = await waitForDisposableAuthLink(email);
+      const inviteeContext = await browser.newContext();
+      const inviteePage = await inviteeContext.newPage();
+      try {
+        await followDisposableAuthLink(inviteePage, invitationLink, /\/accept-invite(?:[?#]|$)/);
+        await expect(inviteePage.getByRole("heading", { name: "Complete Your Account" })).toBeVisible();
+        await inviteePage.getByLabel("Full name").fill("Synthetic Invited Browser User");
+        await inviteePage.getByLabel("Set password").fill(PASSWORD);
+        await inviteePage.getByLabel("Confirm password").fill(PASSWORD);
+        await inviteePage.getByRole("button", { name: "Activate Account" }).click();
+        await expect(inviteePage.getByRole("heading", { name: "Account Ready!" })).toBeVisible();
+        await expect(inviteePage).toHaveURL(/\/volunteer(?:\/)?$/, { timeout: 10_000 });
+      } finally {
+        await inviteeContext.close();
+      }
     });
 
     test("AI routes emit advisory-only payloads to the loopback recorder", async ({ page }) => {

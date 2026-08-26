@@ -12,7 +12,7 @@ test("Phase 1 executable suite definition covers every role, state, and mandator
 
 test("Phase 1 catalog tests enumerate application tables and revoke public execution", async () => {
   const sql = await readFile("supabase/tests/database/phase1/01_catalog_security.sql", "utf8");
-  assert.match(sql, /SELECT plan\(10\)/);
+  assert.match(sql, /SELECT plan\(13\)/);
   assert.match(sql, /phase1_application_tables/);
   assert.match(sql, /NOT c\.relrowsecurity/);
   assert.match(sql, /phase1_permission_module_for_table/);

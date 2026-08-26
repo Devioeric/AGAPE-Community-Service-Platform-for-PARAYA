@@ -1,6 +1,6 @@
 BEGIN;
 SET LOCAL search_path = public, extensions, pg_catalog;
-SELECT plan(10);
+SELECT plan(13);
 
 CREATE TEMP TABLE phase1_application_tables AS
 SELECT c.relname AS table_name
@@ -22,6 +22,9 @@ SELECT is((SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.proname
 SELECT is((SELECT count(*) FROM public.profiling_runtime_settings WHERE mode <> 'off'),0::bigint,'profiling runtime defaults off');
 SELECT ok(to_regprocedure('public.phase1_current_has_capability(text)') IS NOT NULL,'canonical capability resolver exists');
 SELECT ok(to_regprocedure('public.phase1_permission_module_for_table(text)') IS NOT NULL,'table permission resolver exists');
+SELECT ok(to_regprocedure('public.phase0_current_invite_can_complete()') IS NOT NULL,'narrow invitation-completion proof exists');
+SELECT ok(has_function_privilege('authenticated','public.phase0_current_invite_can_complete()','EXECUTE'),'authenticated invite session may call the narrow proof');
+SELECT ok(NOT has_function_privilege('anon','public.phase0_current_invite_can_complete()','EXECUTE'),'anonymous callers cannot execute the invitation proof');
 SELECT diag('Admin operational policy: '||schemaname||'.'||tablename||'.'||policyname)
 FROM pg_policies WHERE schemaname='public'
   AND public.phase1_permission_module_for_table(tablename) NOT IN('audit_logs','user_management')

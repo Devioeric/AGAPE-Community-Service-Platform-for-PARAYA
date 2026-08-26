@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "ab8a265680bcf6e144377bfbdfd5bf59b4bffb58",
+  "head": "e5be86dbc5c3c6fb324c5867adff9fe755eb1e5c",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,14 +14,14 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 5,
-    "include": 5,
+    "total": 18,
+    "include": 18,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
     "ambiguous-needs-owner-review": 0,
     "secretFindings": 0,
-    "acknowledgedSyntheticSecretFindings": 0
+    "acknowledgedSyntheticSecretFindings": 2
   },
   "entries": [
     {
@@ -52,6 +52,15 @@
       "acknowledgedSecretRuleIds": []
     },
     {
+      "path": "e2e/support/local-mailpit.ts",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
       "path": "scripts/run-phase1-browser-gates.mjs",
       "state": " M",
       "tracked": true,
@@ -61,7 +70,118 @@
       "acknowledgedSecretRuleIds": []
     },
     {
+      "path": "src/app/(auth)/reset-password/page.tsx",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/accept-invite/page.tsx",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/auth/signout/route.ts",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/middleware.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/config.toml",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/database-gate-scopes.json",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/20260818000920_phase1_invitation_completion_boundary.sql",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/tests/database/phase1/01_catalog_security.sql",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/auth-routing.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/local-database-gate.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": [
+        "jwt-token",
+        "postgres-credential-url"
+      ]
+    },
+    {
+      "path": "test/security/phase0-source-guards.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
       "path": "test/security/phase1-browser-gates.test.mjs",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/phase1-executable-suite-definition.test.mjs",
       "state": " M",
       "tracked": true,
       "classification": "include",

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, CheckCircle, KeyRound, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -34,7 +33,6 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 export default function ResetPasswordPage() {
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [checking, setChecking] = useState(true);
   const [validRecovery, setValidRecovery] = useState(false);
@@ -118,12 +116,18 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setComplete(true);
-    await supabase.auth.signOut({ scope: "global" });
+    const signOutResponse = await fetch("/api/auth/signout", {
+      method: "POST",
+    });
+    if (!signOutResponse.ok) {
+      toast.error("Your password was updated, but sign out failed. Please sign out manually before continuing.");
+      setSubmitting(false);
+      return;
+    }
 
+    setComplete(true);
     window.setTimeout(() => {
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     }, 2000);
   }
 

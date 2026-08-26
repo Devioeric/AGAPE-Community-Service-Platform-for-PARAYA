@@ -1,10 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isActiveAccount } from "@/lib/auth/account-status";
-import {
-  classifyApiAccess,
-  isPendingInvitedAccount,
-} from "@/lib/auth/request-access";
+import { classifyApiAccess } from "@/lib/auth/request-access";
 import { isRecentPasswordRecovery } from "@/lib/auth/redirects";
 import { ROLE_HOME } from "@/lib/auth/roles";
 
@@ -99,17 +96,20 @@ export async function middleware(request: NextRequest) {
       return jsonErrorWithCookies(supabaseResponse, 401, "Unauthorized");
     }
 
+    if (apiAccess === "invite_completion") {
+      const { data: mayCompleteInvite, error } = await supabase.rpc(
+        "phase0_current_invite_can_complete"
+      );
+      return !error && mayCompleteInvite === true
+        ? supabaseResponse
+        : jsonErrorWithCookies(supabaseResponse, 403, "Forbidden");
+    }
+
     const { data: profile } = await supabase
       .from("users")
       .select("role, status, is_active")
       .eq("id", user.id)
       .single();
-
-    if (apiAccess === "invite_completion") {
-      return isPendingInvitedAccount(user.invited_at, profile)
-        ? supabaseResponse
-        : jsonErrorWithCookies(supabaseResponse, 403, "Forbidden");
-    }
 
     if (!isActiveAccount(profile) || !profile?.role || !ROLE_HOME[profile.role]) {
       await supabase.auth.signOut();
@@ -133,20 +133,19 @@ export async function middleware(request: NextRequest) {
     // browser already has a valid session for the same account.
     if (pathname.startsWith("/auth/callback")) return supabaseResponse;
 
+    const isInviteCompletion = pathname.startsWith("/accept-invite");
+    if (isInviteCompletion) {
+      const { data: mayCompleteInvite, error } = await supabase.rpc(
+        "phase0_current_invite_can_complete"
+      );
+      if (!error && mayCompleteInvite === true) return supabaseResponse;
+    }
+
     const { data: profile } = await supabase
       .from("users")
       .select("role, status, is_active")
       .eq("id", user.id)
       .single();
-
-    const isInviteCompletion = pathname.startsWith("/accept-invite");
-    const mayCompleteInvite =
-      isInviteCompletion &&
-      Boolean(user.invited_at) &&
-      profile?.status === "pending" &&
-      profile.is_active === false;
-
-    if (mayCompleteInvite) return supabaseResponse;
 
     const mayResetPassword =
       pathname.startsWith("/reset-password") &&

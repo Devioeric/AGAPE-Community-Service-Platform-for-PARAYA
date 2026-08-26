@@ -24,9 +24,32 @@ test("public signup never resets a submitted existing account password", async (
 
 test("invitation acceptance does not directly self-activate public.users", async () => {
   const page = await source("src/app/accept-invite/page.tsx");
+  assert.match(page, /useMemo\(\(\) => createClient\(\), \[\]\)/);
+  assert.match(page, /verifiedSession\.current/);
+  assert.match(page, /inviteType !== "invite"/);
+  assert.match(page, /supabase\.auth\.setSession\(\{ access_token: accessToken, refresh_token: refreshToken \}\)/);
 
   assert.doesNotMatch(page, /\.from\(["']users["']\)[\s\S]{0,300}?status\s*:\s*["']active["']/);
   assert.doesNotMatch(page, /\.from\(["']users["']\)[\s\S]{0,300}?is_active\s*:\s*true/);
+});
+
+test("invitation middleware uses the narrow database proof instead of pending-row access", async () => {
+  const middleware = await source("src/middleware.ts");
+  const migration = await source("supabase/migrations/20260818000920_phase1_invitation_completion_boundary.sql");
+
+  assert.match(middleware, /rpc\(\s*["']phase0_current_invite_can_complete["']/);
+  assert.doesNotMatch(middleware, /isPendingInvitedAccount/);
+  assert.match(migration, /SECURITY DEFINER/);
+  assert.match(migration, /SET search_path = pg_catalog, public, auth/);
+  assert.match(migration, /identity\.id = auth\.uid\(\)/);
+  assert.match(migration, /identity\.invited_at IS NOT NULL/);
+  assert.match(migration, /account\.status = 'pending'/);
+  assert.match(migration, /account\.is_active IS FALSE/);
+  assert.match(migration, /'finance_officer'/);
+  assert.doesNotMatch(migration, /'finance'/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.phase0_current_invite_can_complete\(\) FROM PUBLIC/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.phase0_current_invite_can_complete\(\) FROM anon/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.phase0_current_invite_can_complete\(\) TO authenticated/);
 });
 
 test("generic proposal writes do not spread request metadata into database mutations", async () => {
@@ -94,6 +117,7 @@ test("sensitive account mutations fail closed when the audit trail is unavailabl
   const directCreate = await source("src/app/api/admin/users/create/route.ts");
   const invite = await source("src/app/api/admin/invite/route.ts");
   const acceptInvite = await source("src/app/api/auth/accept-invite/route.ts");
+  const signOut = await source("src/app/api/auth/signout/route.ts");
   const accountUpdate = await source("src/app/api/users/[id]/route.ts");
   const password = await source("src/app/api/users/[id]/password/route.ts");
 
@@ -102,6 +126,10 @@ test("sensitive account mutations fail closed when the audit trail is unavailabl
     assert.match(route, /const auditIntentRecorded = await recordAudit/);
     assert.match(route, /if \(!auditIntentRecorded\)/);
   }
+  assert.match(signOut, /supabase\.auth\.signOut\(\{ scope: "global" \}\)/);
+  assert.match(signOut, /supabase\.auth\.getUser\(\)/);
+  assert.match(signOut, /const body = await request\.text\(\)/);
+  assert.match(signOut, /"cache-control": "no-store"/);
 
   assert.ok(
     directCreate.indexOf("auditIntentRecorded") < directCreate.indexOf("auth.admin.createUser"),

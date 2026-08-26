@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +30,8 @@ type FormData = z.infer<typeof schema>;
 
 export default function AcceptInvitePage() {
   const router   = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const verifiedSession = useRef(false);
 
   const [ready,     setReady]     = useState(false);
   const [done,      setDone]      = useState(false);
@@ -42,13 +43,13 @@ export default function AcceptInvitePage() {
   });
 
   useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     // Supabase puts error info in the URL hash when the invite link is invalid
     // or expired (e.g. #error=access_denied&error_code=otp_expired).
-    if (typeof window !== "undefined" && window.location.hash) {
-      const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const error  = params.get("error");
-      const code   = params.get("error_code");
-      const desc   = params.get("error_description");
+    if (window.location.hash) {
+      const error  = hash.get("error");
+      const code   = hash.get("error_code");
+      const desc   = hash.get("error_description");
       if (error) {
         setLinkError({
           code:    code ?? error,
@@ -58,23 +59,59 @@ export default function AcceptInvitePage() {
       }
     }
 
-    // Supabase reads #access_token from the URL hash and fires SIGNED_IN
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    const inviteType = hash.get("type");
+    if ((accessToken || refreshToken) && (!accessToken || !refreshToken || inviteType !== "invite")) {
+      setLinkError({
+        code: "invalid_invite_session",
+        message: "This invitation session is incomplete or has the wrong type.",
+      });
+      return;
+    }
+
+    const markReady = () => {
+      verifiedSession.current = true;
+      if (window.location.hash) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      }
+      setReady(true);
+    };
+
+    // Server-generated invitations use an implicit one-time session in the URL
+    // fragment. The ordinary SSR browser client uses PKCE, so consume this
+    // invite-only fragment explicitly before rendering the activation form.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
-        setReady(true);
+        markReady();
       }
     });
+
+    if (accessToken && refreshToken) {
+      void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data, error }) => {
+          if (error || !data.session?.user) {
+            setLinkError({
+              code: "invalid_invite_session",
+              message: "This invitation session could not be verified.",
+            });
+            return;
+          }
+          markReady();
+        });
+    }
 
     // Also handle case where session is already active (page refresh)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setReady(true);
+        markReady();
       }
     });
 
     // Fallback: if neither an auth event nor an error hash arrives within 10s,
     // surface a generic error rather than spinning forever.
     const timeoutId = window.setTimeout(() => {
+      if (verifiedSession.current) return;
       setLinkError((prev) => prev ?? {
         code: "timeout",
         message: "We couldn't verify your invitation. The link may be invalid or expired.",

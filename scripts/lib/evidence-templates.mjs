@@ -11,7 +11,7 @@ const BASELINE_FIELDS = [
   ["Catalog-Count-Digest", "<64-lowercase-hex>"],
   ["Unexplained-Differences", "0"],
   ["Object-Count", "<positive-integer>"],
-  ["PostgreSQL-Version", "15.x"],
+  ["PostgreSQL-Version", "17.x"],
   ["Supabase-CLI-Version", "2.114.0"],
 ];
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -70,4 +70,15 @@ test("empty service-role placeholders do not consume the following line", async 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("explicit staging compares archive moves without Git rename collapsing", async () => {
+  const source = await readFile(join(process.cwd(), "scripts", "stage-release-inclusion.mjs"), "utf8");
+  assert.match(source, /"diff", "--cached", "--name-only", "--no-renames", "-z"/);
+  assert.match(source, /"-c", "status\.renames=false", "status"/);
+  assert.match(source, /existsSync\(resolve\(root, entry\.path\)\)/);
+  assert.match(source, /"update-index", "--remove", "--"/);
+
+  const manifestSource = await readFile(join(process.cwd(), "scripts", "build-release-inclusion-manifest.mjs"), "utf8");
+  assert.match(manifestSource, /"-c", "status\.renames=false", "status"/);
 });

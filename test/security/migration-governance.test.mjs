@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   CANONICAL_BASELINE_NAME,
@@ -10,7 +11,7 @@ import {
   normalizeSchemaDump,
   readLedgerVersions,
 } from "../../scripts/lib/migration-governance.mjs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -65,9 +66,31 @@ test("an empty ledger requires explicit authoritative confirmation", async () =>
   assert.deepEqual(await readLedgerVersions(path, { allowEmpty: true }), []);
 });
 
+test("the non-executable legacy archive manifest preserves every original SQL hash", async () => {
+  const archive = join(process.cwd(), "supabase", "legacy-migrations", "pre-phase0-unordered");
+  const manifest = await readFile(join(archive, "manifest.md"), "utf8");
+  const rows = manifest.split(/\r?\n/)
+    .filter((line) => line.startsWith("| `") && line.includes(".sql` |"))
+    .map((line) => {
+      const cells = line.split("|").map((cell) => cell.trim().replaceAll("`", ""));
+      return { name: cells[1], sha256: cells[2] };
+    });
+  const names = (await readdir(archive)).filter((name) => name.endsWith(".sql")).sort();
+
+  assert.equal(rows.length, 53);
+  assert.deepEqual(rows.map((row) => row.name).sort(), names);
+  for (const row of rows) {
+    const bytes = await readFile(join(archive, row.name));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), row.sha256, row.name);
+  }
+
+  const attributes = await readFile(join(process.cwd(), ".gitattributes"), "utf8");
+  assert.match(attributes, /^supabase\/migrations\/20260815000000_pre_phase0_baseline\.sql -text -eol$/m);
+});
+
 test("schema comparison ignores only known pg_dump noise and remains fail-closed", () => {
-  const authoritative = "-- Dumped from database version 15.4\n-- Started on 2026-08-17 10:00:00\nCREATE TABLE public.users (id uuid);\n";
-  const equivalentReplay = "-- Dumped from database version 15.5\r\n-- Started on 2026-08-18 11:00:00\r\nCREATE TABLE public.users (id uuid);\r\n";
+  const authoritative = "-- Dumped from database version 17.4\n-- Started on 2026-08-17 10:00:00\nCREATE TABLE public.users (id uuid);\n";
+  const equivalentReplay = "-- Dumped from database version 17.5\r\n-- Started on 2026-08-18 11:00:00\r\nCREATE TABLE public.users (id uuid);\r\n";
   assert.equal(compareSchemaDumps(authoritative, equivalentReplay).equivalent, true);
   assert.equal(normalizeSchemaDump(authoritative), normalizeSchemaDump(equivalentReplay));
 

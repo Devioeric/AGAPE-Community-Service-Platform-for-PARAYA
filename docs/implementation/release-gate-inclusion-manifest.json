@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "ce5b44ff9b529aacd651f5825eb63f6eeebbc09c",
+  "head": "b8846e706e4a62be6e2fe1932b51455797bd88da",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,19 +14,28 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 22,
-    "include": 22,
+    "total": 118,
+    "include": 118,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
     "ambiguous-needs-owner-review": 0,
     "secretFindings": 0,
-    "acknowledgedSyntheticSecretFindings": 2
+    "acknowledgedSyntheticSecretFindings": 1
   },
   "entries": [
     {
+      "path": ".gitattributes",
+      "state": "M ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
       "path": "docs/implementation/phase-1-2-release-gate-execution-status.md",
-      "state": " M",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -35,7 +44,7 @@
     },
     {
       "path": "docs/implementation/release-gate-inclusion-manifest.json",
-      "state": " M",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -43,8 +52,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/(dashboard)/officer/phase-2/page.tsx",
-      "state": " M",
+      "path": "docs/release-evidence/templates/baseline-manifest.template.md",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -52,8 +61,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/cron/phase2-contact-outbox/route.ts",
-      "state": " M",
+      "path": "scripts/build-release-inclusion-manifest.mjs",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -61,17 +70,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/documents/[kind]/[documentId]/review/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/documents/[kind]/route.ts",
-      "state": " M",
+      "path": "scripts/lib/evidence-templates.mjs",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -79,71 +79,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/partners/catalog/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/finance/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/DocumentManager.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/FinanceOperations.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/HistoricalOperations.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/PartnerOperations.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/Phase2Ui.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/phase2/Phase2Workspace.tsx",
-      "state": " M",
+      "path": "scripts/stage-release-inclusion.mjs",
+      "state": "MM",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -151,17 +88,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/components/phase2/ProposalOperations.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/notifications/email.ts",
-      "state": " M",
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/_COMBINED_pending.sql",
+      "state": "A ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -169,8 +97,8 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/database-gate-scopes.json",
-      "state": " M",
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/activity_logs_approval.sql",
+      "state": "A ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
@@ -178,47 +106,982 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818000890_phase2_interface_storage_job_completion.sql",
-      "state": "??",
-      "tracked": false,
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/activity_photos.sql",
+      "state": "A ",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/tests/seeded/phase2/04_interface_storage_job_workflows.sql",
-      "state": "??",
-      "tracked": false,
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/ai_reports.sql",
+      "state": "A ",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/local-database-gate.test.mjs",
-      "state": " M",
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/analytics_snapshots.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/attendance.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/audit_logs_columns.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/barangay_coordinates.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/barangays_extra_columns.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/community_needs_approval.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/field_observations.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/finance_officer_role.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/follow_up_immediate.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/forum.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/household_profile_extended.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/household_profiles_family_name_nullable.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/household_profiles.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/manifest.md",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/partner_roles_expansion.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/partnership_history.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_activities_created_by.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_activities_report_columns.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_activities_status_check.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_activities_timestamps.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_budgets_drop_unique_program.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_budgets_rename_amount_columns.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_budgets_schema_alignment.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_item_approvals.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/program_signups_status_check.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_community_validation.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_gatekeeping.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_informed_by.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_revisions.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_validation_links_relax_threshold.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_validation_links.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposal_validations_evidence.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/proposals_rls_expansion.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/rls_expansion_remaining_tables.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/role_expansion.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/sitio_columns.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/skills_and_assets.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_answer_codes.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_builder_v2.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_methodology.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_parent.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_questions_type_check.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_response_scrubbing.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/survey_templates.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/surveys_program_link.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/surveys_rls_expansion.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/surveys_timestamps.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/user_notification_prefs.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/user_permissions.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/legacy-migrations/pre-phase0-unordered/volunteer_class_schedules.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/_COMBINED_pending.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/20260815000000_pre_phase0_baseline.sql",
+      "state": "A ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/activity_logs_approval.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/activity_photos.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/ai_reports.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/analytics_snapshots.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/attendance.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/audit_logs_columns.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/barangay_coordinates.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/barangays_extra_columns.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/community_needs_approval.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/field_observations.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/finance_officer_role.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/follow_up_immediate.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/forum.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/household_profile_extended.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/household_profiles_family_name_nullable.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/household_profiles.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/partner_roles_expansion.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/partnership_history.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_activities_created_by.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_activities_report_columns.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_activities_status_check.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_activities_timestamps.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_budgets_drop_unique_program.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_budgets_rename_amount_columns.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_budgets_schema_alignment.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_item_approvals.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/program_signups_status_check.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_community_validation.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_gatekeeping.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_informed_by.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_revisions.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_validation_links_relax_threshold.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_validation_links.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposal_validations_evidence.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/proposals_rls_expansion.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/rls_expansion_remaining_tables.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/role_expansion.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/sitio_columns.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/skills_and_assets.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_answer_codes.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_builder_v2.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_methodology.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_parent.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_questions_type_check.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_response_scrubbing.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/survey_templates.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/surveys_program_link.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/surveys_rls_expansion.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/surveys_timestamps.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/user_notification_prefs.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/user_permissions.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "supabase/migrations/volunteer_class_schedules.sql",
+      "state": "D ",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/release/release-inclusion.test.mjs",
+      "state": "MM",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/migration-governance.test.mjs",
+      "state": "MM",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": [
-        "jwt-token",
         "postgres-credential-url"
       ]
     },
     {
-      "path": "test/security/phase2-interface-storage-jobs.test.mjs",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/phase2-remediation.test.mjs",
-      "state": " M",
+      "path": "test/security/release-evidence-gate.test.mjs",
+      "state": "M ",
       "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",

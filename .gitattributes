@@ -19,3 +19,4 @@
 *.ts text eol=lf
 *.tsx text eol=lf
 *.sql text eol=lf
+supabase/migrations/20260815000000_pre_phase0_baseline.sql -text -eol

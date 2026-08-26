@@ -53,7 +53,7 @@ async function main() {
   const head = git(root, ["rev-parse", "HEAD"]).trim();
   const approvalsPath = resolve(root, "docs/implementation/release-gate-inclusion-approvals.json");
   const approvals = JSON.parse(await readFile(approvalsPath, "utf8"));
-  const porcelain = git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
+  const porcelain = git(root, ["-c", "status.renames=false", "status", "--porcelain=v1", "-z", "--untracked-files=all"]);
   const statusEntries = parseGitPorcelainZ(porcelain).sort((left, right) => left.path.localeCompare(right.path));
   const entries = [];
 

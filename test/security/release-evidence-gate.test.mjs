@@ -67,7 +67,7 @@ Migration-Ledger-SHA256: ${"f".repeat(64)}
 Catalog-Count-Digest: ${"8".repeat(64)}
 Unexplained-Differences: 0
 Object-Count: 42
-PostgreSQL-Version: 15.8
+PostgreSQL-Version: 17.6
 Supabase-CLI-Version: 2.114.0
 `, { expectedRevision: revision, artifactSpec: spec, now: new Date("2026-08-17T12:00:00Z"), baseline: { file: "20260815000000_pre_phase0_baseline.sql", sha256: digest } });
   assert.equal(result.valid, true, result.failures.join("; "));

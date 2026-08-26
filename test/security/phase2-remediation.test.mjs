@@ -45,8 +45,9 @@ test("email delivery does not log contact addresses or provider bodies", async (
   assert.doesNotMatch(email, /msg\.to\)/);
   assert.doesNotMatch(email, /await res\.text/);
   const worker = await read("src/app/api/cron/phase2-contact-outbox/route.ts");
-  assert.match(worker, /lease_expires_at/);
-  assert.match(worker, /partner_contact_email_events/);
+  assert.match(worker, /phase2_claim_contact_email_outbox/);
+  assert.match(worker, /phase2_finalize_contact_email/);
+  assert.doesNotMatch(worker, /\.from\(["']partner_contact_email_outbox/);
 });
 
 test("historical acceptance requires an explicit evidence-supported quality tier", async () => {

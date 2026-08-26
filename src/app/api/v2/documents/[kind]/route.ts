@@ -9,6 +9,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const kindSchema = z.enum(["partnership", "historical", "proposal_budget", "program_finance"]);
 const COMPONENT = { partnership: "partners", historical: "historical_programs", proposal_budget: "proposals", program_finance: "program_finance" } as const;
 
+export async function GET(request: Request, { params }: { params: { kind: string } }) {
+  const kind = kindSchema.safeParse(params.kind);
+  if (!kind.success) return NextResponse.json({ error: "Unknown document kind" }, { status: 404 });
+  const auth = await authorizeAnyCapability(["partner.document.read", "historical_program.read", "budget.read"]);
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const component = COMPONENT[kind.data];
+  if (!isPhase2ComponentEnabled(component)) return phase2DisabledResponse(component);
+  const parentId = new URL(request.url).searchParams.get("parent_id") ?? "";
+  if (!z.string().uuid().safeParse(parentId).success) return NextResponse.json({ error: "A valid parent_id is required" }, { status: 400 });
+  const { data, error } = await auth.supabase.rpc("phase2_list_documents", { p_kind: kind.data, p_parent_id: parentId });
+  if (error) return phase2RpcError(error);
+  return NextResponse.json({ data: data ?? [] }, { headers: { "cache-control": "no-store" } });
+}
+
 export async function POST(request: Request, { params }: { params: { kind: string } }) {
   const kind = kindSchema.safeParse(params.kind);
   if (!kind.success) return NextResponse.json({ error: "Unknown document kind" }, { status: 404 });

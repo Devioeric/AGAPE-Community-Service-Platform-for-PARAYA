@@ -74,7 +74,8 @@
         "20260818000850_phase2_runtime_isolation_corrections.sql",
         "20260818000860_phase2_partner_vertical_completion.sql",
         "20260818000870_phase2_historical_vertical_completion.sql",
-        "20260818000880_phase2_proposal_finance_vertical_completion.sql"
+        "20260818000880_phase2_proposal_finance_vertical_completion.sql",
+        "20260818000890_phase2_interface_storage_job_completion.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

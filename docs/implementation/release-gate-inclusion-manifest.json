@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "7d7cc6a1debb8966045e854937865ccfc249fdd1",
+  "head": "ce5b44ff9b529aacd651f5825eb63f6eeebbc09c",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 23,
-    "include": 23,
+    "total": 22,
+    "include": 22,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/finance/proposals/[id]/route.ts",
+      "path": "src/app/(dashboard)/officer/phase-2/page.tsx",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,7 +52,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/programs/[id]/finance/allocations/[revisionId]/route.ts",
+      "path": "src/app/api/cron/phase2-contact-outbox/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/documents/[kind]/[documentId]/review/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -61,7 +70,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/programs/[id]/finance/allocations/route.ts",
+      "path": "src/app/api/v2/documents/[kind]/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/partners/catalog/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -70,70 +88,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/programs/[id]/finance/expenditures/[expenditureId]/correct/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/finance/expenditures/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/finance/liquidations/[liquidationId]/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/finance/liquidations/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/proposals/[id]/handoff/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/proposals/[id]/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/proposals/[id]/workflow/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/proposals/beneficiary-estimates/route.ts",
+      "path": "src/app/api/v2/programs/finance/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -142,7 +97,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/proposals/catalog/route.ts",
+      "path": "src/components/phase2/DocumentManager.tsx",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -151,7 +106,43 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/proposals/route.ts",
+      "path": "src/components/phase2/FinanceOperations.tsx",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/components/phase2/HistoricalOperations.tsx",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/components/phase2/PartnerOperations.tsx",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/components/phase2/Phase2Ui.tsx",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/components/phase2/Phase2Workspace.tsx",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -160,16 +151,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/lib/phase2/contracts.ts",
-      "state": " M",
-      "tracked": true,
+      "path": "src/components/phase2/ProposalOperations.tsx",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/lib/phase2/types.ts",
+      "path": "src/lib/notifications/email.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -187,7 +178,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818000880_phase2_proposal_finance_vertical_completion.sql",
+      "path": "supabase/migrations/20260818000890_phase2_interface_storage_job_completion.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -196,16 +187,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/tests/fixtures/release-gate-phase2-supplement.sql",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/tests/seeded/phase2/03_proposal_finance_vertical_workflows.sql",
+      "path": "supabase/tests/seeded/phase2/04_interface_storage_job_workflows.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -226,9 +208,18 @@
       ]
     },
     {
-      "path": "test/security/phase2-proposal-finance-vertical.test.mjs",
+      "path": "test/security/phase2-interface-storage-jobs.test.mjs",
       "state": "??",
       "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "test/security/phase2-remediation.test.mjs",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],

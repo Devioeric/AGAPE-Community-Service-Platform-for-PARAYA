@@ -3,56 +3,67 @@ import { sendEmail } from "@/lib/notifications/email";
 import { isPhase2ComponentEnabled } from "@/lib/phase2/feature";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type OutboxRow = { id: string; template_key: string; payload: Record<string, unknown>; attempt_count: number; partner_contacts: { email: string | null; status_email_opt_in: boolean; active_until: string | null } | null };
+type ClaimedDelivery = {
+  id: string;
+  claimToken: string;
+  templateKey: "partnership_renewal";
+  templateVersion: number;
+  payload: { partner_name?: unknown; expires_on?: unknown; days?: unknown };
+  attemptNumber: number;
+  contactEmail: string;
+};
+
+function deliveryErrorCode(error: string | undefined) {
+  const status = error?.match(/HTTP\s+(\d{3})/i)?.[1];
+  return status ? `provider_http_${status}` : error?.includes("not configured") ? "provider_not_configured" : "provider_network_error";
+}
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
   if (request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isPhase2ComponentEnabled("partners") || !isPhase2ComponentEnabled("external_contact_email")) return NextResponse.json({ data: { skipped: true, reason: "external_contact_email_disabled" } });
-  const admin = createAdminClient();
-  const now = new Date();
-  const recovered = await admin.from("partner_contact_email_outbox").update({ status: "queued", claimed_at: null, lease_expires_at: null })
-    .eq("status", "sending").lt("lease_expires_at", now.toISOString());
-  if (recovered.error) return NextResponse.json({ error: "Unable to recover expired delivery leases" }, { status: 500 });
-  const { data, error } = await admin.from("partner_contact_email_outbox")
-    .select("id,template_key,payload,attempt_count,partner_contacts(email,status_email_opt_in,active_until)")
-    .eq("status", "queued").or(`next_attempt_at.is.null,next_attempt_at.lte.${new Date().toISOString()}`).order("created_at").limit(25);
-  if (error) return NextResponse.json({ error: "Unable to load contact outbox" }, { status: 500 });
-  let sent = 0; let failed = 0;
-  for (const row of (data ?? []) as unknown as OutboxRow[]) {
-    const leaseExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    const claim = await admin.from("partner_contact_email_outbox").update({ status: "sending", claimed_at: now.toISOString(), lease_expires_at: leaseExpiresAt })
-      .eq("id", row.id).eq("status", "queued").select("id").maybeSingle();
-    if (claim.error || !claim.data) continue;
-    const claimEvent = await admin.from("partner_contact_email_events").insert({ outbox_id: row.id, from_status: "queued", to_status: "sending", attempt_number: row.attempt_count + 1 });
-    if (claimEvent.error) {
-      await admin.from("partner_contact_email_outbox").update({ status: "queued", claimed_at: null, lease_expires_at: null }).eq("id", row.id).eq("status", "sending");
-      failed += 1;
-      continue;
-    }
-    const contact = row.partner_contacts;
-    if (!contact?.email || !contact.status_email_opt_in || (contact.active_until && contact.active_until < new Date().toISOString().slice(0, 10))) {
-      const cancelled = await admin.from("partner_contact_email_outbox").update({ status: "cancelled", last_error: "Contact is not currently opted in", claimed_at: null, lease_expires_at: null }).eq("id", row.id).eq("status", "sending");
-      if (!cancelled.error) await admin.from("partner_contact_email_events").insert({ outbox_id: row.id, from_status: "sending", to_status: "cancelled", attempt_number: row.attempt_count + 1, error_code: "contact_not_eligible" });
-      continue;
-    }
-    const partnerName = typeof row.payload.partner_name === "string" ? row.payload.partner_name : "Partner relationship";
-    const expiresOn = typeof row.payload.expires_on === "string" ? row.payload.expires_on : "the recorded date";
-    const days = typeof row.payload.days === "number" ? row.payload.days : "several";
-    const result = await sendEmail({ to: contact.email, subject: "[AGAPE] Partnership renewal reminder", text: `${partnerName} has a recorded agreement expiration on ${expiresOn} (${days} days remaining). Please coordinate directly with your PARAYA contact. No login or tracking link is required.` });
-    if (result.sent) {
-      const update = await admin.from("partner_contact_email_outbox").update({ status: "sent", sent_at: new Date().toISOString(), attempt_count: row.attempt_count + 1, last_error: null, claimed_at: null, lease_expires_at: null }).eq("id", row.id).eq("status", "sending");
-      if (update.error) { failed += 1; continue; }
-      await admin.from("partner_contact_email_events").insert({ outbox_id: row.id, from_status: "sending", to_status: "sent", attempt_number: row.attempt_count + 1 });
-      sent += 1;
-    } else {
-      failed += 1; const attempts = row.attempt_count + 1;
-      const nextStatus = attempts >= 5 ? "failed" : "queued";
-      const update = await admin.from("partner_contact_email_outbox").update({ status: nextStatus, attempt_count: attempts, next_attempt_at: new Date(Date.now() + Math.min(24, 2 ** attempts) * 60 * 60 * 1000).toISOString(), last_error: result.error ?? "Delivery failed", claimed_at: null, lease_expires_at: null }).eq("id", row.id).eq("status", "sending");
-      if (!update.error) await admin.from("partner_contact_email_events").insert({ outbox_id: row.id, from_status: "sending", to_status: nextStatus, attempt_number: attempts, error_code: "delivery_failed" });
-    }
+  if (!isPhase2ComponentEnabled("partners") || !isPhase2ComponentEnabled("external_contact_email")) {
+    return NextResponse.json({ data: { skipped: true, reason: "external_contact_email_disabled" } });
   }
-  return NextResponse.json({ data: { sent, failed } });
+
+  const admin = createAdminClient();
+  const claim = await admin.rpc("phase2_claim_contact_email_outbox", { p_limit: 25, p_lease_seconds: 300 });
+  if (claim.error) return NextResponse.json({ error: "Unable to claim contact-email deliveries" }, { status: 500 });
+  const deliveries = (claim.data ?? []) as ClaimedDelivery[];
+  let sent = 0; let failed = 0; let finalizeFailures = 0;
+
+  for (const delivery of deliveries) {
+    if (delivery.templateKey !== "partnership_renewal" || delivery.templateVersion !== 1) {
+      const finalized = await admin.rpc("phase2_finalize_contact_email", {
+        p_outbox_id: delivery.id, p_claim_token: delivery.claimToken, p_outcome: "cancelled", p_error_code: "unsupported_template",
+      });
+      if (finalized.error) finalizeFailures += 1;
+      else failed += 1;
+      continue;
+    }
+    const partnerName = typeof delivery.payload.partner_name === "string" ? delivery.payload.partner_name : "Partner relationship";
+    const expiresOn = typeof delivery.payload.expires_on === "string" ? delivery.payload.expires_on : "the recorded date";
+    const days = typeof delivery.payload.days === "number" ? delivery.payload.days : "several";
+    const result = await sendEmail({
+      to: delivery.contactEmail,
+      subject: "[AGAPE] Partnership renewal reminder",
+      text: `${partnerName} has a recorded agreement expiration on ${expiresOn} (${days} days remaining). Please coordinate directly with your PARAYA contact. No login or tracking link is required.`,
+    });
+    const finalized = await admin.rpc("phase2_finalize_contact_email", {
+      p_outbox_id: delivery.id,
+      p_claim_token: delivery.claimToken,
+      p_outcome: result.sent ? "sent" : "retry",
+      p_error_code: result.sent ? null : deliveryErrorCode(result.error),
+    });
+    if (finalized.error) finalizeFailures += 1;
+    else if (result.sent) sent += 1;
+    else failed += 1;
+  }
+
+  if (finalizeFailures > 0) {
+    return NextResponse.json({ error: "One or more delivery results could not be finalized", data: { claimed: deliveries.length, sent, failed, finalizeFailures } }, { status: 500 });
+  }
+  return NextResponse.json({ data: { claimed: deliveries.length, sent, failed, finalizeFailures: 0 } });
 }
+
 export const GET = POST;

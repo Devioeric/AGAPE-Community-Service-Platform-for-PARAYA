@@ -206,7 +206,7 @@ test("database gate source separates reviewed synthetic and legacy seed replays"
   assert.match(source, /--candidate-mode/);
   assert.match(source, /options\.candidateMode/);
   assert.equal(scopeManifest.scopes.phase1.migrationNames.at(-1), "20260818000840_phase1_ai_report_compatibility.sql");
-  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000880_phase2_proposal_finance_vertical_completion.sql");
+  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000890_phase2_interface_storage_job_completion.sql");
 });
 
 test("database gate can diagnose a reviewed phase fixture without claiming replay evidence", async () => {

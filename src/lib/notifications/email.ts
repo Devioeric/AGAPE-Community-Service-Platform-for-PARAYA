@@ -47,8 +47,10 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
     }
     return { sent: true };
   } catch (err) {
-    console.error("[email] fetch failed:", err);
-    return { sent: false, error: err instanceof Error ? err.message : "Unknown error" };
+    // Do not log the exception object: provider/network errors can embed request
+    // details. The worker records only this bounded classification.
+    console.error("[email] Provider request failed", { errorType: err instanceof Error ? err.name : "UnknownError" });
+    return { sent: false, error: "Email provider request failed" };
   }
 }
 

@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("all Phase 2 server gates default off", async () => {
   const env = await read(".env.example");
-  for (const key of ["AGAPE_PARTNER_REGISTRY_V2_ENABLED", "AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED", "AGAPE_PROPOSALS_V2_ENABLED", "AGAPE_PROGRAM_FINANCE_V2_ENABLED", "AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED"]) {
+  for (const key of ["AGAPE_PARTNER_REGISTRY_V2_ENABLED", "AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED", "AGAPE_PROPOSALS_V2_ENABLED", "AGAPE_PROGRAM_FINANCE_V2_ENABLED", "AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED", "AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED"]) {
     assert.match(env, new RegExp(`^${key}=false$`, "m"));
   }
 });

@@ -5,25 +5,25 @@ repository's fail-closed state; it does not approve a deployment.
 
 ## Phase 1 gate
 
-All rows are **Missing or not independently evaluated** unless a separate,
+All rows are **Missing or not self-reviewed** unless a separate,
 executed artifact with the exact required filename exists.
 
-| Artifact | Control owner | Independent reviewer | Minimum proof |
+| Artifact | Control owner | Review mode | Minimum proof |
 |---|---|---|---|
-| Canonical baseline and `baseline-manifest.md` | Database operator | Security/database reviewer | Live ledger and schema-only reconciliation, reviewed diff, matching SHA-256, clean rebuild |
-| `credential-rotation.md` | Supabase project owner | Security reviewer | Exposed credential revoked, old credential rejected, replacement only in approved secret stores |
-| `auth-configuration.md` | Auth administrator | QA/security reviewer | Exact origins and redirects; callback, invite, and recovery tests |
-| `migration-reconciliation.md` | Database operator | Database reviewer | Live ledger, repository inventory, drift decisions, forward-only deployment set |
-| `clone-replay.md` | Database operator | QA reviewer | Clean baseline-to-Phase-1 replay, schema diff, fixture decision |
-| `jwt-rls-matrix.md` | Security tester | Security reviewer | Direct PostgREST/JWT matrix for every role, status, deny override, barangay, and sitio |
-| `storage-policy-matrix.md` | Storage administrator | Security reviewer | Private buckets, object RLS, parent binding, signed URLs, quarantine, denial cases |
-| `rpc-concurrency.md` | Database tester | Database reviewer | Malicious direct RPC, audit failure, stale version, race and idempotency results |
-| `profiling-e2e.md` | QA operator | Product/privacy reviewer | Full synthetic setup, collection, return, approval, import, lifecycle, completion, endorsement |
-| `ai-payload-privacy.md` | AI/privacy tester | Privacy reviewer | Intercepted payload inventory proving no identifiers or raw profiles leave the boundary |
-| `synthetic-reconciliation.md` | Research/QA operator | PARAYA reviewer | Official-versus-sample counts, exclusions, suppression, immutable evidence |
-| `privacy-approval.md` | Data controller/DPO | Institutional approver | Approved notice, purpose, consent, access, retention, rights, incident, processor controls |
-| `legacy-account-mapping.md` | PARAYA migration owner | Director/security reviewer | Mapping, pending-work reassignment, read-only proof, sign-off, suspension plan |
-| `rollback-rehearsal.md` | Release operator | Release owner | Flags/modes off, stopped jobs, retained history, compatibility smoke, forward correction |
+| Canonical baseline and `baseline-manifest.md` | Database operator | Solo-developer self-review | Live ledger and schema-only reconciliation, reviewed diff, matching SHA-256, clean rebuild |
+| `credential-rotation.md` | Supabase project owner | Solo-developer self-review | Exposed credential revoked, old credential rejected, replacement only in approved secret stores |
+| `auth-configuration.md` | Auth administrator | Solo-developer self-review | Exact origins and redirects; callback, invite, and recovery tests |
+| `migration-reconciliation.md` | Database operator | Solo-developer self-review | Live ledger, repository inventory, drift decisions, forward-only deployment set |
+| `clone-replay.md` | Database operator | Solo-developer self-review | Clean baseline-to-Phase-1 replay, schema diff, fixture decision |
+| `jwt-rls-matrix.md` | Security tester | Solo-developer self-review | Direct PostgREST/JWT matrix for every role, status, deny override, barangay, and sitio |
+| `storage-policy-matrix.md` | Storage administrator | Solo-developer self-review | Private buckets, object RLS, parent binding, signed URLs, quarantine, denial cases |
+| `rpc-concurrency.md` | Database tester | Solo-developer self-review | Malicious direct RPC, audit failure, stale version, race and idempotency results |
+| `profiling-e2e.md` | QA operator | Solo-developer self-review | Full synthetic setup, collection, return, approval, import, lifecycle, completion, endorsement |
+| `ai-payload-privacy.md` | AI/privacy tester | Solo-developer self-review | Intercepted payload inventory proving no identifiers or raw profiles leave the boundary |
+| `synthetic-reconciliation.md` | Research/QA operator | Solo-developer self-review | Official-versus-sample counts, exclusions, suppression, immutable evidence |
+| `privacy-approval.md` | Data controller/DPO | Solo-developer self-review | Approved notice, purpose, consent, access, retention, rights, incident, processor controls |
+| `legacy-account-mapping.md` | PARAYA migration owner | Solo-developer self-review | Mapping, pending-work reassignment, read-only proof, sign-off, account-preservation plan |
+| `rollback-rehearsal.md` | Release operator | Solo-developer self-review | Flags/modes off, stopped jobs, retained history, compatibility smoke, forward correction |
 
 ## Phase 2 inheritance
 

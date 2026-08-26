@@ -65,6 +65,6 @@ export async function runReleaseGate({ root, phase, evidencePaths, flags, releas
     process.exitCode = 1;
     return false;
   }
-  console.log(`${phase}: ${envelopeOnly ? "Envelope-only validation" : "Private bundles and evidence envelopes"} passed for release revision ${releaseRevision}. Human release authorization remains required.`);
+  console.log(`${phase}: ${envelopeOnly ? "Envelope-only validation" : "Private bundles and evidence envelopes"} passed for release revision ${releaseRevision}. Development readiness is solo-developer self-attested; production remains unauthorized.`);
   return true;
 }

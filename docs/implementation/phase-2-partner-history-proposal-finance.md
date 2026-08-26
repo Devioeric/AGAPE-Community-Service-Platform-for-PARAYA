@@ -19,6 +19,13 @@ test-marked user in the component allowlist; production data must not be used.
 | Program finance | `AGAPE_PROGRAM_FINANCE_V2_ENABLED` | `program_finance` |
 | Contact email | `AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED` | `external_contact_email` |
 
+Legacy-account Auth suspension has an additional application safeguard:
+`AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED=false`. Development mapping sign-off
+preserves the existing account and records only a pending request. Even when the
+flag is temporarily enabled in a disposable test process, the database finalizer
+accepts only allowlisted synthetic users and synthetic Partner roots; live
+accounts require a separate future production change window.
+
 ## Architecture
 
 The original six timestamped migrations plus forward-only remediation migrations

@@ -5,7 +5,8 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 export const EVIDENCE_REQUIRED_FIELDS = [
   "Evidence-Status", "Evidence-Result", "Environment", "Executed-Date",
-  "Operator", "Reviewer", "Release-Revision", "Evidence-Reference", "Artifact-SHA256",
+  "Operator", "Review-Mode", "Independent-Review-Performed", "Approval-Scope",
+  "Release-Revision", "Evidence-Reference", "Artifact-SHA256",
   "Suite-ID", "Suite-Version", "Passed-Cases", "Failed-Cases", "Skipped-Cases",
 ];
 
@@ -55,14 +56,13 @@ export function validateEvidenceContent(content, { expectedRevision, artifactSpe
   if (dateFailure) failures.push(dateFailure);
 
   const operator = fields.get("Operator") ?? "";
-  const reviewer = fields.get("Reviewer") ?? "";
   const operatorRole = personRole(operator);
-  const reviewerRole = personRole(reviewer);
   if (!operatorRole) failures.push("Operator must be a named person followed by a role in parentheses");
   else if (!artifactSpec.operatorRoles.includes(operatorRole)) failures.push("Operator role is not authorized for this artifact");
-  if (!reviewerRole) failures.push("Reviewer must be a named person followed by a role in parentheses");
-  else if (!artifactSpec.reviewerRoles.includes(reviewerRole)) failures.push("Reviewer role is not authorized for this artifact");
-  if (operator && reviewer && operator.toLocaleLowerCase() === reviewer.toLocaleLowerCase()) failures.push("Reviewer must differ from Operator");
+  if (fields.get("Review-Mode") !== "SOLO-DEVELOPER-SELF-REVIEW") failures.push("Review-Mode must be SOLO-DEVELOPER-SELF-REVIEW");
+  if (fields.get("Independent-Review-Performed") !== "false") failures.push("Independent-Review-Performed must be false");
+  if (fields.get("Approval-Scope") !== "DEVELOPMENT-READINESS-ONLY") failures.push("Approval-Scope must be DEVELOPMENT-READINESS-ONLY");
+  if (fields.get("Environment") === "production") failures.push("solo-developer evidence cannot authorize a production environment");
 
   const revision = fields.get("Release-Revision") ?? "";
   if (!REVISION.test(revision)) failures.push("Release-Revision must be a full 40-character Git commit");

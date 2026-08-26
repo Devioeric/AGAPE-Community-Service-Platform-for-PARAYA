@@ -26,7 +26,6 @@ export function renderEvidenceTemplate(spec) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   const environment = spec.environments.join("|");
   const operatorRoles = spec.operatorRoles.join("|");
-  const reviewerRoles = spec.reviewerRoles.join("|");
   const rows = [
     ["Template-Only", "true"],
     ["Evidence-Status", "DRAFT"],
@@ -34,7 +33,9 @@ export function renderEvidenceTemplate(spec) {
     ["Environment", `<${environment}>`],
     ["Executed-Date", "YYYY-MM-DD"],
     ["Operator", `Full Name (<${operatorRoles}>)`],
-    ["Reviewer", `Different Full Name (<${reviewerRoles}>)`],
+    ["Review-Mode", "SOLO-DEVELOPER-SELF-REVIEW"],
+    ["Independent-Review-Performed", "false"],
+    ["Approval-Scope", "DEVELOPMENT-READINESS-ONLY"],
     ["Release-Revision", "<40-character-release-commit-R>"],
     ["Evidence-Reference", "<private-opaque-reference>"],
     ["Artifact-SHA256", "<64-lowercase-hex>"],
@@ -47,5 +48,5 @@ export function renderEvidenceTemplate(spec) {
     ...Object.entries(spec.requiredExact),
     ...(spec.baseline ? BASELINE_FIELDS : []),
   ];
-  return `# ${title} evidence template\n\n${rows.map(([key, value]) => `${key}: ${value}`).join("\n")}\n\n## Objective\n\nState the exact control, environment, release candidate, and private bundle tested.\n\n## Procedure and cases\n\nRecord sanitized command identifiers and case counts. Do not include credentials,\nJWTs, connection strings, personal data, uploaded documents, or database rows.\n\n## Results and independent review\n\nRecord discrepancies, remediation references, and the opaque private bundle\nreference. The reviewer confirms the evidence applies to release commit R and that\nzero failed or skipped mandatory cases are represented as passing.\n`;
+  return `# ${title} evidence template\n\n${rows.map(([key, value]) => `${key}: ${value}`).join("\n")}\n\n## Objective\n\nState the exact control, environment, release candidate, and private bundle tested.\n\n## Procedure and cases\n\nRecord sanitized command identifiers and case counts. Do not include credentials,\nJWTs, connection strings, personal data, uploaded documents, or database rows.\n\n## Results and solo-developer self-review\n\nRecord discrepancies, remediation references, and the opaque private bundle\nreference. The operator attests that the evidence applies to release commit R and\nthat zero failed or skipped mandatory cases are represented as passing. This\nself-review closes development readiness only and never authorizes production.\n`;
 }

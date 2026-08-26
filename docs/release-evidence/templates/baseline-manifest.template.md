@@ -6,7 +6,9 @@ Evidence-Result: NOT EXECUTED
 Environment: <disposable-clone>
 Executed-Date: YYYY-MM-DD
 Operator: Full Name (<Database Operator>)
-Reviewer: Different Full Name (<Database Reviewer|Security Reviewer>)
+Review-Mode: SOLO-DEVELOPER-SELF-REVIEW
+Independent-Review-Performed: false
+Approval-Scope: DEVELOPMENT-READINESS-ONLY
 Release-Revision: <40-character-release-commit-R>
 Evidence-Reference: <private-opaque-reference>
 Artifact-SHA256: <64-lowercase-hex>
@@ -37,8 +39,9 @@ State the exact control, environment, release candidate, and private bundle test
 Record sanitized command identifiers and case counts. Do not include credentials,
 JWTs, connection strings, personal data, uploaded documents, or database rows.
 
-## Results and independent review
+## Results and solo-developer self-review
 
 Record discrepancies, remediation references, and the opaque private bundle
-reference. The reviewer confirms the evidence applies to release commit R and that
-zero failed or skipped mandatory cases are represented as passing.
+reference. The operator attests that the evidence applies to release commit R and
+that zero failed or skipped mandatory cases are represented as passing. This
+self-review closes development readiness only and never authorizes production.

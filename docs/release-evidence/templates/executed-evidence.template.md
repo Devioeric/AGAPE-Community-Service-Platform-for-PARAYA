@@ -3,10 +3,12 @@
 Template-Only: true
 Evidence-Status: DRAFT
 Evidence-Result: NOT EXECUTED
-Environment: <disposable-clone|development|staging|production>
+Environment: <disposable-clone|development|staging>
 Executed-Date: YYYY-MM-DD
 Operator: Full Name (Role)
-Reviewer: Different Full Name (Role)
+Review-Mode: SOLO-DEVELOPER-SELF-REVIEW
+Independent-Review-Performed: false
+Approval-Scope: DEVELOPMENT-READINESS-ONLY
 Release-Revision: <immutable-git-commit>
 Evidence-Reference: <private-access-controlled-reference>
 Artifact-SHA256: <64-hex-sha256>
@@ -25,7 +27,8 @@ connection strings, personal data, uploaded documents, or database rows.
 Record pass/fail counts, discrepancies, remediation references, and the private
 location of raw logs or screenshots.
 
-## Review
+## Solo-developer self-review
 
-The independent reviewer confirms the evidence applies to the stated release
-revision and that no failed or skipped case is represented as passing.
+The operator attests that the evidence applies to the stated release revision
+and that no failed or skipped case is represented as passing. This does not
+authorize production activation.

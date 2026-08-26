@@ -14,7 +14,9 @@ Evidence-Result: PASS
 Environment: staging
 Executed-Date: YYYY-MM-DD
 Operator: Full Name (Role)
-Reviewer: Different Full Name (Role)
+Review-Mode: SOLO-DEVELOPER-SELF-REVIEW
+Independent-Review-Performed: false
+Approval-Scope: DEVELOPMENT-READINESS-ONLY
 Release-Revision: immutable hexadecimal Git commit
 Evidence-Reference: access-controlled private evidence identifier
 Artifact-SHA256: SHA-256 of the referenced private evidence bundle
@@ -25,21 +27,21 @@ Failed-Cases: 0
 Skipped-Cases: 0
 ```
 
-Each generated template lists the exact allowed environment and operator/reviewer
-roles for that artifact. Placeholders, `TBD`, template warnings, abbreviated
-commits, role-only reviewers, future dates, missing references, and mandatory
-skips fail the automated gate. The reviewer must be a named person different
-from the operator.
+Each generated template lists the exact allowed environment and operator roles
+for that artifact. Placeholders, `TBD`, template warnings, abbreviated commits,
+future dates, missing references, and mandatory skips fail the automated gate.
+Solo-developer evidence must state that independent review was not performed and
+is valid only for development readiness, never production authorization.
 
 Start from [`templates/executed-evidence.template.md`](templates/executed-evidence.template.md)
 or the relevant specialized template. Templates remain `Template-Only: true`
 and must never be copied to an executed filename until the operation has actually
-run and been independently reviewed.
+run and been self-reviewed by the named operator.
 
 ## 1. Start fail closed
 
 1. Identify the exact environment, project reference, release revision, change
-   ticket, operator, reviewer, and maintenance window.
+   ticket, operator, and maintenance window.
 2. Confirm profiling and every Phase 2 server flag are `false`; profiling and
    every Phase 2 database runtime are `off`. Record sanitized results only.
 3. Confirm an approved managed backup exists. Do not download row data into the
@@ -63,8 +65,8 @@ Use the [credential template](templates/credential-rotation.template.md).
    only its intended server operation. Record no value or authenticated request.
 6. Scan tracked and untracked configuration using a method that reports only
    filenames/counts, never matched secret values.
-7. Obtain independent dashboard review. Rollback must never reactivate the
-   exposed credential.
+7. Record the operator's separate verification that the old credential is
+   rejected. Rollback must never reactivate the exposed credential.
 
 ## 3. Supabase Auth configuration
 
@@ -105,12 +107,13 @@ Use the [mapping template](templates/legacy-account-mapping.template.md).
    rewrite original actor IDs.
 3. Record each candidate mapping, responsible PARAYA officer, work disposition,
    notification plan, and discrepancy in the private register.
-4. Require two-person review, explicit duplicate decisions, and count
-   reconciliation. Never auto-merge or delete an identity.
+4. Require explicit duplicate decisions and count reconciliation. Record that
+   this was solo-developer self-review. Never auto-merge or delete an identity.
 5. Prove historical-read-only access and denial of resident, roster, forum,
    proposal, program, and finance mutations.
-6. Suspend only after mapping, reassignment, notification, reconciliation, and
-   Director sign-off. Preserve the UUID and all audit/history references.
+6. During development, preserve every existing Auth and application account.
+   Record only the pending suspension request. Actual suspension requires a
+   separate future production change window; never delete the identity.
 
 The reduced-account target is confirmed; operational cutover evidence remains
 required.
@@ -130,7 +133,8 @@ Use the [rollback template](templates/rollback-rehearsal.template.md).
 6. Document a forward correction or approved recovery path. Never drop governed
    tables, rewrite applied migrations, restore broad policies, reactivate an
    exposed credential, or restore legacy mutations.
-7. Obtain release-owner review of recovery time, integrity, risks, and stop/go.
+7. Record the solo developer's recovery-time, integrity, risk, and stop/go
+   self-review. This does not authorize production.
 
 ## 7. Submit evidence
 
@@ -141,7 +145,7 @@ Use the [rollback template](templates/rollback-rehearsal.template.md).
    envelope. Mark unresolved checks failed; do not omit them.
 4. Keep raw artifacts private and reference them by access-controlled identifier
    plus the SHA-256 of the reviewed private artifact bundle.
-5. Create evidence commit `E` containing only the exact approved Markdown files
+5. Create evidence commit `E` containing only the exact self-attested Markdown files
    under `docs/release-evidence/`. Commit `R` must be an ancestor of `E`; any
    executable change after `R` invalidates the evidence.
 6. Create a private JSON index outside the repository using schema
@@ -155,8 +159,8 @@ Use the [rollback template](templates/rollback-rehearsal.template.md).
    ```
 
    Public CI may use `--envelope-only`, but that mode cannot approve release.
-8. Treat a passing checker as envelope/digest validation. A release owner must
-   still review the underlying evidence and authorize the release separately.
+8. Treat a passing checker as development-readiness envelope/digest validation.
+   Production activation remains a separate future authorization.
 
 Environment, configuration, migration, processor, privacy notice, or mapped-set
-changes expire the affected evidence and require a new review.
+changes expire the affected evidence and require a new self-review.

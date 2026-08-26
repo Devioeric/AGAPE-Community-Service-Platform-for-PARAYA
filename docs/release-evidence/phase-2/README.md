@@ -12,7 +12,8 @@ component leaves `off`, add dated, non-secret artifacts for:
   liquidation browser E2E results;
 - private document retention/access policy and malware scanning or risk approval;
 - official AGAPE implementation date and five-year source inventory;
-- legacy-account mapping, pending-work reassignment, sign-off, and suspension;
+- legacy-account mapping, pending-work reassignment, sign-off, and proof that
+  existing development accounts remain preserved;
 - external contact opt-ins, Resend/template/outbox delivery tests;
 - AI payload interception and operational/historical analytics separation;
 - rollback rehearsal and approval to change each database mode.

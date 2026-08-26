@@ -10,20 +10,21 @@ Never commit credentials, access tokens, JWTs, database passwords, service-role
 keys, personal data, contact lists, resident data, uploaded documents, receipts,
 or database dumps containing rows. Keep sensitive source artifacts in the
 approved private evidence store and record only its access-controlled reference,
-reviewer, date, sanitized result, and cryptographic digest when appropriate.
+operator, self-review mode, date, sanitized result, and cryptographic digest.
 
 ## Evidence states
 
 - **Missing**: no executed artifact exists.
-- **Draft**: evidence was captured but has not been independently reviewed.
+- **Draft**: evidence was captured but has not been self-reviewed.
 - **Failed**: the executed check found a release blocker.
 - **Passed, awaiting approval**: the check passed but is not approved.
-- **Approved**: an authorized independent reviewer approved the evidence scope.
+- **Approved**: the authorized solo developer completed the required self-review
+  for development readiness. It is not independent or production approval.
 - **Expired**: the environment or configuration changed after approval.
 
 Templates under [`templates/`](templates/) always remain **Not executed**. Do
 not rename or copy one to a required evidence filename until the operation has
-actually been performed and independently reviewed.
+actually been performed and self-reviewed against the immutable candidate.
 
 ## Phase 1 required artifacts
 
@@ -60,9 +61,9 @@ The final local command is:
 npm.cmd run test:release-gate -- --release-revision <40-character-R> --artifact-index <private-index>
 ```
 
-`--envelope-only` is available for public CI, but cannot approve a release.
-Both modes validate envelopes; only the private-index mode recomputes the
-outside-repository bundle hashes. Human review remains mandatory.
+`--envelope-only` is available for public CI, but cannot close readiness. Both
+modes validate envelopes; only private-index mode recomputes outside-repository
+bundle hashes. The named operator's solo-developer attestation remains required.
 
 Use the [release-gate matrix](release-gate-matrix.md) for dependencies and the
 [operator runbook](operator-runbook.md) for safe evidence capture. Phase 2 is

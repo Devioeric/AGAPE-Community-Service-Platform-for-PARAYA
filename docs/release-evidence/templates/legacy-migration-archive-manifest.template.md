@@ -6,7 +6,9 @@ Evidence-Result: NOT EXECUTED
 Environment: development
 Executed-Date: YYYY-MM-DD
 Operator: Full Name (Migration Maintainer)
-Reviewer: Different Full Name (Database Reviewer)
+Review-Mode: SOLO-DEVELOPER-SELF-REVIEW
+Independent-Review-Performed: false
+Approval-Scope: DEVELOPMENT-READINESS-ONLY
 Release-Revision: <immutable-git-commit>
 Evidence-Reference: <private-equivalence-approval-reference>
 Artifact-SHA256: <64-hex-sha256>

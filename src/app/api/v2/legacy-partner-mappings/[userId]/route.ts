@@ -19,8 +19,10 @@ export async function POST(request: Request, { params }: { params: { userId: str
   if (error) return phase2RpcError(error);
   if (value.action === "sign_off") {
     const prepared = data as { suspensionRequestId: string; dataMode: "synthetic" | "live"; rowVersion: number };
-    if (prepared.dataMode !== "synthetic") {
-      return NextResponse.json({ data: { ...prepared, authSuspensionStatus: "requested", productionChangeRequired: true } }, { status: 202 });
+    const testSuspensionEnabled = process.env.AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED === "true";
+    if (!testSuspensionEnabled || prepared.dataMode !== "synthetic") {
+      return NextResponse.json({ data: { ...prepared, authSuspensionStatus: "requested", accountPreserved: true,
+        testSuspensionEnabled, productionChangeRequired: prepared.dataMode !== "synthetic" } }, { status: 202 });
     }
     const admin = createAdminClient();
     const suspended = await admin.auth.admin.updateUserById(params.userId, { ban_duration: INACTIVE_AUTH_BAN_DURATION });

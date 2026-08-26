@@ -1,5 +1,4 @@
 const TEST_OPERATORS = ["Security Test Operator", "QA Operator", "Database Operator", "E2E Operator"];
-const TEST_REVIEWERS = ["Security Reviewer", "QA Reviewer", "Database Reviewer", "Release Owner"];
 
 function artifact(relativePath, suiteId, options = {}) {
   return {
@@ -7,7 +6,6 @@ function artifact(relativePath, suiteId, options = {}) {
     suiteId,
     environments: options.environments ?? ["disposable-clone"],
     operatorRoles: options.operatorRoles ?? TEST_OPERATORS,
-    reviewerRoles: options.reviewerRoles ?? TEST_REVIEWERS,
     maxAgeDays: options.maxAgeDays === undefined ? 30 : options.maxAgeDays,
     minPassedCases: options.minPassedCases ?? 1,
     requiredExact: options.requiredExact ?? {},
@@ -34,16 +32,16 @@ export const PHASE2_EVIDENCE_NAMES = [
 
 const phase1 = [
   artifact("docs/release-evidence/baseline-manifest.md", "agape.phase1.baseline-equivalence.v1", {
-    operatorRoles: ["Database Operator"], reviewerRoles: ["Database Reviewer", "Security Reviewer"], baseline: true,
+    operatorRoles: ["Database Operator"], baseline: true,
   }),
   artifact("docs/release-evidence/credential-rotation.md", "agape.phase1.credential-rotation.v1", {
-    environments: ["production"], operatorRoles: ["Supabase Owner"], reviewerRoles: ["Security Reviewer"], maxAgeDays: null,
+    environments: ["staging"], operatorRoles: ["Supabase Owner"], maxAgeDays: null,
   }),
   artifact("docs/release-evidence/auth-configuration.md", "agape.phase1.auth-configuration.v1", {
-    environments: ["staging", "production"], operatorRoles: ["Auth Administrator"], reviewerRoles: ["Security Reviewer", "QA Reviewer"],
+    environments: ["staging"], operatorRoles: ["Auth Administrator"],
   }),
   artifact("docs/release-evidence/migration-reconciliation.md", "agape.phase1.migration-reconciliation.v1", {
-    environments: ["production"], operatorRoles: ["Database Operator"], reviewerRoles: ["Database Reviewer", "Security Reviewer"],
+    environments: ["staging"], operatorRoles: ["Database Operator"],
     requiredFields: ["Repository-Inventory-SHA256", "Current-Ledger-SHA256", "Intended-Ledger-SHA256", "Baseline-Cut-Branch"],
     requiredExact: { "Unresolved-Items": "0", "Security-Unresolved-Items": "0" },
   }),
@@ -55,16 +53,16 @@ const phase1 = [
   artifact("docs/release-evidence/ai-payload-privacy.md", "agape.phase1.ai-privacy.v1"),
   artifact("docs/release-evidence/synthetic-reconciliation.md", "agape.phase1.synthetic-reconciliation.v1"),
   artifact("docs/release-evidence/privacy-approval.md", "agape.phase1.privacy-approval.v1", {
-    environments: ["production"], operatorRoles: ["Privacy Coordinator"], reviewerRoles: ["DPO", "Privacy Reviewer"], maxAgeDays: null,
+    environments: ["staging"], operatorRoles: ["Privacy Coordinator"], maxAgeDays: null,
   }),
   artifact("docs/release-evidence/legacy-account-mapping.md", "agape.phase1.legacy-account-mapping.v1", {
-    environments: ["staging"], operatorRoles: ["PARAYA Migration Owner"], reviewerRoles: ["PARAYA Director", "Security Reviewer"],
+    environments: ["staging"], operatorRoles: ["PARAYA Migration Owner"],
   }),
   artifact("docs/release-evidence/rollback-rehearsal.md", "agape.phase1.rollback-rehearsal.v1", {
-    operatorRoles: ["Release Operator"], reviewerRoles: ["Release Owner"],
+    operatorRoles: ["Release Operator"],
   }),
   artifact("docs/release-evidence/phase1-release-authorization.md", "agape.phase1.release-authorization.v1", {
-    environments: ["staging"], operatorRoles: ["Release Coordinator"], reviewerRoles: ["Release Owner"],
+    environments: ["staging"], operatorRoles: ["Release Coordinator"],
     requiredExact: {
       "AGAPE-Profiling-Flag": "false", "Profiling-Runtime-Mode": "off",
       "Profiling-Workers": "stopped-or-no-op", "Real-Resident-Data-Admitted": "false",
@@ -80,23 +78,23 @@ const phase2 = [
   artifact("docs/release-evidence/phase-2/rpc-abuse-concurrency.md", "agape.phase2.rpc-abuse-concurrency.v1"),
   artifact("docs/release-evidence/phase-2/partner-backfill-reconciliation.md", "agape.phase2.partner-backfill.v1"),
   artifact("docs/release-evidence/phase-2/legacy-account-cutover.md", "agape.phase2.legacy-cutover.v1", {
-    environments: ["staging"], operatorRoles: ["PARAYA Migration Owner"], reviewerRoles: ["PARAYA Director", "Security Reviewer"],
+    environments: ["staging"], operatorRoles: ["PARAYA Migration Owner"],
   }),
   artifact("docs/release-evidence/phase-2/historical-source-inventory.md", "agape.phase2.historical-source-inventory.v1", {
-    environments: ["staging", "production"], operatorRoles: ["PARAYA Researcher", "PARAYA Associate"], reviewerRoles: ["PARAYA Director", "Research Reviewer"],
+    environments: ["staging"], operatorRoles: ["PARAYA Researcher", "PARAYA Associate"],
   }),
   artifact("docs/release-evidence/phase-2/phase2-e2e.md", "agape.phase2.e2e.v1"),
   artifact("docs/release-evidence/phase-2/document-risk-retention.md", "agape.phase2.document-risk-retention.v1", {
-    environments: ["staging", "production"], operatorRoles: ["Security Owner", "Privacy Coordinator"], reviewerRoles: ["Security Reviewer", "Privacy Reviewer", "Release Owner"], maxAgeDays: null,
+    environments: ["staging"], operatorRoles: ["Security Owner", "Privacy Coordinator"], maxAgeDays: null,
     requiredExact: { "Live-Document-Access": "disabled", "Risk-Decision": "approved" },
   }),
   artifact("docs/release-evidence/phase-2/outbox-delivery.md", "agape.phase2.outbox-delivery.v1"),
   artifact("docs/release-evidence/phase-2/ai-interception.md", "agape.phase2.ai-interception.v1"),
   artifact("docs/release-evidence/phase-2/rollback-rehearsal.md", "agape.phase2.rollback-rehearsal.v1", {
-    operatorRoles: ["Release Operator"], reviewerRoles: ["Release Owner"],
+    operatorRoles: ["Release Operator"],
   }),
   artifact("docs/release-evidence/phase-2/component-authorizations.md", "agape.phase2.component-authorizations.v1", {
-    environments: ["staging"], operatorRoles: ["Phase 2 Test Owner"], reviewerRoles: ["Release Owner"],
+    environments: ["staging"], operatorRoles: ["Phase 2 Test Owner"],
     requiredExact: {
       "Partner-Registry-Final-Mode": "off", "Historical-Programs-Final-Mode": "off",
       "Structured-Proposals-Final-Mode": "off", "Program-Finance-Final-Mode": "off",
@@ -104,11 +102,12 @@ const phase2 = [
     },
   }),
   artifact("docs/release-evidence/phase-2/phase2-release-authorization.md", "agape.phase2.release-authorization.v1", {
-    environments: ["staging"], operatorRoles: ["Release Coordinator"], reviewerRoles: ["Release Owner"],
+    environments: ["staging"], operatorRoles: ["Release Coordinator"],
     requiredExact: {
       "AGAPE-Profiling-Flag": "false", "AGAPE-Partner-Registry-Flag": "false",
       "AGAPE-Historical-Programs-Flag": "false", "AGAPE-Proposals-Flag": "false",
       "AGAPE-Program-Finance-Flag": "false", "AGAPE-External-Contact-Email-Flag": "false",
+      "AGAPE-Legacy-Account-Suspension-Flag": "false",
       "Profiling-Runtime-Mode": "off", "Partner-Registry-Mode": "off",
       "Historical-Programs-Mode": "off", "Structured-Proposals-Mode": "off",
       "Program-Finance-Mode": "off", "External-Contact-Email-Mode": "off",

@@ -18,6 +18,9 @@ canonical pre-Phase-0 baseline has been captured from the reconciled live schema
 - historical import staging without retained workbook bytes;
 - expiring email-worker leases and append-only delivery events;
 - all new RPCs revoke `PUBLIC` and `anon` execution explicitly.
+- legacy-account sign-off preserves existing Auth/application accounts during
+  development; only explicitly enabled, allowlisted disposable synthetic users
+  can exercise the suspension finalizer.
 
 ## Evidence still required
 
@@ -28,7 +31,8 @@ canonical pre-Phase-0 baseline has been captured from the reconciled live schema
 - complete browser workflows and synthetic reconciliation counts;
 - credential rotation, Auth redirects, Phase 1 privacy approval, retention and
   malware-scanning/risk-acceptance approval;
-- official implementation date/source inventory and legacy-account cutover sign-off.
+- official implementation date/source inventory and legacy-account mapping
+  sign-off. Real account suspension is deferred to a future production window.
 
 Until every Phase 1 artifact exists directly under `docs/release-evidence/` and
 every Phase 2 artifact exists under `docs/release-evidence/phase-2/`, Phase 3

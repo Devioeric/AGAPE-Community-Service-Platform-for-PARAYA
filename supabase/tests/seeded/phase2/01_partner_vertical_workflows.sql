@@ -2,7 +2,10 @@ BEGIN;
 SELECT plan(16);
 
 UPDATE public.phase2_component_runtime SET mode='synthetic',
- synthetic_user_ids=ARRAY['f2200000-0000-4000-8000-000000000002'::uuid],
+ synthetic_user_ids=ARRAY[
+   'f2200000-0000-4000-8000-000000000002'::uuid,
+   'f2200000-0000-4000-8000-000000000013'::uuid
+ ],
  synthetic_entity_ids=(SELECT array_agg(id ORDER BY id) FROM public.partner_entities WHERE data_mode='synthetic')
 WHERE component='partners';
 UPDATE public.phase2_cutover_state SET write_authority='v2',reconciliation_hash=repeat('a',64),reconciled_at=now(),changed_by='f2200000-0000-4000-8000-000000000002'

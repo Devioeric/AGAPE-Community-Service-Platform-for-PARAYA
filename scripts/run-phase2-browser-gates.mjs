@@ -116,7 +116,8 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
     SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey, AGAPE_PROFILING_V2_ENABLED: "false",
     AGAPE_PARTNER_REGISTRY_V2_ENABLED: "false", AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED: "false",
     AGAPE_PROPOSALS_V2_ENABLED: "false", AGAPE_PROGRAM_FINANCE_V2_ENABLED: "false",
-    AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED: "false", AGAPE_PHASE2_E2E: "true", PLAYWRIGHT_BASE_URL: baseUrl,
+    AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED: "false", AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED: "false",
+    AGAPE_PHASE2_E2E: "true", PLAYWRIGHT_BASE_URL: baseUrl,
     LOCAL_AI_BASE_URL: "http://127.0.0.1:3111/v1", LOCAL_AI_API_KEY: "synthetic-phase2-ai-key", LOCAL_AI_MODEL: "synthetic-recording-model",
   });
   const build = await runProcess(process.execPath, [next, "build"], { cwd: root, env: baseEnv, timeoutMs: 480_000 });

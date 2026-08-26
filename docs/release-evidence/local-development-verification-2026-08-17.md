@@ -42,5 +42,6 @@ or financial record is included in this artifact.
   document-risk/retention approval, legacy-account sign-off, or rollback rehearsal.
 
 This file must not be renamed to satisfy a release-evidence filename. Release
-evidence requires the real environment, commands/test IDs, result, reviewer, and
+evidence requires the real environment, commands/test IDs, result, named
+operator self-review mode, and
 approval state described by the corresponding evidence template.

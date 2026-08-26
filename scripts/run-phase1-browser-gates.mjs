@@ -123,6 +123,7 @@ export async function runPhase1BrowserGates({ root, apiUrl, anonKey, serviceRole
     AGAPE_PROPOSALS_V2_ENABLED: "false",
     AGAPE_PROGRAM_FINANCE_V2_ENABLED: "false",
     AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED: "false",
+    AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED: "false",
     AGAPE_PHASE1_E2E: "true",
     PLAYWRIGHT_BASE_URL: baseUrl,
     LOCAL_AI_BASE_URL: "http://127.0.0.1:3110/v1",

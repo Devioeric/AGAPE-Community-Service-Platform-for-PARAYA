@@ -50,9 +50,9 @@ fails until the required evidence artifacts and canonical baseline are present.
 Repository tooling now validates the sanitized authoritative-export contract,
 inventories active migrations against a private ledger, compares schema-only
 dumps without printing definitions, runs disposable local replay gates, and
-strictly validates independently approved evidence envelopes. These tools do
-not manufacture the missing baseline or substitute for operator/reviewer
-approval.
+strictly validates solo-developer self-attested evidence envelopes for staging
+development readiness. These tools do not manufacture missing artifacts or
+authorize production activation.
 
 ## Migration impact
 

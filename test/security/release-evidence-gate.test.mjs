@@ -16,7 +16,9 @@ Evidence-Result: PASS
 Environment: disposable-clone
 Executed-Date: 2026-08-17
 Operator: Maria Santos (Security Test Operator)
-Reviewer: Jose Reyes (Security Reviewer)
+Review-Mode: SOLO-DEVELOPER-SELF-REVIEW
+Independent-Review-Performed: false
+Approval-Scope: DEVELOPMENT-READINESS-ONLY
 Release-Revision: ${revision}
 Evidence-Reference: PRIVATE-EVIDENCE-AGAPE-2042
 Artifact-SHA256: ${"9".repeat(64)}
@@ -27,7 +29,7 @@ Failed-Cases: 0
 Skipped-Cases: 0
 `;
 
-test("approved evidence requires artifact-specific independent current review", () => {
+test("approved evidence requires artifact-specific solo-developer self-review", () => {
   const result = validateEvidenceContent(approved, { expectedRevision: revision, artifactSpec: jwtSpec, now: new Date("2026-08-17T12:00:00Z") });
   assert.equal(result.valid, true, result.failures.join("; "));
 });
@@ -41,11 +43,19 @@ test("templates, stale dates, abbreviated revisions, and skipped cases fail clos
   assert.match(result.failures.join("\n"), /APPROVED|expired|40-character|placeholder|Skipped/i);
 });
 
+test("solo-developer self-review cannot authorize production", () => {
+  const content = approved.replace("Environment: disposable-clone", "Environment: production");
+  const spec = { ...jwtSpec, environments: ["disposable-clone", "production"] };
+  const result = validateEvidenceContent(content, { expectedRevision: revision, artifactSpec: spec, now: new Date("2026-08-17T12:00:00Z") });
+  assert.equal(result.valid, false);
+  assert.match(result.failures.join("\n"), /cannot authorize a production environment/);
+});
+
 test("baseline evidence binds two clean replays and catalog digest", () => {
   const digest = "c".repeat(64);
   const spec = getEvidenceArtifactSpec("docs/release-evidence/baseline-manifest.md");
   const content = approved.replace("Security Test Operator", "Database Operator")
-    .replace("Security Reviewer", "Database Reviewer").replace(jwtSpec.suiteId, spec.suiteId);
+    .replace(jwtSpec.suiteId, spec.suiteId);
   const result = validateEvidenceContent(`${content}
 Baseline-File: 20260815000000_pre_phase0_baseline.sql
 Baseline-SHA256: ${digest}

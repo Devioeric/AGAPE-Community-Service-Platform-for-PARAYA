@@ -4,8 +4,15 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { EVIDENCE_ARTIFACT_SPECS, getEvidenceArtifactSpec } from "../../scripts/lib/evidence-artifact-specs.mjs";
+import {
+  ALL_RELEASE_EVIDENCE_PATHS,
+  EVIDENCE_ARTIFACT_SPECS,
+  PHASE1_EVIDENCE_PATHS,
+  PHASE2_EVIDENCE_PATHS,
+  getEvidenceArtifactSpec,
+} from "../../scripts/lib/evidence-artifact-specs.mjs";
 import { renderEvidenceTemplate, templateRelativePathForSpec } from "../../scripts/lib/evidence-templates.mjs";
+import { PHASE1_RELEASE_GATE_CONFIG, PHASE2_RELEASE_GATE_CONFIG } from "../../scripts/lib/release-gate-config.mjs";
 import { parseReleaseGateArguments } from "../../scripts/lib/run-release-gate.mjs";
 import { parseEvidenceFields, sha256, validateDisabledFeatureConfiguration, validateEvidenceContent, validateReleaseRevisionContext, verifyPrivateArtifactIndex } from "../../scripts/lib/release-evidence.mjs";
 
@@ -115,6 +122,55 @@ test("release revision context allows only evidence-only descendant commits", as
     await writeFile(join(root, "README.md"), "changed after evidence\n"); run(["add", "README.md"]); run(["commit", "-m", "forbidden"]);
     assert.throws(() => validateReleaseRevisionContext(root, releaseRevision, ["docs/release-evidence/result.md"]), /non-evidence/);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("combined evidence commit is valid for both gates without weakening Phase 1 requirements", async () => {
+  assert.equal(PHASE1_EVIDENCE_PATHS.length, 15);
+  assert.equal(PHASE2_EVIDENCE_PATHS.length, 14);
+  assert.equal(ALL_RELEASE_EVIDENCE_PATHS.length, 29);
+  assert.deepEqual(PHASE1_RELEASE_GATE_CONFIG.evidencePaths, PHASE1_EVIDENCE_PATHS);
+  assert.deepEqual(PHASE1_RELEASE_GATE_CONFIG.allowedEvidencePaths, ALL_RELEASE_EVIDENCE_PATHS);
+  assert.deepEqual(PHASE2_RELEASE_GATE_CONFIG.evidencePaths, ALL_RELEASE_EVIDENCE_PATHS);
+  assert.deepEqual(PHASE2_RELEASE_GATE_CONFIG.allowedEvidencePaths, ALL_RELEASE_EVIDENCE_PATHS);
+
+  const root = await mkdtemp(join(tmpdir(), "agape-combined-evidence-revision-"));
+  const run = (args) => execFileSync("git", args, { cwd: root, windowsHide: true, stdio: "ignore" });
+  try {
+    run(["init"]);
+    run(["config", "user.email", "release@example.invalid"]);
+    run(["config", "user.name", "Release Test"]);
+    await writeFile(join(root, "README.md"), "candidate\n");
+    run(["add", "README.md"]);
+    run(["commit", "-m", "candidate"]);
+    const releaseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+
+    const phase1Path = join(root, ...PHASE1_EVIDENCE_PATHS[0].split("/"));
+    const phase2Path = join(root, ...PHASE2_EVIDENCE_PATHS[0].split("/"));
+    await mkdir(join(phase1Path, ".."), { recursive: true });
+    await mkdir(join(phase2Path, ".."), { recursive: true });
+    await writeFile(phase1Path, "phase 1 evidence\n");
+    await writeFile(phase2Path, "phase 2 evidence\n");
+    run(["add", "."]);
+    run(["commit", "-m", "combined evidence"]);
+
+    const context = validateReleaseRevisionContext(root, releaseRevision, ALL_RELEASE_EVIDENCE_PATHS);
+    assert.deepEqual(context.changedEvidencePaths.sort(), [PHASE1_EVIDENCE_PATHS[0], PHASE2_EVIDENCE_PATHS[0]].sort());
+    assert.throws(
+      () => validateReleaseRevisionContext(root, releaseRevision, PHASE1_EVIDENCE_PATHS),
+      /non-evidence/,
+    );
+
+    const unregisteredPath = join(root, "docs", "release-evidence", "phase-2", "unregistered.md");
+    await writeFile(unregisteredPath, "not registered\n");
+    run(["add", "."]);
+    run(["commit", "-m", "unregistered evidence"]);
+    assert.throws(
+      () => validateReleaseRevisionContext(root, releaseRevision, ALL_RELEASE_EVIDENCE_PATHS),
+      /non-evidence/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("release gate CLI requires explicit revision and private or envelope mode", () => {

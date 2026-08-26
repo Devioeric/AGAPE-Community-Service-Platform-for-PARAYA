@@ -26,9 +26,18 @@ export function releaseGateUsage(scriptName) {
   return `Usage: node ${scriptName} --release-revision <40-char-commit> (--artifact-index <private-json> | --envelope-only)`;
 }
 
-export async function runReleaseGate({ root, phase, evidencePaths, flags, releaseRevision, artifactIndex, envelopeOnly }) {
+export async function runReleaseGate({
+  root,
+  phase,
+  evidencePaths,
+  allowedEvidencePaths = evidencePaths,
+  flags,
+  releaseRevision,
+  artifactIndex,
+  envelopeOnly,
+}) {
   const failures = [];
-  try { validateReleaseRevisionContext(root, releaseRevision, evidencePaths); }
+  try { validateReleaseRevisionContext(root, releaseRevision, allowedEvidencePaths); }
   catch (error) { failures.push(error instanceof Error ? error.message : String(error)); }
 
   const baselineFile = "20260815000000_pre_phase0_baseline.sql";

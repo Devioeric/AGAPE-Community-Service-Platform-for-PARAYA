@@ -1,77 +1,74 @@
 # Phase 1 release-gate status
 
-Status: **OPEN — profiling must remain disabled**
+Status: **OPEN — local technical implementation is complete, but profiling must remain disabled.**
 
-## Implemented locally
+## Verified local state
 
-- Canonical deny-only capability checks are used by the remediated operational
-  APIs, including legacy-household, partnership, program, attendance, Admin, and
-  AI-context boundaries.
-- Legacy household list access is capability-scoped, redacted, and audit-fail-
-  closed. New proposal evidence selects completed aggregate snapshots only.
-- API profiling validation uses the cycle collection date, derives minor status,
-  applies strict field/category rules, and limits multipart import bytes before
-  parsing.
-- Forward migration `20260817000410_phase1_release_gate_remediation.sql` adds
-  catalog verification, deny-only RLS enforcement, explicit function grants,
-  runtime-gated PII reads, strict SQL payload validation, version serialization,
-  sample/correction checks, consent re-grant, completion blocking, and redacted
-  duplicate-decision retention.
-- The profiling UI supports registered sample selection, refusal/unavailable
-  outcomes, draft saving, prior-roster seeding, returned-package correction, full
-  Secretary detail review, imports, aggregate export, and Captain endorsement.
-- Unsafe legacy instructions in `TESTING.md` were replaced with the current role,
-  migration, privacy, and evidence gates.
-- The active wireframe set now visibly retires institutional partner mutations,
-  public institutional signup, broad household CRUD/export, and routine Admin
-  domain access. Canonical Mermaid ERD, DFD, and actor/use-case artifacts are in
-  `docs/diagrams/`.
-- The release-gate verifier is deliberately fail-closed: it requires a verified
-  pre-Phase-0 baseline plus dated migration, JWT/RLS, privacy, synthetic-pilot,
-  credential, Auth, account-mapping, and rollback evidence.
+- The canonical pre-Phase-0 baseline is active at
+  `supabase/migrations/20260815000000_pre_phase0_baseline.sql` with SHA-256
+  `e3d29ada8fa963f2af3dc7031a21575dd7d2d8a587d735b056c5d562ac1bce66`.
+- All 53 unordered legacy SQL files, including `_COMBINED_pending.sql`, are
+  preserved byte-for-byte under
+  `supabase/legacy-migrations/pre-phase0-unordered/`. The active directory has
+  38 timestamped migrations and no unordered SQL.
+- Strict inventory against the sanitized staging capture passes with zero
+  findings. No migration, DDL, or ledger repair was sent to a shared database.
+- Two clean Phase 1 Docker/Supabase replays match at schema hash
+  `d45c46a578f3cb65c8815bfd4e4de63749a7ade82c8e4f528f6de356d9ec0c4d`.
+  Catalog assertions pass 12/12, fixture assertions 22/22, behavioral gates
+  99/99, and legacy-development seed compatibility passes.
+- Capability enforcement, deny-only overrides, Admin/legacy isolation,
+  runtime-gated profiling, strict payload validation, stable versions,
+  consent/lifecycle integrity, sampled-household containment, aggregate-only AI
+  context, and immutable evidence are implemented through the forward-only
+  Phase 1 chain.
+- Researcher, Mother Leader, Secretary, Captain, Director, and Associate
+  profiling workflows are implemented behind a disabled application flag and
+  database runtime `off`.
+- Local Supabase clients now use `sb_publishable_...` and `sb_secret_...` keys.
+  Legacy JWT-based API keys are disabled, and authenticated Admin, statistics,
+  and notification requests continued to succeed with the modern keys.
+- Local Auth configuration routes password recovery through
+  `/auth/callback?next=/reset-password`; the callback returned 307 and the reset
+  page returned 200. Final password submission is pending after the single-use
+  link was reopened and the built-in email limit was reached. Invite-link E2E is
+  also pending.
 
-## External or environment-dependent blockers
+## Remaining release blockers
 
-- No verified live migration ledger or pre-Phase-0 schema-only dump is available
-  in this workspace. Therefore a canonical baseline cannot be generated safely,
-  and unordered legacy SQL has not been archived.
-- No disposable Supabase/Docker environment or database CLI is available here,
-  so migration replay and real PostgreSQL syntax/constraint testing have not run.
-- Direct JWT/PostgREST, storage, malicious RPC, and concurrency suites require the
-  disposable project and real role tokens.
-- Browser E2E requires configured synthetic accounts and setup data.
-- Credential rotation, Auth redirect configuration, privacy approval, official
-  sitio/assignment/sample inputs, retention procedures, and legacy-account
-  mapping require authorized external evidence.
+- Freeze one immutable release candidate `R` and rerun every mandatory suite
+  against that exact commit with zero failed or skipped cases.
+- Complete the password-update and synthetic invitation Auth cases after the
+  email rate limit resets.
+- Supply the privacy-controller development approval inputs: approved notice,
+  purpose/lawful basis, retention, correction, withdrawal, processors, incident
+  handling, and synthetic-pilot scope.
+- Supply the official sitio/assignment/sample configuration and sanitized
+  legacy-account inventory with responsible officers. Existing development
+  accounts remain preserved; real suspension is deferred.
+- Create approved private result bundles and an outside-repository artifact
+  index for the 15 registered Phase 1 evidence envelopes.
+- Complete synthetic reconciliation, rollback, and explicit Phase 1
+  development-readiness authorization against `R`.
+- Commit only approved evidence Markdown as descendant evidence commit `E` and
+  pass the strict verifier with the private artifact index.
 
-These are release blockers, not waived tests. `scripts/verify-phase1-release-gate.mjs`
-fails until the required evidence artifacts and canonical baseline are present.
+These blockers are not waived tests. Solo-developer self-review may approve
+development readiness only; it cannot authorize production or real resident
+collection.
 
-Repository tooling now validates the sanitized authoritative-export contract,
-inventories active migrations against a private ledger, compares schema-only
-dumps without printing definitions, runs disposable local replay gates, and
-strictly validates solo-developer self-attested evidence envelopes for staging
-development readiness. These tools do not manufacture missing artifacts or
-authorize production activation.
+## Release-verifier behavior
 
-## Migration impact
+The Phase 1 verifier requires exactly its 15 evidence artifacts and private
+bundles. It permits the same evidence commit `E` to contain the 14 registered
+Phase 2 evidence files so both gates can share one evidence-only descendant of
+`R`. Any executable, unregistered, or other repository change between `R` and
+`E` still fails closed.
 
-The remediation is forward-only and additive. It creates restrictive policies,
-indexes, triggers, wrappers, and an explicit RPC allowlist. It does not delete
-normalized profiling history. The live ledger must determine whether earlier
-Phase 1 files are immutable/applied and whether only `00410` may be deployed.
+## Migration, security, and rollback
 
-## Security/RLS impact
-
-Any unmapped public domain table, RLS-disabled table, or missing deny-only policy
-causes the remediation migration to abort. Profiling functions lose inherited
-`PUBLIC`, `anon`, and authenticated execution; only the reviewed application RPC
-surface is granted back. Runtime `off` blocks identifiable reads and writes while
-non-PII setup remains available to the Researcher.
-
-## Rollback
-
-Set application profiling false and database runtime `off`. Preserve all
-normalized/versioned data and immutable audit history. Correct migration defects
-with a new forward migration; never restore Admin roaming, broad RLS, direct PII
-access, legacy writes, or hard deletion.
+All post-baseline corrections are additive and forward-only. Existing actor IDs,
+profiling versions, lifecycle events, and audit history are preserved. Rollback
+keeps `AGAPE_PROFILING_V2_ENABLED=false`, sets profiling runtime to `off`, stops
+workers, and retains normalized data. It never restores Admin roaming, broad
+RLS, direct PII access, legacy writes, or hard deletion.

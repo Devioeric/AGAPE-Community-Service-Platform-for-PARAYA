@@ -338,3 +338,41 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - No secret value was printed or copied into Git or command output; the rotated secret remained confined to ignored local configuration and process memory.
 - The four reported secret-rule matches are deliberate invalid JWT/PostgreSQL fixtures in security tests and were acknowledged by the repository owner.
 - Rollback before the checkpoint consists of removing only the newly added manifest/status tooling; user work remains untouched.
+
+## Combined evidence-verifier and gate-status correction record
+
+- Status: `locally_complete`. This is a normal development packet and does not
+  designate release candidate `R` or create executed evidence commit `E`.
+- Files changed: shared evidence-path registry, release-gate configuration,
+  Phase 1/2 verifier entry points, release runner, focused verifier tests, and
+  the two release-gate status documents.
+- Verifier correction: Phase 1 continues to require and validate only its exact
+  15 evidence artifacts and private bundles, while the revision-context check
+  permits the same evidence-only commit `E` to contain the 14 registered Phase 2
+  artifacts. Phase 2 still validates all 29 artifacts. Unregistered evidence,
+  executable changes, dirty trees, abbreviated revisions, and non-descendant
+  release revisions remain fail-closed.
+- External progress recorded without overclaiming: local clients use modern
+  publishable/secret keys; legacy JWT API keys are disabled; modern-key Admin,
+  statistics, and notification requests passed; recovery callback and reset-page
+  routing passed. Final password submission and invitation E2E remain pending
+  and are not represented as approved evidence.
+- Commands: focused release-evidence test, complete Node suite, typecheck, lint,
+  and production build.
+- Results: focused verifier tests pass 10/10; complete Node tests pass 202/202
+  with zero failures/skips; typecheck and lint pass with no errors/warnings; all
+  161 production pages/routes build successfully.
+- Migration/security impact: no SQL migration, shared DDL, ledger operation,
+  Auth-account mutation, or feature activation occurred. Exact evidence-path
+  allowlists remain the only permitted `R..E` changes.
+- Rollback: revert this development checkpoint to restore the former verifier
+  configuration and status wording. Do not remove the canonical baseline,
+  archive, private capture, modern key configuration, or security migrations.
+- Remaining blocker: privacy inputs, final Auth cases, official history/account
+  inventories, document risk/retention decision, immutable `R`, authoritative
+  reruns, private bundles/index, and self-attested evidence `E` are still
+  required. Production and Phase 3 remain unauthorized.
+- Next exact action: run release inclusion and filename/count-only secret checks,
+  create a normal development checkpoint if clean, then continue any remaining
+  locally executable release-preparation work. Stop only when an external input
+  is indispensable.

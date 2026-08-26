@@ -30,6 +30,19 @@ export const PHASE2_EVIDENCE_NAMES = [
   "rollback-rehearsal.md", "component-authorizations.md", "phase2-release-authorization.md",
 ];
 
+export const PHASE1_EVIDENCE_PATHS = PHASE1_EVIDENCE_NAMES.map(
+  (name) => `docs/release-evidence/${name}`,
+);
+
+export const PHASE2_EVIDENCE_PATHS = PHASE2_EVIDENCE_NAMES.map(
+  (name) => `docs/release-evidence/phase-2/${name}`,
+);
+
+export const ALL_RELEASE_EVIDENCE_PATHS = [
+  ...PHASE1_EVIDENCE_PATHS,
+  ...PHASE2_EVIDENCE_PATHS,
+];
+
 const phase1 = [
   artifact("docs/release-evidence/baseline-manifest.md", "agape.phase1.baseline-equivalence.v1", {
     operatorRoles: ["Database Operator"], baseline: true,

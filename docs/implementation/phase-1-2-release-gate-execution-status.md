@@ -374,6 +374,37 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   complete Phase 2 replay and authenticated browser/AI regression against the
   full chain. Packet 18 remains externally blocked after local regressions pass.
 
+## Full-chain regression after disposable Auth completion
+
+- Status: `locally_complete`. The regression was executed from clean
+  development checkpoint `742c00ea1b2d4db38ac4eaedabaf95121d0e5cd4` and
+  remains diagnostic rather than approved release evidence.
+- Phase 2 database result: two fresh full-chain replays match at
+  `d5cf126fcfaabd5012cb0e5a0ddf9b73612183c01d1c556d02a268aa181dacbf`;
+  catalog/runtime/Storage assertions pass 32/32; seeded workflows pass 114/114;
+  direct Auth/PostgREST/RPC/Storage/concurrency cases pass 83/83; and legacy
+  development seed compatibility passes.
+- Phase 2 browser/privacy result: the fresh authenticated stack passes all
+  114 fixture assertions and 6/6 browser cases. The loopback AI recorder accepts
+  only the existing aggregate DTO requests, rejects every configured resident,
+  contact, document, narrative, budget-description, receipt, and financial
+  canary, and observes no proposal/program workflow mutation.
+- Isolation/final state: the test runners accepted only loopback endpoints,
+  removed each known disposable stack, returned every Phase 2 runtime to `off`,
+  restored both mutation authorities to `v1`, left all ordinary flags false,
+  preserved existing development accounts, and made no shared/remote change.
+- Migration impact: no additional migration was created during this regression.
+  The full chain includes the forward-only invitation boundary added in the
+  preceding checkpoint.
+- Rollback: no governed state exists outside destroyed disposable stacks. Keep
+  the operational rollback boundary at flags/modes `off`, V1 authority, and
+  workers stopped/no-op; do not use down migrations.
+- Remaining hard blocker: all locally executable implementation and diagnostic
+  gates are complete. Packet 18 cannot honestly freeze `R` or create approved
+  evidence without the owner-supplied external governance/configuration inputs,
+  private artifact index, and development-readiness attestations listed in the
+  release-gate status documents.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

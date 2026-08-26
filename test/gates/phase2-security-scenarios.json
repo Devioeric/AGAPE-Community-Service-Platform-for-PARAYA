@@ -1,0 +1,41 @@
+{
+  "schema": "agape.phase2-security-scenarios.v1",
+  "components": ["partners", "historical_programs", "proposals", "program_finance", "external_contact_email"],
+  "roles": ["admin", "director", "associate", "researcher", "finance", "captain-alpha", "secretary-alpha", "mother-alpha", "volunteer"],
+  "accountStates": ["pending", "inactive", "suspended"],
+  "denyOverrides": ["deny-partnerships", "deny-proposals", "deny-budgets"],
+  "jwtCases": [
+    "partner-role-matrix", "partner-state-denials", "partner-deny-override", "partner-live-isolation",
+    "historical-role-matrix", "historical-barangay-aggregate", "historical-live-isolation",
+    "proposal-role-matrix", "proposal-deny-override", "finance-role-matrix", "finance-deny-override"
+  ],
+  "rpcAbuseCases": [
+    "partner-unknown-field", "partner-live-target", "partner-stale-version", "contact-opt-in-without-consent",
+    "historical-unknown-field", "historical-pii-canary", "historical-live-target", "historical-malformed-import",
+    "proposal-unknown-field", "proposal-cross-mode-partner", "proposal-forged-total", "proposal-stale-version",
+    "finance-cross-program-item", "finance-forged-amount", "liquidation-arbitrary-json", "email-live-target"
+  ],
+  "directTableCases": [
+    "partner-read", "partner-insert", "partner-update", "partner-delete",
+    "history-read", "history-insert", "history-update", "history-delete",
+    "proposal-read", "proposal-insert", "proposal-update", "proposal-delete",
+    "finance-read", "finance-insert", "finance-update", "finance-delete"
+  ],
+  "concurrencyCases": [
+    "primary-contact", "renewal", "mapping-signoff", "historical-import-commit",
+    "proposal-edit-submit", "finance-clear-return", "director-approve-reject", "handoff-idempotency",
+    "expenditure-correct-void", "liquidation-claims", "outbox-claim-recovery", "reminder-generation"
+  ],
+  "storageCases": [
+    "anonymous-list", "unauthorized-list", "unauthorized-read", "unauthorized-upload", "unauthorized-update", "unauthorized-delete",
+    "cross-parent", "caller-path", "traversal", "oversize", "mime-spoof", "quarantine-download"
+  ],
+  "reconciliationCases": [
+    "partner-barangay-count", "legacy-attribution-count", "actor-ids-unchanged", "historical-quality-separation",
+    "budget-shadow-total", "one-program-per-handoff", "unique-reminders", "unique-email-events"
+  ],
+  "rollbackCases": [
+    "all-modes-off", "partner-authority-v1", "proposal-authority-v1", "rpc-writes-denied",
+    "direct-writes-denied", "workers-no-op", "suppressed-mail-retained", "governed-history-retained"
+  ]
+}

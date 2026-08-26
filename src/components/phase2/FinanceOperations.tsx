@@ -12,7 +12,18 @@ export function FinanceOperations({ canReviewProposal, canRecordActual, canRevie
   const [proposals, setProposals] = useState<FinanceQueueRow[]>([]); const [programs, setPrograms] = useState<ProgramQueueRow[]>([]);
   const [proposalId, setProposalId] = useState(""); const [programId, setProgramId] = useState(""); const [proposal, setProposal] = useState<FinanceProposalDTO | null>(null); const [finance, setFinance] = useState<ProgramFinanceDTO | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null); const [busy, setBusy] = useState(false); const [remarks, setRemarks] = useState("");
-  const load = useCallback(async () => { try { const [proposalRows, programRows] = await Promise.all([canReviewProposal ? phase2Api<FinanceQueueRow[]>("/api/v2/finance/proposals") : Promise.resolve([]), phase2Api<ProgramQueueRow[]>("/api/v2/programs/finance")]); setProposals(proposalRows); setPrograms(programRows); setProposalId((current) => current || proposalRows[0]?.id || ""); setProgramId((current) => current || programRows[0]?.id || ""); } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to load Finance queues", tone: "error" }); } }, [canReviewProposal]);
+  const load = useCallback(async () => {
+    const [proposalResult, programResult] = await Promise.allSettled([
+      canReviewProposal ? phase2Api<FinanceQueueRow[]>("/api/v2/finance/proposals") : Promise.resolve([]),
+      phase2Api<ProgramQueueRow[]>("/api/v2/programs/finance"),
+    ]);
+    const proposalRows = proposalResult.status === "fulfilled" ? proposalResult.value : [];
+    const programRows = programResult.status === "fulfilled" ? programResult.value : [];
+    setProposals(proposalRows); setPrograms(programRows);
+    setProposalId((current) => current || proposalRows[0]?.id || "");
+    setProgramId((current) => current || programRows[0]?.id || "");
+    if (programResult.status === "rejected") setMessage({ text: programResult.reason instanceof Error ? programResult.reason.message : "Unable to load program Finance queue", tone: "error" });
+  }, [canReviewProposal]);
   const loadProposal = useCallback(async (id: string) => { if (!id) return setProposal(null); try { setProposal(await phase2Api(`/api/v2/finance/proposals/${id}`)); } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to load Finance proposal", tone: "error" }); } }, []);
   const loadFinance = useCallback(async (id: string) => { if (!id) return setFinance(null); try { setFinance(await phase2Api(`/api/v2/programs/${id}/finance`)); } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to load program finance", tone: "error" }); } }, []);
   useEffect(() => { void load(); }, [load]); useEffect(() => { void loadProposal(proposalId); }, [loadProposal, proposalId]); useEffect(() => { void loadFinance(programId); }, [loadFinance, programId]);

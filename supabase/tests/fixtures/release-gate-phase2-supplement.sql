@@ -26,7 +26,8 @@ INSERT INTO public.partner_entities(id,code,name,entity_type,classification,bara
  ('f3100000-0000-4000-8000-000000000007','SYN-PTR-007','Synthetic Barangay Partner','barangay','external','f2100000-0000-4000-8000-000000000001','barangay_backfill','barangay:f2100000-0000-4000-8000-000000000001','synthetic','f2200000-0000-4000-8000-000000000003'),
  ('f3100000-0000-4000-8000-000000000008','SYN-PTR-008','Synthetic DYCI Office','dyci_office','internal',NULL,'legacy_account','legacy-user:f2200000-0000-4000-8000-000000000013','synthetic','f2200000-0000-4000-8000-000000000003'),
  ('f3100000-0000-4000-8000-000000000009','SYN-PTR-009','Synthetic Student Organization','student_organization','internal',NULL,'legacy_account','legacy-user:f2200000-0000-4000-8000-000000000014','synthetic','f2200000-0000-4000-8000-000000000003'),
- ('f3100000-0000-4000-8000-00000000000a','SYN-PTR-010','Synthetic Academic Department','academic_department','internal',NULL,'legacy_account','legacy-user:f2200000-0000-4000-8000-000000000015','synthetic','f2200000-0000-4000-8000-000000000003')
+ ('f3100000-0000-4000-8000-00000000000a','SYN-PTR-010','Synthetic Academic Department','academic_department','internal',NULL,'legacy_account','legacy-user:f2200000-0000-4000-8000-000000000015','synthetic','f2200000-0000-4000-8000-000000000003'),
+ ('f3100000-0000-4000-8000-00000000000c','SYN-PTR-012','Synthetic Second Barangay Partner','barangay','external','f2100000-0000-4000-8000-000000000002','barangay_backfill','barangay:f2100000-0000-4000-8000-000000000002','synthetic','f2200000-0000-4000-8000-000000000003')
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO public.partner_entity_roles(partner_id,role,created_by)
@@ -135,7 +136,9 @@ INSERT INTO public.program_finance_events(id,program_id,expenditure_id,liquidati
  ('f3460000-0000-4000-8000-000000000001','f3320000-0000-4000-8000-000000000001','f3440000-0000-4000-8000-000000000001','f3450000-0000-4000-8000-000000000001','verified','verified','Synthetic fixture','f2200000-0000-4000-8000-000000000005') ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO public.partner_contact_email_outbox(id,contact_id,template_key,template_version,payload,idempotency_key,status) VALUES
- ('f3500000-0000-4000-8000-000000000001','f3110000-0000-4000-8000-000000000001','synthetic_status',1,'{"partnerCode":"SYN-PTR-001"}','synthetic-outbox-001','suppressed') ON CONFLICT(id) DO NOTHING;
+ ('f3500000-0000-4000-8000-000000000001','f3110000-0000-4000-8000-000000000001','synthetic_status',1,'{"partnerCode":"SYN-PTR-001"}','synthetic-outbox-001','suppressed'),
+ ('f3500000-0000-4000-8000-000000000002','f3110000-0000-4000-8000-000000000001','synthetic_status',1,'{"partnerCode":"SYN-PTR-001"}','synthetic-outbox-retained','suppressed')
+ ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.partnership_reminder_deliveries(id,term_id,threshold_days,recipient_user_id,channel,delivery_key) VALUES
  ('f3510000-0000-4000-8000-000000000001','f3120000-0000-4000-8000-000000000001',60,'f2200000-0000-4000-8000-000000000003','in_app','synthetic-reminder-001') ON CONFLICT(id) DO NOTHING;
 

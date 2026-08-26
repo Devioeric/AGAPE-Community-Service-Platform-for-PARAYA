@@ -15,12 +15,14 @@ import { compareSchemaDumps } from "./lib/migration-governance.mjs";
 import { extractPublicCatalog, extractStoragePolicies, sanitizeStorageBuckets } from "./lib/sanitized-catalog-capture.mjs";
 import { runPhase1HttpGates } from "./run-phase1-http-gates.mjs";
 import { runPhase1BrowserGates } from "./run-phase1-browser-gates.mjs";
+import { runPhase2HttpGates } from "./run-phase2-http-gates.mjs";
+import { runPhase2BrowserGates } from "./run-phase2-browser-gates.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
 
 function usage() {
-  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--fixture-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--all]
+  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--fixture-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--phase2-behavior-only|--phase2-e2e-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
   [--reconciliation-configuration <private-sql>] [--candidate-mode]
@@ -31,7 +33,7 @@ function parse(argv) {
   const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null, candidateMode: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
-    if (["--preflight", "--replay-only", "--fixture-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--all"].includes(key)) options.mode = key;
+    if (["--preflight", "--replay-only", "--fixture-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--phase2-behavior-only", "--phase2-e2e-only", "--all"].includes(key)) options.mode = key;
     else if (key === "--candidate-mode") options.candidateMode = true;
     else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
@@ -175,6 +177,35 @@ async function readPhase1CountsFromDisposableDatabase(isolated) {
   const keys = ["profiling_households", "profiling_residents", "profiling_submissions", "profiling_events", "profiling_import_batches", "profiling_import_rows", "profiling_lifecycle_events", "audit_logs", "storage_objects"];
   if (values.length !== keys.length || values.some((value) => !Number.isInteger(value) || value < 0)) throw new Error("fixed disposable Phase 1 count query returned an invalid shape");
   return Object.fromEntries(keys.map((key, index) => [key, values[index]]));
+}
+
+async function readPhase2CountsFromDisposableDatabase(isolated) {
+  await assertDisposableConfig(isolated);
+  const tables = [
+    "partner_entities", "partner_contacts", "partnership_terms", "partnership_events",
+    "legacy_account_partner_mappings", "historical_programs", "historical_program_versions",
+    "historical_program_events", "historical_program_import_batches", "historical_program_import_rows",
+    "historical_program_duplicate_decisions", "proposal_v2_profiles", "proposal_versions",
+    "proposal_workflow_events_v2", "proposal_budget_revisions", "proposal_budget_items",
+    "proposal_budget_funding_sources", "program_handoffs", "program_budget_revisions",
+    "program_budget_items", "program_expenditures", "program_finance_events",
+    "liquidation_submissions", "liquidation_expenditures", "partner_contact_email_outbox",
+    "partner_contact_email_events", "partnership_reminder_deliveries", "notifications", "audit_logs",
+  ];
+  const selections = tables.map((table) => `(SELECT count(*) FROM public.${table}) AS ${table}`);
+  selections.push("(SELECT count(*) FROM storage.objects) AS storage_objects");
+  const query = `SELECT row_to_json(counts)::text FROM (SELECT ${selections.join(",")}) counts`;
+  const result = await runProcess("docker", [
+    "exec", `supabase_db_${DISPOSABLE_CONFIRMATION}`, "psql", "-U", "postgres", "-d", "postgres", "-At", "-c", query,
+  ], { cwd: isolated.workspace, env: cliEnv, timeoutMs: 30_000 });
+  if (result.code !== 0 || result.truncated) throw new Error("fixed disposable Phase 2 count query failed");
+  let value;
+  try { value = JSON.parse(result.stdout.trim()); }
+  catch { throw new Error("fixed disposable Phase 2 count query returned invalid JSON"); }
+  if (!value || Object.keys(value).length !== tables.length + 1 || Object.values(value).some((count) => !Number.isInteger(count) || count < 0)) {
+    throw new Error("fixed disposable Phase 2 count query returned an invalid shape");
+  }
+  return value;
 }
 
 async function readWorkflowFingerprintFromDisposableDatabase(isolated) {
@@ -322,7 +353,7 @@ async function configureSeed(isolated, sqlPaths) {
   await writeFile(isolated.configPath, config, "utf8");
 }
 
-async function seededCompatibilityCycle({ label, seedPaths, assertions = [], behavioralPhase1 = false, browserPhase1 = false }) {
+async function seededCompatibilityCycle({ label, seedPaths, assertions = [], behavioralPhase1 = false, behavioralPhase2 = false, browserPhase1 = false, browserPhase2 = false }) {
   const isolated = await newIsolatedProject();
   let attemptedStart = false;
   let operationError = null;
@@ -348,6 +379,22 @@ async function seededCompatibilityCycle({ label, seedPaths, assertions = [], beh
       if (result.failed || result.skipped || result.finalState?.profilingMode !== "off") throw new Error("Phase 1 behavioral gates did not finish in the required off state");
       console.log(`Phase 1 behavioral gates passed ${result.passed} case(s).`);
     }
+    if (behavioralPhase2) {
+      console.log("Running Phase 2 Auth/PostgREST/RPC/Storage/concurrency gates");
+      const result = await runPhase2HttpGates({
+        apiUrl: localStatus.API_URL,
+        anonKey: localStatus.ANON_KEY,
+        serviceRoleKey: localStatus.SERVICE_ROLE_KEY ?? localStatus.SECRET_KEY,
+        readCounts: () => readPhase2CountsFromDisposableDatabase(isolated),
+      });
+      caseCounts.passed += result.passed;
+      caseCounts.failed += result.failed;
+      caseCounts.skipped += result.skipped;
+      if (result.failed || result.skipped || result.finalState?.phase2Modes !== "off" || result.finalState?.partnerMutationAuthority !== "v1" || result.finalState?.proposalMutationAuthority !== "v1") {
+        throw new Error("Phase 2 behavioral gates did not finish in the required off/V1 state");
+      }
+      console.log(`Phase 2 behavioral gates passed ${result.passed} case(s).`);
+    }
     if (browserPhase1) {
       console.log("Running Phase 1 authenticated browser gates");
       const result = await runPhase1BrowserGates({
@@ -362,6 +409,23 @@ async function seededCompatibilityCycle({ label, seedPaths, assertions = [], beh
       caseCounts.skipped += result.skipped;
       if (result.failed || result.skipped || result.finalState?.profilingMode !== "off") throw new Error("Phase 1 browser gates did not finish in the required off state");
       console.log(`Phase 1 authenticated browser gates passed ${result.passed} case(s).`);
+    }
+    if (browserPhase2) {
+      console.log("Running Phase 2 authenticated browser and AI privacy gates");
+      const result = await runPhase2BrowserGates({
+        root,
+        apiUrl: localStatus.API_URL,
+        anonKey: localStatus.ANON_KEY,
+        serviceRoleKey: localStatus.SERVICE_ROLE_KEY ?? localStatus.SECRET_KEY,
+        readWorkflowFingerprint: () => readWorkflowFingerprintFromDisposableDatabase(isolated),
+      });
+      caseCounts.passed += result.passed;
+      caseCounts.failed += result.failed;
+      caseCounts.skipped += result.skipped;
+      if (result.failed || result.skipped || result.finalState?.phase2Modes !== "off" || result.finalState?.partnerMutationAuthority !== "v1" || result.finalState?.proposalMutationAuthority !== "v1") {
+        throw new Error("Phase 2 browser gates did not finish in the required off/V1 state");
+      }
+      console.log(`Phase 2 authenticated browser gates passed ${result.passed} case(s).`);
     }
   } catch (error) {
     operationError = error;
@@ -448,6 +512,28 @@ try {
     console.log("Phase 1 behavioral diagnostic passed. This diagnostic is not release evidence by itself.");
     process.exit(0);
   }
+  if (options.mode === "--phase2-behavior-only") {
+    if (options.scope !== "phase2") throw new Error("--phase2-behavior-only requires --scope phase2");
+    await seededCompatibilityCycle({
+      label: "Phase 2 behavioral diagnostic fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      behavioralPhase2: true,
+    });
+    console.log("Phase 2 behavioral diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
+  if (options.mode === "--phase2-e2e-only") {
+    if (options.scope !== "phase2") throw new Error("--phase2-e2e-only requires --scope phase2");
+    await seededCompatibilityCycle({
+      label: "Phase 2 authenticated browser fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      browserPhase2: true,
+    });
+    console.log("Phase 2 authenticated browser diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
   if (options.mode === "--legacy-seed-only") {
     await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
     console.log("Legacy development seed compatibility passed. This diagnostic is not release evidence by itself.");
@@ -494,6 +580,7 @@ try {
       seedPaths: configuredScope.fixtureSeedPaths,
       assertions: configuredScope.seededTestPaths,
       behavioralPhase1: options.scope === "phase1",
+      behavioralPhase2: options.scope === "phase2",
     });
     await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
   }

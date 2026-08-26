@@ -163,15 +163,18 @@ async function fetchBudget(supabase: SupabaseClient, role: string): Promise<stri
 
   const { data } = await supabase
     .from("program_budgets")
-    .select("item, amount, approval_status, programs(title)")
+    .select("approval_status")
     .order("updated_at", { ascending: false })
-    .limit(5);
+    .limit(200);
 
-  const lines = (data ?? []).map((b) => {
-    const p = Array.isArray(b.programs) ? b.programs[0] : (b.programs as { title?: string } | null);
-    return `- ${p?.title ?? "(unknown program)"}: ${b.item} — ₱${b.amount} (${b.approval_status})`;
-  });
-  return section("Recent budget line items", lines);
+  const byStatus = (data ?? []).reduce<Record<string, number>>((counts, row) => {
+    const status = typeof row.approval_status === "string" ? row.approval_status : "unknown";
+    counts[status] = (counts[status] ?? 0) + 1;
+    return counts;
+  }, {});
+  const lines = [`- Budget records: ${data?.length ?? 0}`,
+    ...Object.entries(byStatus).sort(([left], [right]) => left.localeCompare(right)).map(([status, count]) => `- ${status}: ${count}`)];
+  return section("Budget review summary", lines);
 }
 
 async function fetchDonations(supabase: SupabaseClient, role: string): Promise<string | null> {

@@ -66,6 +66,24 @@ test("raw PostgREST, RPC, and Storage requests remain on the local origin", asyn
   ]);
 });
 
+test("Storage list and signed-URL helpers remain on the local origin", async () => {
+  const paths = [];
+  await withServer((request, response) => {
+    paths.push(request.url);
+    response.statusCode = 403;
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ message: "denied" }));
+  }, async (apiUrl, port) => {
+    const client = createReleaseGateHttpClient({ apiUrl, anonKey, expectedPort: port });
+    await client.storageList("reports", "synthetic/", { accessToken: "synthetic-access-token" });
+    await client.storageSign("reports", "synthetic/private.pdf", 300, { accessToken: "synthetic-access-token" });
+  });
+  assert.deepEqual(paths, [
+    "/storage/v1/object/list/reports",
+    "/storage/v1/object/sign/reports/synthetic/private.pdf",
+  ]);
+});
+
 test("synchronized races retain task order and contain failures", async () => {
   const results = await runSynchronizedRace([async () => "winner", async () => { throw new Error("stale conflict"); }]);
   assert.deepEqual(results.map(({ index, status }) => ({ index, status })), [{ index: 0, status: "fulfilled" }, { index: 1, status: "rejected" }]);
@@ -79,4 +97,16 @@ test("exact count helpers capture and diff before/after state", async () => {
   const counts = await captureExactCounts(client, ["events", "records"], "synthetic-access-token");
   assert.deepEqual(counts, { events: 4, records: 2 });
   assert.deepEqual(diffExactCounts({ events: 3, records: 2 }, counts), { events: 1, records: 0 });
+});
+
+test("ordinary PostgREST responses tolerate an unknown range total", async () => {
+  await withServer((_request, response) => {
+    response.setHeader("content-type", "application/json");
+    response.setHeader("content-range", "0-3/*");
+    response.end("[]");
+  }, async (apiUrl, port) => {
+    const client = createReleaseGateHttpClient({ apiUrl, anonKey, expectedPort: port });
+    const result = await client.postgrest("profiling_cycles?select=id", { accessToken: "synthetic-access-token" });
+    assert.equal(result.count, null);
+  });
 });

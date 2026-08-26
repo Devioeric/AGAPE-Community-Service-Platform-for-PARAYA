@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
 import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { REQUIRED_CAPTURE_FILES, parseCapturedLedger, sha256Buffer, validateAuthoritativeCapture } from "./lib/authoritative-evidence.mjs";
@@ -12,12 +13,14 @@ import {
 } from "./lib/local-database-gate.mjs";
 import { compareSchemaDumps } from "./lib/migration-governance.mjs";
 import { extractPublicCatalog, extractStoragePolicies, sanitizeStorageBuckets } from "./lib/sanitized-catalog-capture.mjs";
+import { runPhase1HttpGates } from "./run-phase1-http-gates.mjs";
+import { runPhase1BrowserGates } from "./run-phase1-browser-gates.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
 
 function usage() {
-  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--legacy-seed-only|--all]
+  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
   [--reconciliation-configuration <private-sql>] [--candidate-mode]
@@ -28,7 +31,7 @@ function parse(argv) {
   const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null, candidateMode: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
-    if (["--preflight", "--replay-only", "--legacy-seed-only", "--all"].includes(key)) options.mode = key;
+    if (["--preflight", "--replay-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--all"].includes(key)) options.mode = key;
     else if (key === "--candidate-mode") options.candidateMode = true;
     else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
@@ -127,10 +130,29 @@ async function assertDisposableConfig(isolated) {
 
 async function assertLocalStatus(isolated) {
   await assertDisposableConfig(isolated);
-  const result = await supabase(isolated, ["status", "--output", "json"], "Verifying disposable endpoints");
+  console.log("Verifying disposable endpoints");
+  const result = await new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [cli, "status", "--output", "json"], {
+      cwd: isolated.workspace, env: cliEnv, windowsHide: true, shell: false,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const chunks = [];
+    let bytes = 0;
+    child.stdout.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes <= 1024 * 1024) chunks.push(chunk);
+    });
+    const timer = setTimeout(() => { child.kill(); reject(new Error("Supabase status timed out")); }, 30_000);
+    child.once("error", (error) => { clearTimeout(timer); reject(error); });
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      if (code !== 0 || bytes > 1024 * 1024) reject(new Error("Supabase status failed or exceeded the safe in-memory limit"));
+      else resolvePromise(Buffer.concat(chunks).toString("utf8"));
+    });
+  });
   let status;
-  try { status = JSON.parse(result.stdout); }
-  catch { throw new Error("Supabase status did not return valid redacted JSON"); }
+  try { status = JSON.parse(result); }
+  catch { throw new Error("Supabase status did not return valid JSON"); }
   const statusFailures = validateLocalSupabaseStatus(status);
   if (statusFailures.length) throw new Error(`Unsafe Supabase status: ${statusFailures.join("; ")}`);
   return status;
@@ -140,6 +162,35 @@ async function stopStack(isolated) {
   await assertDisposableConfig(isolated);
   const stopped = await runProcess(process.execPath, [cli, "stop", "--no-backup"], { cwd: isolated.workspace, env: cliEnv, timeoutMs: 120_000 }).catch(() => null);
   if (!stopped || stopped.code !== 0 || stopped.truncated) throw new Error(`The disposable ${DISPOSABLE_CONFIRMATION} stack could not be stopped safely.`);
+}
+
+async function readPhase1CountsFromDisposableDatabase(isolated) {
+  await assertDisposableConfig(isolated);
+  const query = `SELECT (SELECT count(*) FROM public.profiling_households),(SELECT count(*) FROM public.profiling_residents),(SELECT count(*) FROM public.profiling_submissions),(SELECT count(*) FROM public.profiling_events),(SELECT count(*) FROM public.profiling_import_batches),(SELECT count(*) FROM public.profiling_import_rows),(SELECT count(*) FROM public.profiling_lifecycle_events),(SELECT count(*) FROM public.audit_logs),(SELECT count(*) FROM storage.objects)`;
+  const result = await runProcess("docker", [
+    "exec", `supabase_db_${DISPOSABLE_CONFIRMATION}`, "psql", "-U", "postgres", "-d", "postgres", "-At", "-F", "\t", "-c", query,
+  ], { cwd: isolated.workspace, env: cliEnv, timeoutMs: 30_000 });
+  if (result.code !== 0 || result.truncated) throw new Error("fixed disposable Phase 1 count query failed");
+  const values = result.stdout.trim().split("\t").map((value) => Number(value));
+  const keys = ["profiling_households", "profiling_residents", "profiling_submissions", "profiling_events", "profiling_import_batches", "profiling_import_rows", "profiling_lifecycle_events", "audit_logs", "storage_objects"];
+  if (values.length !== keys.length || values.some((value) => !Number.isInteger(value) || value < 0)) throw new Error("fixed disposable Phase 1 count query returned an invalid shape");
+  return Object.fromEntries(keys.map((key, index) => [key, values[index]]));
+}
+
+async function readWorkflowFingerprintFromDisposableDatabase(isolated) {
+  await assertDisposableConfig(isolated);
+  const query = `SELECT json_build_object('proposal_count',(SELECT count(*) FROM public.project_proposals),'proposal_state',(SELECT md5(coalesce(string_agg(id::text||':'||status,',' ORDER BY id),'')) FROM public.project_proposals),'program_count',(SELECT count(*) FROM public.programs),'program_state',(SELECT md5(coalesce(string_agg(id::text||':'||status,',' ORDER BY id),'')) FROM public.programs))::text`;
+  const result = await runProcess("docker", [
+    "exec", `supabase_db_${DISPOSABLE_CONFIRMATION}`, "psql", "-U", "postgres", "-d", "postgres", "-At", "-c", query,
+  ], { cwd: isolated.workspace, env: cliEnv, timeoutMs: 30_000 });
+  if (result.code !== 0 || result.truncated) throw new Error("fixed disposable workflow fingerprint query failed");
+  let value;
+  try { value = JSON.parse(result.stdout.trim()); }
+  catch { throw new Error("fixed disposable workflow fingerprint returned invalid JSON"); }
+  if (!Number.isInteger(value?.proposal_count) || !Number.isInteger(value?.program_count) || !/^[a-f0-9]{32}$/.test(value?.proposal_state) || !/^[a-f0-9]{32}$/.test(value?.program_state)) {
+    throw new Error("fixed disposable workflow fingerprint returned an invalid shape");
+  }
+  return value;
 }
 
 function recordTestResult(result, label) {
@@ -271,18 +322,46 @@ async function configureSeed(isolated, sqlPaths) {
   await writeFile(isolated.configPath, config, "utf8");
 }
 
-async function seededCompatibilityCycle({ label, seedPaths, assertions = [] }) {
+async function seededCompatibilityCycle({ label, seedPaths, assertions = [], behavioralPhase1 = false, browserPhase1 = false }) {
   const isolated = await newIsolatedProject();
   let attemptedStart = false;
   let operationError = null;
   try {
     await configureSeed(isolated, seedPaths); attemptedStart = true;
-    await supabase(isolated, ["start"], `Starting ${label}`, 900_000); await assertLocalStatus(isolated);
+    await supabase(isolated, ["start"], `Starting ${label}`, 900_000); const localStatus = await assertLocalStatus(isolated);
     await supabase(isolated, ["db", "reset", "--local"], `Replaying migrations with ${label}`, 360_000);
     for (const assertionPath of assertions) {
       const assertionLabel = `Validating ${label} from ${assertionPath}`;
       const result = await supabase(isolated, ["test", "db", `supabase/${assertionPath}`, "--local"], assertionLabel, 240_000, { print: true });
       recordTestResult(result, assertionLabel);
+    }
+    if (behavioralPhase1) {
+      console.log("Running Phase 1 Auth/PostgREST/RPC behavioral gates");
+      const result = await runPhase1HttpGates({
+        apiUrl: localStatus.API_URL,
+        anonKey: localStatus.ANON_KEY,
+        readCounts: () => readPhase1CountsFromDisposableDatabase(isolated),
+      });
+      caseCounts.passed += result.passed;
+      caseCounts.failed += result.failed;
+      caseCounts.skipped += result.skipped;
+      if (result.failed || result.skipped || result.finalState?.profilingMode !== "off") throw new Error("Phase 1 behavioral gates did not finish in the required off state");
+      console.log(`Phase 1 behavioral gates passed ${result.passed} case(s).`);
+    }
+    if (browserPhase1) {
+      console.log("Running Phase 1 authenticated browser gates");
+      const result = await runPhase1BrowserGates({
+        root,
+        apiUrl: localStatus.API_URL,
+        anonKey: localStatus.ANON_KEY,
+        serviceRoleKey: localStatus.SERVICE_ROLE_KEY ?? localStatus.SECRET_KEY,
+        readWorkflowFingerprint: () => readWorkflowFingerprintFromDisposableDatabase(isolated),
+      });
+      caseCounts.passed += result.passed;
+      caseCounts.failed += result.failed;
+      caseCounts.skipped += result.skipped;
+      if (result.failed || result.skipped || result.finalState?.profilingMode !== "off") throw new Error("Phase 1 browser gates did not finish in the required off state");
+      console.log(`Phase 1 authenticated browser gates passed ${result.passed} case(s).`);
     }
   } catch (error) {
     operationError = error;
@@ -337,6 +416,28 @@ async function writeResultBundle({ schemaHash, catalogDigest, authoritativeSchem
 }
 
 try {
+  if (options.mode === "--phase1-e2e-only") {
+    if (options.scope !== "phase1") throw new Error("--phase1-e2e-only requires --scope phase1");
+    await seededCompatibilityCycle({
+      label: "Phase 1 authenticated browser fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      browserPhase1: true,
+    });
+    console.log("Phase 1 authenticated browser diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
+  if (options.mode === "--phase1-behavior-only") {
+    if (options.scope !== "phase1") throw new Error("--phase1-behavior-only requires --scope phase1");
+    await seededCompatibilityCycle({
+      label: "Phase 1 behavioral diagnostic fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      behavioralPhase1: true,
+    });
+    console.log("Phase 1 behavioral diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
   if (options.mode === "--legacy-seed-only") {
     await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
     console.log("Legacy development seed compatibility passed. This diagnostic is not release evidence by itself.");
@@ -382,6 +483,7 @@ try {
       label: `reviewed ${options.scope} synthetic fixture`,
       seedPaths: configuredScope.fixtureSeedPaths,
       assertions: configuredScope.seededTestPaths,
+      behavioralPhase1: options.scope === "phase1",
     });
     await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
   }

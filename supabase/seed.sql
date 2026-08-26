@@ -886,7 +886,11 @@ ON CONFLICT (id) DO NOTHING;
 -- 16. AI REPORTS (10) + ANALYTICS SNAPSHOTS (10)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.ai_reports (id, report_type, content, prompt_used, generated_by, generated_at)
+INSERT INTO public.ai_reports (
+  id, report_type, content, prompt_used, generated_by, generated_at,
+  title, period_start, period_end, narrative, status, reviewed_by,
+  approved_at, snapshot_id, created_at, updated_at
+)
 SELECT
   id::uuid,
   CASE
@@ -898,6 +902,16 @@ SELECT
   narrative,
   'Legacy development seed summary: ' || title || ' (' || period_start || ' to ' || period_end || ')',
   generated_by::uuid,
+  COALESCE(approved_at, now()),
+  title,
+  period_start::date,
+  period_end::date,
+  narrative,
+  status,
+  reviewed_by::uuid,
+  approved_at,
+  snapshot_id::uuid,
+  COALESCE(approved_at, now()),
   COALESCE(approved_at, now())
 FROM (VALUES
   ('AAAA0000-0000-0000-0000-000000000001', 'AGAPE Monthly Narrative — April 2025',     '2025-04-01', '2025-04-30', 'In April 2025, PARAYA delivered 4 programs across 4 barangays. Bagumbayan Health Fair, Bambang Tree Planting, Duhat Senior Welfare visits, and Antipona Youth Mental Health closed sessions accounted for 305 direct beneficiaries and 178 volunteer hours. Key insight: dialogues on youth mental health saw consistent week-over-week growth (12 → 18 → 15 participants).', 'approved', '11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks',  NULL),

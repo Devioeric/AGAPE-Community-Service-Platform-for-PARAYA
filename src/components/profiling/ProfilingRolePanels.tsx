@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { ProfilingAggregateDTO } from "@/types/profiling";
 
 export type ProfilingCycleSummary = {
   id: string;
@@ -30,21 +31,11 @@ export type ProfilingDetail = {
   row_version: number;
   household_data?: Record<string, unknown>;
   residents: Array<{ resident_id: string; resident_code: string; profile: Record<string, unknown>; relationship_to_head: string | null; is_minor: boolean }>;
-  consents?: unknown[];
+  consents?: Array<{ id: string; subject_type: string; resident_id: string | null; status: string; privacy_notice_version: string; consented_by_name: string | null; guardian_relationship: string | null; effective_from: string; effective_to: string | null }>;
+  previous?: { id: string; status: string; submission_version: number; household: Record<string, unknown>; residents: Array<{ resident_id: string; resident_code: string; profile: Record<string, unknown>; is_minor: boolean; relationship_to_head: string | null }> } | null;
 };
 
 type RequestJson = (url: string, init?: RequestInit) => Promise<unknown>;
-type AggregateCell = { label?: string; category?: string; count?: number; suppressed?: boolean };
-type AggregateView = {
-  cycle?: { name?: string };
-  sample?: { approvedHouseholds?: number; nonparticipatingHouseholds?: number };
-  coverage?: { percentage?: number };
-  dimensions?: Record<string, AggregateCell[]>;
-  source?: { name?: string } | string;
-  asOfDate?: string;
-  privacy?: { suppressionThreshold?: number };
-};
-
 function readable(value: unknown) {
   if (value === null || value === undefined || value === "") return "Not stated";
   if (Array.isArray(value)) return value.length ? value.map(String).join(", ") : "None";
@@ -57,22 +48,27 @@ function FieldGrid({ value }: { value: Record<string, unknown> }) {
   return <dl className="grid gap-3 sm:grid-cols-2">{Object.entries(value).map(([key, field]) => <div className="rounded border p-3" key={key}><dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{key.replaceAll("_", " ")}</dt><dd className="mt-1 text-sm">{readable(field)}</dd></div>)}</dl>;
 }
 
-export function ProfilingAggregatePanel({ aggregate, cycleId }: { aggregate: AggregateView; cycleId: string }) {
-  const dimensions = Object.entries(aggregate.dimensions ?? {});
+export function ProfilingAggregatePanel({ aggregate, cycleId }: { aggregate: ProfilingAggregateDTO; cycleId: string }) {
+  const groupedCells = aggregate.cells.reduce<Record<string, ProfilingAggregateDTO["cells"]>>((groups, cell) => {
+    (groups[cell.dimension] ??= []).push(cell);
+    return groups;
+  }, {});
+  const dimensions = Object.entries(groupedCells);
   return <Card data-testid="profiling-aggregate-panel"><CardContent className="space-y-4 p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-5 w-5 text-success" />Approved sample aggregate</h2><div className="flex gap-2"><a className={buttonVariants({ size: "sm", variant: "outline" })} href={`/api/profiling/analytics/${cycleId}/export?format=csv`}>CSV</a><a className={buttonVariants({ size: "sm", variant: "outline" })} href={`/api/profiling/analytics/${cycleId}/export?format=xlsx`}>XLSX</a></div></div>
-    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div><dt className="text-xs text-muted-foreground">Cycle</dt><dd>{readable(aggregate.cycle?.name)}</dd></div><div><dt className="text-xs text-muted-foreground">Approved households</dt><dd>{readable(aggregate.sample?.approvedHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Nonparticipating households</dt><dd>{readable(aggregate.sample?.nonparticipatingHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Coverage</dt><dd>{readable(aggregate.coverage?.percentage)}%</dd></div></dl>
-    {dimensions.map(([name, cells]) => <section key={name}><h3 className="mb-2 text-sm font-semibold capitalize">{name.replaceAll("_", " ")}</h3><div className="flex flex-wrap gap-2">{cells.map((cell, index) => <Badge variant="outline" key={`${name}-${index}`}>{readable(cell.label ?? cell.category)}: {cell.suppressed ? "Suppressed" : readable(cell.count)}</Badge>)}</div></section>)}
-    <p className="text-xs text-muted-foreground">Source: {readable(typeof aggregate.source === "object" ? aggregate.source?.name : aggregate.source)} · As of {readable(aggregate.asOfDate)} · Small-cell threshold {readable(aggregate.privacy?.suppressionThreshold)}</p>
+    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><div><dt className="text-xs text-muted-foreground">Cycle</dt><dd>{readable(aggregate.cycle.name)}</dd></div><div><dt className="text-xs text-muted-foreground">Approved households</dt><dd>{readable(aggregate.sample.approvedHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Nonparticipating households</dt><dd>{readable(aggregate.sample.nonparticipatingHouseholds)}</dd></div><div><dt className="text-xs text-muted-foreground">Coverage</dt><dd>{readable(aggregate.sample.coveragePercent)}%</dd></div></dl>
+    {dimensions.map(([name, cells]) => <section key={name}><h3 className="mb-2 text-sm font-semibold capitalize">{name.replaceAll("_", " ")}</h3><div className="flex flex-wrap gap-2">{cells.map((cell) => <Badge variant="outline" key={`${name}-${cell.key}`}>{readable(cell.key)}: {cell.count.suppressed ? "Suppressed" : readable(cell.count.value)}</Badge>)}</div></section>)}
+    <p className="text-xs text-muted-foreground">Source: {readable(aggregate.source.kind)} · As of {readable(aggregate.asOf)} · Small-cell threshold {readable(aggregate.privacy.suppressionThreshold)}</p>
   </CardContent></Card>;
 }
 
 export function SecretaryReviewPanel({ detail, onClose, onDecision }: { detail: ProfilingDetail; onClose: () => void; onDecision: (decision: "approve" | "return", reason?: string) => Promise<void> }) {
   const [reason, setReason] = useState("");
   return <Card className="border-primary" data-testid="secretary-detail-review"><CardHeader><CardTitle className="text-base">Secretary detail review · {detail.household_code}</CardTitle></CardHeader><CardContent className="space-y-4">
-    <section><h3 className="mb-2 font-medium">Current household · {detail.sitio_name}</h3><FieldGrid value={detail.household_data ?? {}} /></section>
+    <section className="grid gap-4 lg:grid-cols-2">{detail.previous && <div><h3 className="mb-2 font-medium">Prior package · version {detail.previous.submission_version}</h3><FieldGrid value={detail.previous.household ?? {}} /></div>}<div><h3 className="mb-2 font-medium">Current household · {detail.sitio_name}</h3><FieldGrid value={detail.household_data ?? {}} /></div></section>
+    {detail.previous && <section className="space-y-2"><h3 className="font-medium">Prior resident roster</h3>{detail.previous.residents.map((resident) => <div className="rounded border p-3 text-sm" key={`prior-${resident.resident_id}`}><strong>{resident.resident_code}</strong><span className="ml-2 text-muted-foreground">{readable(resident.relationship_to_head)} · {resident.is_minor ? "minor" : "adult"}</span></div>)}</section>}
     <section className="space-y-3"><h3 className="font-medium">Complete resident roster</h3>{detail.residents.map((resident) => <article className="rounded border p-3" key={resident.resident_id}><div className="mb-2 flex flex-wrap justify-between gap-2"><strong>{resident.resident_code}</strong><span className="text-xs text-muted-foreground">{resident.is_minor ? "Guardian authorization required" : "Adult consent required"} · {readable(resident.relationship_to_head)}</span></div><FieldGrid value={resident.profile} /></article>)}</section>
-    <section><h3 className="mb-2 font-medium">Consent review</h3><p className="text-sm text-muted-foreground">{detail.consents?.length ?? 0} recorded consent entries. Approval confirms household participation and every adult or guardian basis was inspected.</p></section>
+    <section><h3 className="mb-2 font-medium">Consent review</h3><p className="mb-2 text-sm text-muted-foreground">{detail.consents?.length ?? 0} recorded consent entries. Approval confirms household participation and every adult or guardian basis was inspected.</p><div className="grid gap-2 sm:grid-cols-2">{detail.consents?.map((consent) => <div className="rounded border p-3 text-xs" key={consent.id}><p className="font-medium">{readable(consent.subject_type)} · {readable(consent.status)}</p><p>Notice {readable(consent.privacy_notice_version)} · effective {readable(consent.effective_from)}</p><p>{consent.consented_by_name ? `Basis recorded by ${consent.consented_by_name}` : "Authorized basis recorded"}{consent.guardian_relationship ? ` (${consent.guardian_relationship})` : ""}</p></div>)}</div></section>
     <Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Required reason when returning the package" />
     <div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Close</Button><Button variant="outline" disabled={reason.trim().length < 3} onClick={() => void onDecision("return", reason.trim())}>Return with reason</Button><Button onClick={() => void onDecision("approve")}>Approve reviewed package</Button></div>
   </CardContent></Card>;

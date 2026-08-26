@@ -20,7 +20,18 @@ export async function GET(request: Request) {
   if (!cycleId) return NextResponse.json({ error: "cycle_id is required" }, { status: 400 });
   const { data, error } = await auth.supabase.rpc("phase1_list_sample_units", { p_cycle_id: cycleId, p_sitio_id: sitioId || null });
   if (error) return profilingRpcError(error);
-  return NextResponse.json({ data });
+  const rows = Array.isArray(data) ? data.map((row: Record<string, unknown>) => ({
+    id: row.id,
+    sitio_id: row.sitioId,
+    sample_reference: row.sampleReference,
+    contact_outcome: row.contactOutcome,
+    anonymous_household_size: row.anonymousHouseholdSize,
+    household_id: row.householdId,
+    replacement_of_id: row.replacementOfId,
+    replacement_reason: row.replacementReason,
+    row_version: row.rowVersion,
+  })) : [];
+  return NextResponse.json({ data: rows });
 }
 
 export async function POST(request: Request) {

@@ -28,7 +28,11 @@
         "20260817000310_phase1_function_execute_hardening.sql",
         "20260817000400_phase1_completion_gate.sql",
         "20260817000410_phase1_release_gate_remediation.sql",
-        "20260818000800_phase1_effective_period_integrity.sql"
+        "20260818000800_phase1_effective_period_integrity.sql",
+        "20260818000810_phase1_stable_submission_creation.sql",
+        "20260818000820_phase1_private_storage_boundary.sql",
+        "20260818000830_phase1_submission_detail_boundary.sql",
+        "20260818000840_phase1_ai_report_compatibility.sql"
       ],
       "databaseTestPaths": ["tests/database/phase1"],
       "fixtureSeedPaths": ["tests/fixtures/release-gate-phase1.sql"],
@@ -62,7 +66,11 @@
         "20260818000730_phase2_program_finance_operations.sql",
         "20260818000740_phase2_historical_imports.sql",
         "20260818000750_phase2_document_boundary.sql",
-        "20260818000800_phase1_effective_period_integrity.sql"
+        "20260818000800_phase1_effective_period_integrity.sql",
+        "20260818000810_phase1_stable_submission_creation.sql",
+        "20260818000820_phase1_private_storage_boundary.sql",
+        "20260818000830_phase1_submission_detail_boundary.sql",
+        "20260818000840_phase1_ai_report_compatibility.sql"
       ],
       "databaseTestPaths": ["tests/database"],
       "fixtureSeedPaths": [

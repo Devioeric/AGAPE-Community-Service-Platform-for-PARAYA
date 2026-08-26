@@ -73,6 +73,14 @@ test("database gate redacts local database passwords, JWTs, and key output", () 
   assert.match(output, /REDACTED/);
 });
 
+test("local status secrets stay in memory and are never printed or persisted", async () => {
+  const source = await readFile(new URL("../../scripts/run-local-database-gates.mjs", import.meta.url), "utf8");
+  assert.match(source, /stdio: \["ignore", "pipe", "ignore"\]/);
+  assert.match(source, /Buffer\.concat\(chunks\)\.toString\("utf8"\)/);
+  assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:SERVICE_ROLE_KEY|SECRET_KEY)/);
+  assert.doesNotMatch(source, /writeFile\([^\n]*(?:SERVICE_ROLE_KEY|SECRET_KEY)/);
+});
+
 test("database gate strips every remote Supabase credential and forces features off", () => {
   const child = isolatedChildEnvironment({
     NEXT_PUBLIC_SUPABASE_URL: "https://real-project.invalid",
@@ -197,8 +205,8 @@ test("database gate source separates reviewed synthetic and legacy seed replays"
   assert.match(source, /db", "reset", "--local", "--no-seed"/);
   assert.match(source, /--candidate-mode/);
   assert.match(source, /options\.candidateMode/);
-  assert.equal(scopeManifest.scopes.phase1.migrationNames.at(-1), "20260818000800_phase1_effective_period_integrity.sql");
-  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000800_phase1_effective_period_integrity.sql");
+  assert.equal(scopeManifest.scopes.phase1.migrationNames.at(-1), "20260818000840_phase1_ai_report_compatibility.sql");
+  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000840_phase1_ai_report_compatibility.sql");
 });
 
 test("release fixtures are phase-split, synthetic-only, and preserve disabled runtime defaults", async () => {

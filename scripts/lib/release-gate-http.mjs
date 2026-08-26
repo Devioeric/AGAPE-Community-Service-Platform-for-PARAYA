@@ -39,6 +39,7 @@ function safeRelativePath(path, prefix) {
 
 async function parseResponse(response) {
   const text = await response.text();
+  const contentRange = response.headers.get("content-range");
   let data = null;
   if (text) {
     try { data = JSON.parse(text); } catch { data = text; }
@@ -47,7 +48,10 @@ async function parseResponse(response) {
     ok: response.ok,
     status: response.status,
     data,
-    count: parseExactCount(response.headers.get("content-range")),
+    // Ordinary PostgREST/RPC responses may expose a range with an unknown
+    // total (for example `0-3/*`). Only exact-count requests may rely on a
+    // numeric total; captureExactCounts continues to reject null below.
+    count: contentRange && !/\/\*$/.test(contentRange) ? parseExactCount(contentRange) : null,
     requestId: response.headers.get("x-request-id") ?? null,
   };
 }
@@ -98,6 +102,16 @@ export function createReleaseGateHttpClient({ apiUrl, anonKey, expectedPort, fet
       if (!/^[a-z0-9][a-z0-9_-]{2,62}$/.test(bucket)) throw new Error("Storage bucket is invalid");
       const encoded = objectPath.split("/").map(encodeURIComponent).join("/");
       return request(safeRelativePath(`/storage/v1/object/${bucket}/${encoded}`, "/storage/v1/object/"), options);
+    },
+    storageList(bucket, prefix = "", options = {}) {
+      if (!/^[a-z0-9][a-z0-9_-]{2,62}$/.test(bucket)) throw new Error("Storage bucket is invalid");
+      return request(`/storage/v1/object/list/${bucket}`, { ...options, method: "POST", body: { prefix, limit: 10, offset: 0 } });
+    },
+    storageSign(bucket, objectPath, expiresIn, options = {}) {
+      if (!/^[a-z0-9][a-z0-9_-]{2,62}$/.test(bucket)) throw new Error("Storage bucket is invalid");
+      if (!Number.isInteger(expiresIn) || expiresIn < 1) throw new Error("signed URL expiry is invalid");
+      const encoded = objectPath.split("/").map(encodeURIComponent).join("/");
+      return request(safeRelativePath(`/storage/v1/object/sign/${bucket}/${encoded}`, "/storage/v1/object/sign/"), { ...options, method: "POST", body: { expiresIn } });
     },
   };
 }

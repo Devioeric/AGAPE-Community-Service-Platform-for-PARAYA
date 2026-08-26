@@ -88,6 +88,25 @@ if (process.env.AGAPE_PHASE1_E2E === "true") {
       });
     }
 
+    test("System Admin loads account-provisioning options without operational partnership access", async ({ page }) => {
+      await signIn(page, "admin", /\/admin(?:\/)?$/);
+      const requestedPaths: string[] = [];
+      page.on("request", (request) => requestedPaths.push(new URL(request.url()).pathname));
+      const provisioningResponse = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === "/api/admin/user-provisioning-options"
+      );
+
+      await page.goto("/admin/users");
+      expect((await provisioningResponse).status()).toBe(200);
+      await expect(page.getByText("User Accounts", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Add User" }).click();
+      await page.getByLabel("Role", { exact: true }).selectOption("barangay_secretary");
+      const assignment = page.getByLabel(/Barangay assignment/);
+      await expect(assignment).toContainText("Synthetic Barangay Alpha");
+      await expect(assignment).toContainText("Synthetic Barangay Beta");
+      expect(requestedPaths).not.toContain("/api/partnerships");
+    });
+
     test("AI routes emit advisory-only payloads to the loopback recorder", async ({ page }) => {
       await signIn(page, "researcher", /\/officer(?:\/)?$/);
       const result = await page.evaluate(async () => {

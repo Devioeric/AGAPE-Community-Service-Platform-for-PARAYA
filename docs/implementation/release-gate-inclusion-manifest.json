@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "f393cbc1942a85e84b58cd03dbbdb4734765c34e",
+  "head": "ab8a265680bcf6e144377bfbdfd5bf59b4bffb58",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/(dashboard)/admin/users/page.tsx",
+      "path": "e2e/phase1-authenticated.spec.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,16 +52,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/admin/user-provisioning-options/route.ts",
-      "state": "??",
-      "tracked": false,
+      "path": "scripts/run-phase1-browser-gates.mjs",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/auth-contracts.test.mjs",
+      "path": "test/security/phase1-browser-gates.test.mjs",
       "state": " M",
       "tracked": true,
       "classification": "include",

@@ -10,7 +10,7 @@ test("Phase 1 browser contract is authenticated, serial, synthetic, and restores
     readFile(new URL("../../scripts/run-local-database-gates.mjs", import.meta.url), "utf8"),
   ]);
   const contract = phase1BrowserGateContract();
-  assert.deepEqual(contract, { schema: "agape.phase1-browser-gates.v1", cases: 7, aiRequests: 2, workers: 1, finalState: { profilingMode: "off" } });
+  assert.deepEqual(contract, { schema: "agape.phase1-browser-gates.v1", cases: 8, aiRequests: 2, workers: 1, finalState: { profilingMode: "off" } });
   assert.match(runner, /AGAPE_PROFILING_V2_ENABLED: "true"/);
   assert.match(runner, /p_mode: "synthetic"/);
   assert.match(runner, /p_mode: "off"/);
@@ -22,6 +22,8 @@ test("Phase 1 browser contract is authenticated, serial, synthetic, and restores
   assert.match(spec, /Researcher can operate setup/);
   assert.match(spec, /Secretary must open complete detail/);
   assert.match(spec, /Captain can view approved aggregate detail/);
+  assert.match(spec, /System Admin loads account-provisioning options without operational partnership access/);
+  assert.match(spec, /requestedPaths\)\.not\.toContain\("\/api\/partnerships"\)/);
   assert.match(orchestrator, /--phase1-e2e-only/);
   assert.match(orchestrator, /serviceRoleKey: localStatus\.SERVICE_ROLE_KEY \?\? localStatus\.SECRET_KEY/);
   assert.match(orchestrator, /readWorkflowFingerprint: \(\) => readWorkflowFingerprintFromDisposableDatabase\(isolated\)/);

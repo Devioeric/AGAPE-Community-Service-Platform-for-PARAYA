@@ -413,3 +413,38 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   correction, then audit the remaining release preparation for work that can be
   completed without external privacy, historical, account, risk, or evidence
   inputs.
+
+## Admin provisioning authenticated browser-gate record
+
+- Status: `locally_complete`. This extends the disposable authenticated Phase 1
+  gate; it is not release evidence and does not designate candidate `R`.
+- Files changed: the Phase 1 authenticated Playwright workflow, its browser-gate
+  contract, the expected browser case count, and this informational ledger. No
+  migration was added.
+- Scenario added: a reserved synthetic System Admin signs in, loads
+  `/admin/users`, receives `200` from the narrow
+  `/api/admin/user-provisioning-options` endpoint, opens the account-creation
+  dialog, selects a barangay login role, receives only the two synthetic
+  barangay choices, and makes no request to `/api/partnerships`.
+- Commands: focused Phase 1 browser contract tests, typecheck, the complete
+  disposable authenticated Phase 1 browser gate, complete Node tests, lint,
+  typecheck, and production build.
+- Results: focused browser contracts pass 2/2; fixture assertions pass 22/22;
+  authenticated browser scenarios pass 8/8; complete Node tests pass 203/203;
+  typecheck and lint pass; and all 162 production pages/routes build. The first
+  browser attempt exposed only an incorrect test assumption that the card title
+  had heading semantics; the corrected exact-text locator then passed the full
+  disposable rerun.
+- Security impact: Admin remains isolated from operational Partnership
+  capability and data. The selector response is exercised through the real
+  authenticated route in a loopback-only synthetic stack; expected access does
+  not rely on direct API fixture shortcuts.
+- Final state: the disposable stack was removed, profiling returned to `off`,
+  no remote database or Auth account was mutated, and no real personal or
+  financial data was used.
+- Rollback: revert only this browser-test checkpoint. Do not restore the Admin
+  page's operational partnership request or broaden the selector DTO.
+- Next exact action: run inclusion and filename/count-only secret checks, create
+  a normal development checkpoint, then automate the remaining Auth recovery
+  and invitation cases against disposable local Supabase so the remote email
+  rate limit is not a development blocker.

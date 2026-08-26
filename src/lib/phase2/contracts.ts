@@ -29,6 +29,13 @@ export const partnerContactSchema = z.strictObject({
   if (value.statusEmailOptIn && (!value.email || !value.consentSource || !value.consentAt)) ctx.addIssue({ code: "custom", message: "Email opt-in requires email and consent evidence" });
   if (value.activeUntil && value.activeUntil < value.activeFrom) ctx.addIssue({ code: "custom", message: "Active-until cannot precede active-from" });
 });
+export const partnerContactUpdateSchema = z.strictObject({
+  expectedVersion: z.number().int().positive(), fullName: shortText.optional(), title: shortText.nullable().optional(),
+  email: z.string().email().max(254).nullable().optional(), phone: z.string().trim().max(40).nullable().optional(),
+  preferredChannel: z.enum(["email", "phone", "manual"]).optional(), isPrimary: z.boolean().optional(),
+  statusEmailOptIn: z.boolean().optional(), consentSource: z.string().trim().max(160).nullable().optional(),
+  consentAt: z.string().datetime().nullable().optional(), activeUntil: isoDate.nullable().optional(),
+});
 export const partnershipTermSchema = z.strictObject({
   expectedVersion: z.number().int().nonnegative(),
   startsOn: isoDate, expiresOn: isoDate.nullable().optional(), responsibleOfficerId: id,
@@ -37,6 +44,24 @@ export const partnershipTermSchema = z.strictObject({
 }).superRefine((value, ctx) => {
   if (value.expiresOn && value.expiresOn < value.startsOn) ctx.addIssue({ code: "custom", message: "Expiration cannot precede start" });
   if (!!value.agreementExceptionReason !== !!value.agreementExceptionDueOn) ctx.addIssue({ code: "custom", message: "Agreement exception requires both reason and due date" });
+});
+export const partnershipTermTransitionSchema = z.strictObject({
+  action: z.enum(["suspend", "resume", "end"]), expectedVersion: z.number().int().positive(),
+  effectiveOn: isoDate, reason: z.string().trim().min(5).max(1000),
+});
+export const partnerMergeSchema = z.strictObject({
+  targetPartnerId: id, expectedVersion: z.number().int().positive(), reason: z.string().trim().min(10).max(1000),
+});
+export const partnerNeedLinkSchema = z.strictObject({
+  termId: id, needId: id, expectedTermVersion: z.number().int().positive(),
+  coverage: z.enum(["unaddressed", "partial", "addressed"]), notes: z.string().trim().max(1000).nullable().optional(),
+  evidenceType: z.enum(["program", "historical_program", "partner_document", "manual_note"]), evidenceId: id.nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.evidenceType === "manual_note" && value.evidenceId) ctx.addIssue({ code: "custom", message: "Manual evidence cannot name a record ID" });
+  if (value.evidenceType !== "manual_note" && !value.evidenceId) ctx.addIssue({ code: "custom", message: "Selected evidence requires a record ID" });
+});
+export const partnerTypePolicySchema = z.strictObject({
+  type: partnerEntityTypeSchema, agreementRequired: z.boolean(), effectiveFrom: isoDate,
 });
 
 export const legacyPartnerMappingSchema = z.strictObject({

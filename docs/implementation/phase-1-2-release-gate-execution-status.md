@@ -231,6 +231,18 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - External blocker: these local results are not approved release evidence. Packet 11 and final Packet 18 still require a distinct reviewer, independent old-credential invalidation, baseline promotion approval, privacy/Auth/document-risk evidence, and the other registered human artifacts.
 - Next exact action: checkpoint Packet 12, then audit and complete Packet 13 Partner and legacy-mapping vertical workflows against the executable candidate chain.
 
+## Packet 13 implementation record
+
+- Files changed: strict Partner contracts; Partner contact, term-transition, merge, need-link, policy, detail, and mapping APIs; Phase 2 fixtures and seeded Partner workflow pgTAP; replay scope; focused tests; and this ledger.
+- Migration added: `20260818000860_phase2_partner_vertical_completion.sql`. It is additive and forward-only. Existing Partner, proposal, program, and actor identifiers are preserved.
+- Commands: focused contract/source tests; repeated fixture-only replay diagnostics; complete two-cycle Phase 2 candidate replay; catalog/runtime/Storage pgTAP; seeded Partner workflow assertions; legacy development seed compatibility; complete Node suite; typecheck; lint; and production build.
+- Results: two clean schemas match at `607059140ece9c78588faad873f9154d8cc228a3cf1e0ca66d50fbd63dae662e`; unseeded database assertions pass 32/32; seeded assertions pass 26/26; focused tests pass 24/24; full static tests pass 176/176; typecheck, lint, legacy seed compatibility, and all 156 generated build pages pass with zero failures/skips.
+- Security/RLS impact: contacts retain exactly one active primary; all changes use expected versions and immutable events; term transitions are state/effective-date checked; merges require non-self compatible synthetic/live roots; need evidence is parent-bound; policy changes are Director-only and prospective; relationship detail omits Storage paths and audits each read.
+- Legacy cutover correction: mapping sign-off now records `signed_off/requested` without deactivating the application account. Only a service-role finalizer may align application status after Auth succeeds; it independently verifies the named active operator, deny override, component mode, and synthetic actor/entity allowlists. Auth failure records a bounded code and leaves the historical-read-only application account active for retry.
+- Rollback: set Partner runtime `off`, retain V1 authority, stop suspension processing, and preserve mapping requests/events. Before deployment, revert only the Packet 13 checkpoint. Never restore direct mapping/contact/term mutations or the former false-suspension ordering.
+- External blocker: no real institutional account was suspended. Production cutover, baseline promotion, and release approval remain blocked on the distinct reviewer and registered external evidence.
+- Next exact action: checkpoint Packet 13 after full static verification, then complete Packet 14 historical-program correction/import/evidence/analytics operations.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

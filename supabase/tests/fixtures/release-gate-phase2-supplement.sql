@@ -18,7 +18,8 @@ INSERT INTO public.partner_entities(id,code,name,entity_type,classification,sour
  ('f3100000-0000-4000-8000-000000000003','SYN-PTR-003','Synthetic School','school','external','native','synthetic:school','synthetic','f2200000-0000-4000-8000-000000000003'),
  ('f3100000-0000-4000-8000-000000000004','SYN-PTR-004','Synthetic Faith Community','faith_based','external','native','synthetic:faith','synthetic','f2200000-0000-4000-8000-000000000003'),
  ('f3100000-0000-4000-8000-000000000005','SYN-PTR-005','Synthetic Other Entity','other','external','native','synthetic:other','synthetic','f2200000-0000-4000-8000-000000000003'),
- ('f3100000-0000-4000-8000-000000000006','LIVE-PTR-CANARY','Live Classification Canary','other','external','native','canary:live','live','f2200000-0000-4000-8000-000000000003')
+ ('f3100000-0000-4000-8000-000000000006','LIVE-PTR-CANARY','Live Classification Canary','other','external','native','canary:live','live','f2200000-0000-4000-8000-000000000003'),
+ ('f3100000-0000-4000-8000-00000000000b','SYN-PTR-011','Synthetic External Duplicate Candidate','external_organization','external','native','synthetic:external-duplicate','synthetic','f2200000-0000-4000-8000-000000000003')
 ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO public.partner_entities(id,code,name,entity_type,classification,barangay_id,source_kind,source_key,data_mode,created_by) VALUES

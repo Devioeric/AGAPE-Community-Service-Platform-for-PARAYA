@@ -3,6 +3,7 @@ import test from "node:test";
 import { hasCapability } from "../../src/lib/auth/capabilities.ts";
 import {
   historicalProgramCreateSchema, partnerContactSchema, partnerCreateSchema,
+  partnerContactUpdateSchema, partnerMergeSchema, partnerNeedLinkSchema, partnershipTermTransitionSchema,
   proposalDraftGraphSchema, proposalWorkflowSchema, programExpenditureSchema,
 } from "../../src/lib/phase2/contracts.ts";
 import { multiplyDecimal, sumMoney } from "../../src/lib/phase2/money.ts";
@@ -25,6 +26,10 @@ test("Partner contracts reject unknown fields and require email consent evidence
   assert.equal(partnerCreateSchema.safeParse({ name: "Binang 2nd", type: "barangay", classification: "external", roles: ["partner"], role: "admin" }).success, false);
   assert.equal(partnerContactSchema.safeParse({ fullName: "Contact", preferredChannel: "email", isPrimary: true, statusEmailOptIn: true, email: "x@example.test", activeFrom: "2026-01-01" }).success, false);
   assert.equal(partnerContactSchema.safeParse({ fullName: "Contact", preferredChannel: "email", isPrimary: true, statusEmailOptIn: true, email: "x@example.test", consentSource: "signed form", consentAt: "2026-01-01T00:00:00.000Z", activeFrom: "2026-01-01" }).success, true);
+  assert.equal(partnerContactUpdateSchema.safeParse({ expectedVersion: 2, isPrimary: true, role: "admin" }).success, false);
+  assert.equal(partnershipTermTransitionSchema.safeParse({ action: "end", expectedVersion: 2, effectiveOn: "2026-08-26", reason: "Relationship completed" }).success, true);
+  assert.equal(partnerMergeSchema.safeParse({ targetPartnerId: uuid2, expectedVersion: 1, reason: "Reviewed duplicate record" }).success, true);
+  assert.equal(partnerNeedLinkSchema.safeParse({ termId: uuid, needId: uuid2, expectedTermVersion: 1, coverage: "partial", evidenceType: "program" }).success, false);
 });
 
 test("Historical programs require date precision consistency", () => {

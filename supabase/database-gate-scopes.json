@@ -71,7 +71,8 @@
         "20260818000820_phase1_private_storage_boundary.sql",
         "20260818000830_phase1_submission_detail_boundary.sql",
         "20260818000840_phase1_ai_report_compatibility.sql",
-        "20260818000850_phase2_runtime_isolation_corrections.sql"
+        "20260818000850_phase2_runtime_isolation_corrections.sql",
+        "20260818000860_phase2_partner_vertical_completion.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

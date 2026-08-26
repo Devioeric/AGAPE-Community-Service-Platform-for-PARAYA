@@ -54,7 +54,7 @@ export function runPrescreening(p: ProposalForScreening): ScreeningResult {
     passed:  p.sdg_count > 0,
     message: p.sdg_count > 0
       ? `${p.sdg_count} SDG alignment${p.sdg_count === 1 ? "" : "s"} declared.`
-      : "No SDG alignment declared — proposal must align with at least one of SDG 4, 9, 11, or 17.",
+      : "No SDG alignment declared — proposal must align with at least one of the 17 Sustainable Development Goals.",
   });
 
   // ── 3. Must declare target beneficiaries ──────────────────────────────────

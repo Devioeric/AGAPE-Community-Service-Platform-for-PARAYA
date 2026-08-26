@@ -21,6 +21,8 @@ type NavChild = {
   href:  string;
   /** Optional dbRole allowlist — if set, only these roles see this child. */
   roles?: string[];
+  /** Optional capabilities that must all remain available after deny overrides. */
+  capabilities?: readonly Capability[];
 };
 type NavItem = {
   label:      string;
@@ -107,6 +109,7 @@ const officerNav: NavItem[] = [
       { label: "SDG Impact Tracker",href: "/officer/analytics/sdg" },
       { label: "Volunteers",        href: "/officer/analytics/volunteers" },
       { label: "Community Needs",   href: "/officer/analytics/community-needs" },
+      { label: "Recommendations",   href: "/officer/analytics/recommendations", capabilities: ["analytics.aggregate.read", "ai.assist"] },
       { label: "Proposal Pipeline", href: "/officer/analytics/proposals" },
       { label: "Snapshots",         href: "/officer/analytics/snapshots" },
     ],
@@ -293,7 +296,8 @@ export function Sidebar({ role, dbRole, userName, userEmail, permissions = {} }:
     .map((item) => {
       if (!item.children) return item;
       const filteredChildren = item.children.filter(
-        (c) => !c.roles || (dbRole && c.roles.includes(dbRole)),
+        (c) => (!c.roles || (dbRole && c.roles.includes(dbRole)))
+          && (!c.capabilities || c.capabilities.every((capability) => hasCapability(dbRole, permissions, capability))),
       );
       return { ...item, children: filteredChildren };
     })

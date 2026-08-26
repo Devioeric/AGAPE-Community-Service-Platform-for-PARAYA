@@ -5,6 +5,9 @@ import { hasCapability } from "@/lib/auth/capabilities";
 import { parseProposalCreateInput } from "@/lib/proposals/mutation-contracts";
 import { NextResponse } from "next/server";
 
+const PROPOSAL_LIST_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,finance_clearance,finance_cleared_at,finance_notes,prescreening_passed,prescreening_checks,prescreening_ran_at,revision_count,revision_requested_from,community_validated,community_validation_notes,community_validated_at,informed_by_proposals,created_at,updated_at,barangay_id,created_by,barangays(name),proposal_sdg_alignment(sdg_number,indicator)";
+const PROPOSAL_WRITE_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,informed_by_proposals,created_at,updated_at,barangay_id,created_by";
+
 // Looser read-only gate for endpoints that should be visible to Finance Officers
 // and partner accounts (so they can see their own submissions). The GET handler
 // filters to own rows for partners.
@@ -24,11 +27,14 @@ export async function GET() {
 
   const query = createAdminClient()
     .from("project_proposals")
-    .select("id, title, description, status, proposed_date, estimated_beneficiaries, budget, barangay_id, finance_clearance, created_by, created_at, updated_at, barangays(name), proposal_sdg_alignment(sdg_number)")
+    .select(PROPOSAL_LIST_FIELDS)
     .order("created_at", { ascending: false });
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Proposal list query failed", { code: error.code });
+    return NextResponse.json({ error: "Proposals could not be loaded" }, { status: 500 });
+  }
   return NextResponse.json({ data });
 }
 
@@ -53,10 +59,13 @@ export async function POST(request: Request) {
   const { data: proposal, error } = await admin
     .from("project_proposals")
     .insert({ ...meta, status: "draft", created_by: auth.actor.id })
-    .select()
+    .select(PROPOSAL_WRITE_FIELDS)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Proposal creation failed", { code: error.code });
+    return NextResponse.json({ error: "The proposal could not be created" }, { status: 500 });
+  }
 
   if (sdg_alignments.length > 0) {
     const { error: sdgError } = await admin.from("proposal_sdg_alignment").insert(

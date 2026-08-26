@@ -405,6 +405,58 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   private artifact index, and development-readiness attestations listed in the
   release-gate status documents.
 
+## Phase 3 advisory planning foundation (owner-authorized local development)
+
+- Status: `locally_complete`. The repository owner directed development to
+  proceed using recommended defaults. This entry records working local
+  development only; it does not close the Phase 1/2 governance gates or
+  authorize a shared/production deployment.
+- Starting checkpoint: `797559eab6aec7db0839321712e37e848108e0e5` on
+  `release/phase1-phase2-gate-closure`.
+- Implemented: a deterministic approved-need recommendation engine, strict
+  `agape.ai.need-recommendations.v1` response contract, capability-gated and
+  audited read API, Analytics recommendation screen, and human-controlled
+  prefill into the existing proposal builder. The engine uses controlled need
+  categories, priority, and explicit proposal/program links. It does not call
+  an external AI provider and never creates, submits, advances, clears,
+  approves, returns, or rejects a proposal.
+- Proposal assistance: the proposal form now provides a local advisory
+  alignment check with ten transparent checks. Results are informational and
+  require the user to edit and save the proposal normally. The SDG selector now
+  displays the complete 1-17 catalog.
+- Compatibility correction: added forward migration
+  `20260818000930_phase2_proposal_compatibility_correction.sql`. It supplies the
+  missing non-negative `expected_beneficiary_count` column already referenced
+  by existing proposal functions and expands both legacy SDG constraints to
+  1-17. Existing timestamped migrations were not edited.
+- Existing defect corrected: V1 proposal list/detail routes now select the
+  canonical fields used by the interface through explicit allowlists; obsolete
+  column names and broad row selections were removed.
+- Security/privacy: recommendations require both `analytics.aggregate.read`
+  and `ai.assist`, respect deny-only overrides in both API and navigation, omit
+  need narratives and resident/contact/document/financial descriptions, use
+  no service-role `select("*")`, and append a minimal read audit. The output is
+  advisory-only and contains no resident drill-through.
+- Verification: focused advisory tests pass 8/8; the complete static suite
+  passes 212/212; typecheck and lint pass; the 165-page production build passes;
+  migration inventory reports 40 ordered migrations and no findings; Docker
+  preflight passes; and the complete Phase 2 disposable gate passes two clean
+  replays with matching schema hash
+  `bd2b0605515ae10a3d06bbe5880425ba4ed93435587e0311657cb58b7ccbadd9`,
+  catalog/runtime/Storage assertions 32/32, synthetic workflow assertions
+  114/114, behavioral cases 83/83, and legacy-seed compatibility.
+- Database impact: all SQL verification ran against destroyed loopback-only
+  disposable stacks. No shared database, migration ledger, Auth account, or
+  application row was changed.
+- Rollback: revert the eventual development checkpoint to remove the advisory
+  page/API/engine, proposal prefill/alignment UI, explicit proposal read fixes,
+  and forward compatibility migration. Do not use a down migration after the
+  compatibility correction has been applied; use a forward correction and
+  keep workflow decisions human-controlled.
+- Next exact action: checkpoint this locally verified slice, then continue with
+  evidence-bound beneficiary planning and recommendation filtering without
+  enabling external AI or production features.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

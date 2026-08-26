@@ -8,6 +8,8 @@ import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+const PROPOSAL_DETAIL_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,finance_clearance,finance_cleared_at,finance_cleared_by,finance_notes,prescreening_passed,prescreening_checks,prescreening_ran_at,revision_count,revision_requested_from,community_validated,community_validation_notes,community_validated_at,community_validated_by,informed_by_proposals,created_at,updated_at,barangay_id,created_by,barangays(name),proposal_sdg_alignment(id,sdg_number,indicator),proposal_reviews(id,stage,decision,notes,reviewed_at,users!reviewer_id(full_name))";
+
 /** Proposal content can only be edited by PARAYA while it is a draft or has
  * been explicitly returned for revision. Workflow state changes use /advance. */
 async function resolveEditor(
@@ -44,11 +46,14 @@ export async function GET(_req: Request, { params }: Ctx) {
   // they can open the revision form when an officer sends back the proposal.
   const { data, error } = await admin
     .from("project_proposals")
-    .select("*, barangays(name), proposal_sdg_alignment(*), proposal_reviews(*, users!reviewer_id(full_name))")
+    .select(PROPOSAL_DETAIL_FIELDS)
     .eq("id", id)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Proposal detail query failed", { proposalId: id, code: error.code });
+    return NextResponse.json({ error: "Proposal details could not be loaded" }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ data });

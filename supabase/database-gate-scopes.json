@@ -79,7 +79,8 @@
         "20260818000890_phase2_interface_storage_job_completion.sql",
         "20260818000900_phase2_executable_gate_corrections.sql",
         "20260818000910_phase2_solo_development_account_preservation.sql",
-        "20260818000920_phase1_invitation_completion_boundary.sql"
+        "20260818000920_phase1_invitation_completion_boundary.sql",
+        "20260818000930_phase2_proposal_compatibility_correction.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

@@ -1,0 +1,177 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { AlertCircle, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
+
+const PRIORITY_STYLE = {
+  critical: "border-danger/30 bg-danger/10 text-danger",
+  high: "border-warning/30 bg-warning/10 text-warning",
+  medium: "border-info/30 bg-info/10 text-info",
+  low: "border-border bg-muted/30 text-muted-foreground",
+} as const;
+
+const CATEGORY_LABEL = {
+  health: "Health",
+  livelihood: "Livelihood",
+  education: "Education",
+  infrastructure: "Infrastructure",
+  environment: "Environment",
+} as const;
+
+export default function AdvisoryRecommendationsPage() {
+  const [data, setData] = useState<AdvisoryRecommendationResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/ai/recommendations", { cache: "no-store" });
+      const body = await response.json().catch(() => null) as { data?: AdvisoryRecommendationResponse; error?: string } | null;
+      if (!response.ok || !body?.data) throw new Error(body?.error ?? "Unable to load advisory recommendations");
+      setData(body.data);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load advisory recommendations");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading && !data) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-32 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="text-sm">Evaluating approved needs and project coverage…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in" data-testid="advisory-recommendations-page">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <h1 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
+            <Bot className="h-6 w-6 text-primary" />
+            Advisory Recommendations
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+            Rules-based planning suggestions generated from approved community needs and linked proposal/program coverage.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => void load()} disabled={loading}>
+          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          Refresh
+        </Button>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+        <ShieldCheck className="mt-0.5 h-5 w-5 flex-none text-primary" />
+        <div>
+          <p className="text-sm font-medium text-foreground">Advisory only</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            These suggestions do not create or change proposals. Authorized personnel must validate the need, evidence, scope, budget, and SDG alignment before taking action.
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-danger/20 bg-danger/5 p-4 text-sm text-danger" role="alert">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
+
+      {data && (
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              ["Approved open needs", data.summary.approvedOpenNeeds],
+              ["Without a response", data.summary.unaddressedNeeds],
+              ["Plans to review", data.summary.needsWithPlannedResponses],
+              ["Active coverage", data.summary.needsWithActivePrograms],
+            ].map(([label, value]) => (
+              <Card key={String(label)} className="border-border shadow-card">
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 font-heading text-2xl font-bold text-foreground">{value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {data.recommendations.length === 0 ? (
+            <Card className="border-border shadow-card">
+              <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+                <CheckCircle2 className="h-9 w-9 text-success" />
+                <p className="font-medium text-foreground">No uncovered approved needs found</p>
+                <p className="max-w-lg text-sm text-muted-foreground">
+                  Every approved open need currently has an active linked program, or no approved open needs are available.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-2">
+              {data.recommendations.map((recommendation) => (
+                <Card key={recommendation.needId} className="border-border shadow-card" data-testid="recommendation-card">
+                  <CardHeader className="space-y-3 pb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={PRIORITY_STYLE[recommendation.priority.label]}>
+                        {recommendation.priority.label.toUpperCase()} · {recommendation.priority.score}/5
+                      </Badge>
+                      <Badge variant="secondary">{CATEGORY_LABEL[recommendation.category]}</Badge>
+                      <Badge variant="outline">
+                        {recommendation.coverage.state === "planned" ? "Plan exists" : "No plan"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <CardTitle className="font-heading text-lg">{recommendation.intervention.title}</CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">{recommendation.barangay.name}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm leading-relaxed text-foreground/80">{recommendation.intervention.description}</p>
+                    <div className="rounded-md border border-border bg-muted/20 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why it appears</p>
+                      <p className="mt-1 text-sm leading-relaxed text-foreground/80">{recommendation.rationale}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4" />
+                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.completedPrograms} completed
+                      </div>
+                      <div className="flex flex-wrap gap-1.5" aria-label="Suggested Sustainable Development Goals">
+                        {recommendation.suggestedSdgs.map((sdg) => <Badge key={sdg} variant="outline">SDG {sdg}</Badge>)}
+                      </div>
+                    </div>
+                    <div className="flex justify-end border-t border-border pt-3">
+                      <Link
+                        className={buttonVariants({ size: "sm" })}
+                        href={`/officer/proposals?from_need=${encodeURIComponent(recommendation.needId)}`}
+                      >
+                        Prepare a proposal draft
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <p className="text-right text-xs text-muted-foreground">
+            Source: approved community needs · As of {data.scope.asOfDate} · {data.schema}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}

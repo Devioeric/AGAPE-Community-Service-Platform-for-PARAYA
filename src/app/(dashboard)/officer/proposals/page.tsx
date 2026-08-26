@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, MoreHorizontal, Loader2, ChevronRight,
   FileText, Send, CheckCircle, XCircle, Search,
-  RotateCcw, History, Workflow, Printer,
+  RotateCcw, History, Workflow, Printer, Sparkles, CircleAlert,
 } from "lucide-react";
 import { derivePhase, PHASE_META, type PhaseKey } from "@/lib/proposals/phase";
 import { ExportMenu } from "@/components/shared/ExportMenu";
@@ -26,6 +26,8 @@ import {
   DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
+import { assessProposalAlignment, type ProposalAlignmentResult } from "@/lib/ai/proposal-alignment";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,10 +111,23 @@ const STATUS_BADGE: Record<ProposalStatus, string> = {
 };
 
 const SDG_META = [
-  { n: 4,  label: "Quality Education",        color: "#C5192D" },
-  { n: 9,  label: "Industry & Innovation",    color: "#FD6925" },
-  { n: 11, label: "Sustainable Cities",       color: "#FD9D24" },
-  { n: 17, label: "Partnerships for Goals",   color: "#19486A" },
+  { n: 1,  label: "No Poverty",                         color: "#E5243B" },
+  { n: 2,  label: "Zero Hunger",                        color: "#DDA63A" },
+  { n: 3,  label: "Good Health & Well-being",            color: "#4C9F38" },
+  { n: 4,  label: "Quality Education",                   color: "#C5192D" },
+  { n: 5,  label: "Gender Equality",                     color: "#FF3A21" },
+  { n: 6,  label: "Clean Water & Sanitation",             color: "#26BDE2" },
+  { n: 7,  label: "Affordable & Clean Energy",            color: "#FCC30B" },
+  { n: 8,  label: "Decent Work & Economic Growth",        color: "#A21942" },
+  { n: 9,  label: "Industry, Innovation & Infrastructure", color: "#FD6925" },
+  { n: 10, label: "Reduced Inequalities",                 color: "#DD1367" },
+  { n: 11, label: "Sustainable Cities & Communities",      color: "#FD9D24" },
+  { n: 12, label: "Responsible Consumption & Production", color: "#BF8B2E" },
+  { n: 13, label: "Climate Action",                       color: "#3F7E44" },
+  { n: 14, label: "Life Below Water",                     color: "#0A97D9" },
+  { n: 15, label: "Life on Land",                         color: "#56C02B" },
+  { n: 16, label: "Peace, Justice & Strong Institutions",  color: "#00689D" },
+  { n: 17, label: "Partnerships for the Goals",            color: "#19486A" },
 ] as const;
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -187,6 +202,8 @@ function PipelineStepper({ status }: { status: ProposalStatus }) {
 
 export default function ProposalsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const recommendationHandled = useRef(false);
   const [proposals, setProposals]       = useState<Proposal[]>([]);
   const [barangays, setBarangays]       = useState<Barangay[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -199,6 +216,7 @@ export default function ProposalsPage() {
   // Lessons-learned: which prior proposals does this build on?
   const [informedBy, setInformedBy]       = useState<string[]>([]);
   const [saving, setSaving]             = useState(false);
+  const [alignment, setAlignment]       = useState<ProposalAlignmentResult | null>(null);
 
   // Detail sheet state
   const [detailOpen, setDetailOpen]     = useState(false);
@@ -215,7 +233,7 @@ export default function ProposalsPage() {
   const [showReviseForm, setShowReviseForm] = useState(false);
   const [advancing, setAdvancing]       = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -238,9 +256,40 @@ export default function ProposalsPage() {
     setEditProposal(null);
     setSdgSelected([]); setSdgIndicators({});
     setInformedBy([]);
+    setAlignment(null);
     reset({});
     setFormOpen(true);
   }
+
+  useEffect(() => {
+    const needId = searchParams.get("from_need");
+    if (!needId || recommendationHandled.current) return;
+    recommendationHandled.current = true;
+
+    void fetch("/api/ai/recommendations", { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null) as { data?: AdvisoryRecommendationResponse; error?: string } | null;
+        if (!response.ok || !body?.data) throw new Error(body?.error ?? "Recommendation could not be loaded");
+        const recommendation = body.data.recommendations.find((item) => item.needId === needId);
+        if (!recommendation) throw new Error("This recommendation is no longer available");
+
+        setEditProposal(null);
+        setInformedBy([]);
+        setAlignment(null);
+        const supportedSdgs = new Set<number>(SDG_META.map((item) => item.n));
+        setSdgSelected(recommendation.suggestedSdgs.filter((sdg) => supportedSdgs.has(sdg)));
+        setSdgIndicators({});
+        reset({
+          title: recommendation.intervention.title,
+          rationale: `${recommendation.rationale} Validate this advisory suggestion with the barangay and available evidence before submission.`,
+          barangay_id: recommendation.barangay.id,
+        });
+        setFormOpen(true);
+        toast.info("A proposal draft was prefilled. Review and edit every field before saving.");
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Recommendation could not be loaded"))
+      .finally(() => router.replace("/officer/proposals"));
+  }, [reset, router, searchParams]);
 
   function openEdit(p: Proposal) {
     setEditProposal(p);
@@ -250,6 +299,7 @@ export default function ProposalsPage() {
     (p.proposal_sdg_alignment ?? []).forEach((a) => { if (a.indicator) ind[a.sdg_number] = a.indicator; });
     setSdgIndicators(ind);
     setInformedBy(((p as Proposal & { informed_by_proposals?: string[] | null }).informed_by_proposals) ?? []);
+    setAlignment(null);
     reset({
       title:                p.title,
       rationale:            p.rationale,
@@ -267,6 +317,24 @@ export default function ProposalsPage() {
 
   function toggleSdg(n: number) {
     setSdgSelected((prev) => prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]);
+  }
+
+  function runAlignmentCheck() {
+    const values = getValues();
+    const parsedBudget = values.budget?.trim() ? Number(values.budget) : null;
+    setAlignment(assessProposalAlignment({
+      title: values.title ?? "",
+      rationale: values.rationale ?? "",
+      objectives: values.objectives ?? "",
+      targetBeneficiaries: values.target_beneficiaries ?? "",
+      expectedOutput: values.expected_output ?? "",
+      timelineStart: values.timeline_start ?? "",
+      timelineEnd: values.timeline_end ?? "",
+      budget: parsedBudget !== null && Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null,
+      barangayId: values.barangay_id || null,
+      isIncomeGenerating: Boolean(values.is_income_generating),
+      sdgs: sdgSelected,
+    }));
   }
 
   async function onSubmit(data: FormData) {
@@ -766,6 +834,47 @@ export default function ProposalsPage() {
                   </div>
                 )}
               </div>
+
+              <Card className="border-primary/20 bg-primary/5 shadow-none">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 font-heading text-base">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Advisory alignment check
+                      </CardTitle>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Reviews completeness and basic planning alignment without saving or advancing this proposal.
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={runAlignmentCheck}>
+                      Check this draft
+                    </Button>
+                  </div>
+                </CardHeader>
+                {alignment && (
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">Score {alignment.score}/100</Badge>
+                      <Badge variant="outline" className="capitalize">{alignment.level.replaceAll("_", " ")}</Badge>
+                      <span className="text-xs text-muted-foreground">Advisory only · run again after editing</span>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {alignment.checks.map((check) => (
+                        <div key={check.code} className="flex items-start gap-2 rounded-md border border-border bg-background/70 p-2.5">
+                          {check.status === "ready"
+                            ? <CheckCircle className="mt-0.5 h-4 w-4 flex-none text-success" />
+                            : <CircleAlert className="mt-0.5 h-4 w-4 flex-none text-warning" />}
+                          <div>
+                            <p className="text-xs font-medium text-foreground">{check.label}</p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{check.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
 
               {/* Builds on prior proposals — Phase VIII → Phase I feedback loop.
                   Lets the proponent cite the cycle(s) this new initiative

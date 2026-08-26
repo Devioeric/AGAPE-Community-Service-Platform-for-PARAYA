@@ -8,10 +8,11 @@ Status: **OPEN — local technical implementation is complete, but all Phase 2 f
   Phase 1 gate are present. No Phase 2 migration or ledger operation was sent to
   a shared database.
 - Two clean complete-chain Docker/Supabase replays match at schema hash
-  `44b6a67d88d7d5997fa8a358c8f83e6550c0358ba209c7ed98da8867ea45e47a`.
+  `d5cf126fcfaabd5012cb0e5a0ddf9b73612183c01d1c556d02a268aa181dacbf`.
   Catalog/runtime/Storage assertions pass 32/32, seeded workflow assertions
   114/114, behavioral gates 83/83, and legacy-development seed compatibility
-  passes.
+  passes. The authenticated Phase 2 browser and aggregate-only AI interception
+  gate passes 6/6.
 - Partner registry, historical programs, structured proposals, Finance review,
   frozen-snapshot handoff, program finance, private document lifecycle, and
   outbox/reminder workflows are implemented behind independent dark-launch

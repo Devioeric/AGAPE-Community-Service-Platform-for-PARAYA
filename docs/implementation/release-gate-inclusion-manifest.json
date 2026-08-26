@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "742c00ea1b2d4db38ac4eaedabaf95121d0e5cd4",
+  "head": "a61c454445a0babec3d9790c8be0c371d67524c1",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 2,
-    "include": 2,
+    "total": 3,
+    "include": 3,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -25,7 +25,7 @@
   },
   "entries": [
     {
-      "path": "docs/implementation/phase-1-2-release-gate-execution-status.md",
+      "path": "docs/implementation/release-gate-inclusion-manifest.json",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -34,7 +34,16 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "docs/implementation/release-gate-inclusion-manifest.json",
+      "path": "docs/requirements/phase-1-release-gate-status.md",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "docs/requirements/phase-2-release-gate-status.md",
       "state": " M",
       "tracked": true,
       "classification": "include",

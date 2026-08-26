@@ -80,7 +80,7 @@ export const historicalProgramCreateSchema = z.strictObject({
   resources: z.string().trim().max(2000).nullable().optional(), historicalNeedDescription: z.string().trim().max(2000).nullable().optional(),
   outcomes: z.string().trim().max(3000).nullable().optional(), followUp: z.string().trim().max(2000).nullable().optional(),
   sourceType: z.enum(["excel", "word", "pdf", "paper", "database", "other"]), sourceNotes: z.string().trim().max(1000).nullable().optional(),
-  partnerIds: z.array(id).max(50).default([]), barangayIds: z.array(id).max(50).default([]),
+  partnerIds: z.array(id).max(50).default([]), barangayIds: z.array(id).max(50).default([]), needIds: z.array(id).max(100).default([]),
   sdgs: z.array(z.strictObject({ number: z.number().int().min(1).max(17), source: z.enum(["documented", "retrospective"]) })).max(17).default([]),
 }).superRefine((value, ctx) => {
   if (value.datePrecision === "unknown" && value.startsOn) ctx.addIssue({ code: "custom", message: "Unknown date precision cannot have a start date" });
@@ -96,9 +96,18 @@ export const historicalProgramUpdateSchema = z.strictObject({
   resources: z.string().trim().max(2000).nullable().optional(), historicalNeedDescription: z.string().trim().max(2000).nullable().optional(),
   outcomes: z.string().trim().max(3000).nullable().optional(), followUp: z.string().trim().max(2000).nullable().optional(),
   sourceType: z.enum(["excel", "word", "pdf", "paper", "database", "other"]).optional(), sourceNotes: z.string().trim().max(1000).nullable().optional(),
+  partnerIds: z.array(id).max(50).optional(), barangayIds: z.array(id).max(50).optional(), needIds: z.array(id).max(100).optional(),
+  sdgs: z.array(z.strictObject({ number: z.number().int().min(1).max(17), source: z.enum(["documented", "retrospective"]) })).max(17).optional(),
 }).superRefine((value, ctx) => {
   if (value.datePrecision === "unknown" && value.startsOn) ctx.addIssue({ code: "custom", message: "Unknown date precision cannot have a start date" });
   if (value.endsOn && value.startsOn && value.endsOn < value.startsOn) ctx.addIssue({ code: "custom", message: "End cannot precede start" });
+});
+export const historicalDuplicateResolutionSchema = z.strictObject({
+  rowKey: z.string().trim().min(1).max(80), candidateId: id.nullable().optional(),
+  outcome: z.enum(["link_existing", "distinct", "exclude"]), reason: z.string().trim().min(5).max(1000),
+}).superRefine((value, ctx) => {
+  if (value.outcome === "link_existing" && !value.candidateId) ctx.addIssue({ code: "custom", message: "Linking requires a selected candidate" });
+  if (value.outcome !== "link_existing" && value.candidateId) ctx.addIssue({ code: "custom", message: "Only link-existing may select a candidate" });
 });
 export const historicalReviewSchema = z.strictObject({
   action: z.enum(["submit", "return", "accept", "archive"]), expectedVersion: z.number().int().positive(),

@@ -16,6 +16,21 @@ export interface PartnershipTermDTO { id: string; status: PartnershipTermStatus;
 export interface PartnerDTO { id: string; code: string; name: string; legalName: string | null; type: PartnerEntityType; classification: "internal" | "external"; lifecycle: PartnerLifecycleStatus; roles: PartnerEntityRole[]; barangayId: string | null; rowVersion: number; primaryContact?: PartnerContactDTO | null; currentTerm?: PartnershipTermDTO | null; }
 export interface PartnerDetailDTO extends PartnerDTO { contacts: PartnerContactDTO[]; terms: PartnershipTermDTO[]; metrics: { programCount: number; proposalCount: number; historicalVerifiedCount: number; remainingNeedCount: number }; timeline: Array<{ id: string; type: string; reason: string | null; occurredAt: string }>; }
 export interface HistoricalProgramDTO { id: string; code: string; title: string; summary: string | null; category: string; status: HistoricalProgramStatus; quality: HistoricalProgramQuality; datePrecision: "exact" | "month" | "year" | "unknown"; startsOn: string | null; endsOn: string | null; sourceType: string; rowVersion: number; }
+export interface HistoricalProgramDetailDTO extends HistoricalProgramDTO {
+  beneficiaryCount: number | null; volunteerCount: number | null; volunteerHours: string | null; budgetTotal: string | null; currency: "PHP";
+  resources: string | null; historicalNeedDescription: string | null; outcomes: string | null; followUp: string | null; sourceNotes: string | null;
+  allowedQuality: HistoricalProgramQuality; partnerIds: string[]; barangayIds: string[]; needIds: string[];
+  sdgs: Array<{ number: number; source: "documented" | "retrospective" }>;
+  documents: Array<{ id: string; originalName: string; sha256: string; mimeType: string; sizeBytes: number; scanStatus: string; createdAt: string }>;
+  versions: Array<{ id: string; versionNumber: number; canonicalHash: string; reason: string; createdAt: string }>;
+}
+export interface HistoricalQualityAggregateDTO {
+  schema: "agape.historical-programs.aggregate.v2"; scope: "all" | "own_barangay"; barangayId: string | null;
+  implementationDate: string; windowStart: string; asOfDate: string;
+  operational: { recordCount: number; budgetTotal: string };
+  verifiedHistorical: { recordCount: number; beneficiaryCount: number; volunteerCount: number; volunteerHours: string; budgetTotal: string };
+  unverifiedHistorical: { recordCount: number; beneficiaryCount: number; volunteerCount: number; volunteerHours: string; budgetTotal: string };
+}
 export interface ProposalTargetAreaDTO { id: string; barangayId: string; sitioId: string | null; isLead: boolean; }
 export interface BeneficiaryEstimateDTO { id: string; categoryCode: string; calculatedCount: number | null; suppressed: boolean; finalCount: number; source: string; asOfDate: string; overrideReason: string | null; }
 export interface ProposalVersionDTO { id: string; versionNumber: number; canonicalHash: string; createdAt: string; reason: string; }

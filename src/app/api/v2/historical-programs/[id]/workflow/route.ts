@@ -10,9 +10,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const parsed = parseStrict(historicalReviewSchema, await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ error: "Invalid workflow action", issues: parsed.issues }, { status: 400 });
   const { action, expectedVersion, quality, remarks } = parsed.data;
-  const { error } = await auth.supabase.rpc("phase2_review_historical_program", {
+  const { data, error } = await auth.supabase.rpc("phase2_transition_historical_program", {
     p_id: params.id, p_action: action, p_expected_version: expectedVersion, p_quality: quality ?? null, p_remarks: remarks ?? null,
   });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: params.id, action } });
+  return NextResponse.json({ data });
 }

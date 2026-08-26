@@ -66,12 +66,20 @@ INSERT INTO public.historical_program_events(id,historical_program_id,action,to_
  ('f3220000-0000-4000-8000-000000000001','f3200000-0000-4000-8000-000000000001','accepted','accepted','partial_verified','Synthetic review','f2200000-0000-4000-8000-000000000004') ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.historical_program_sdg_links(historical_program_id,sdg_number,classification_source) VALUES
  ('f3200000-0000-4000-8000-000000000001',4,'documented'),('f3200000-0000-4000-8000-000000000001',17,'retrospective') ON CONFLICT DO NOTHING;
+INSERT INTO public.historical_program_partner_links(historical_program_id,partner_id) VALUES
+ ('f3200000-0000-4000-8000-000000000001','f3100000-0000-4000-8000-000000000001') ON CONFLICT DO NOTHING;
+INSERT INTO public.historical_program_barangay_links(historical_program_id,barangay_id) VALUES
+ ('f3200000-0000-4000-8000-000000000001','f2100000-0000-4000-8000-000000000001') ON CONFLICT DO NOTHING;
+INSERT INTO public.historical_program_documents(id,historical_program_id,original_name,storage_path,sha256,mime_type,size_bytes,scan_status,uploaded_by) VALUES
+ ('f3270000-0000-4000-8000-000000000001','f3200000-0000-4000-8000-000000000001','synthetic-source.pdf','f3200000-0000-4000-8000-000000000001/'||repeat('9',64)||'.pdf',repeat('9',64),'application/pdf',128,'risk_accepted','f2200000-0000-4000-8000-000000000004') ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.historical_program_import_batches(id,file_hash,template_version,status,row_count,error_count,created_by,data_mode) VALUES
  ('f3230000-0000-4000-8000-000000000001',repeat('5',64),'phase2.synthetic.v1','ready',1,0,'f2200000-0000-4000-8000-000000000004','synthetic') ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.historical_program_import_rows(id,batch_id,row_key,sanitized_data,errors) VALUES
  ('f3240000-0000-4000-8000-000000000001','f3230000-0000-4000-8000-000000000001','SYN-HIST-ROW-1','{"title":"Synthetic staged history"}','[]') ON CONFLICT(id) DO NOTHING;
 INSERT INTO public.historical_program_duplicate_decisions(id,batch_id,row_key,candidate_program_id,outcome,decided_by,decided_at,reason) VALUES
  ('f3250000-0000-4000-8000-000000000001','f3230000-0000-4000-8000-000000000001','SYN-HIST-ROW-1','f3200000-0000-4000-8000-000000000001','distinct','f2200000-0000-4000-8000-000000000004',now(),'Synthetic distinct decision') ON CONFLICT(id) DO NOTHING;
+INSERT INTO public.historical_program_import_resolutions(id,batch_id,import_row_id,outcome,reason,decided_by) VALUES
+ ('f3260000-0000-4000-8000-000000000001','f3230000-0000-4000-8000-000000000001','f3240000-0000-4000-8000-000000000001','distinct','Synthetic distinct decision','f2200000-0000-4000-8000-000000000004') ON CONFLICT(id) DO NOTHING;
 
 INSERT INTO public.community_needs(id,barangay_id,submitted_by,category,need_description,priority_score,source,sitio,approval_status,approved_by,approved_at) VALUES
  ('f3300000-0000-4000-8000-000000000001','f2100000-0000-4000-8000-000000000001','f2200000-0000-4000-8000-000000000007','education','Synthetic learning need: aggregate planning evidence.',4,'household_profile','Synthetic Sitio North','approved','f2200000-0000-4000-8000-000000000006',now()) ON CONFLICT(id) DO NOTHING;

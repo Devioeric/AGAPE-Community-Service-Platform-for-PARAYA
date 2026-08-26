@@ -24,8 +24,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     beneficiary_count: changes.beneficiaryCount, volunteer_count: changes.volunteerCount, volunteer_hours: changes.volunteerHours,
     budget_total: changes.budgetTotal, resources: changes.resources, historical_need_description: changes.historicalNeedDescription,
     outcomes: changes.outcomes, follow_up: changes.followUp, source_type: changes.sourceType, source_notes: changes.sourceNotes,
+    partner_ids: changes.partnerIds, barangay_ids: changes.barangayIds, need_ids: changes.needIds, sdgs: changes.sdgs,
   }).filter(([, value]) => value !== undefined));
-  const { error } = await auth.supabase.rpc("phase2_update_historical_program", { p_id: params.id, p_expected_version: expectedVersion, p_changes: payload });
+  const { data, error } = await auth.supabase.rpc("phase2_update_historical_program_v2", { p_id: params.id, p_expected_version: expectedVersion, p_payload: payload });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: params.id } });
+  return NextResponse.json({ data });
 }

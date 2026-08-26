@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hasCapability } from "../../src/lib/auth/capabilities.ts";
 import {
-  historicalProgramCreateSchema, partnerContactSchema, partnerCreateSchema,
+  historicalDuplicateResolutionSchema, historicalProgramCreateSchema, historicalProgramUpdateSchema, partnerContactSchema, partnerCreateSchema,
   partnerContactUpdateSchema, partnerMergeSchema, partnerNeedLinkSchema, partnershipTermTransitionSchema,
   proposalDraftGraphSchema, proposalWorkflowSchema, programExpenditureSchema,
 } from "../../src/lib/phase2/contracts.ts";
@@ -37,6 +37,10 @@ test("Historical programs require date precision consistency", () => {
   assert.equal(historicalProgramCreateSchema.safeParse(base).success, true);
   assert.equal(historicalProgramCreateSchema.safeParse({ ...base, datePrecision: "unknown", startsOn: "2024-01-01" }).success, false);
   assert.equal(historicalProgramCreateSchema.safeParse({ ...base, beneficiaryNames: ["Person"] }).success, false);
+  assert.equal(historicalProgramUpdateSchema.safeParse({ expectedVersion: 2, partnerIds: [uuid], barangayIds: [uuid2], needIds: [], sdgs: [{ number: 4, source: "documented" }] }).success, true);
+  assert.equal(historicalDuplicateResolutionSchema.safeParse({ rowKey: "ROW-1", outcome: "link_existing", reason: "Reviewed duplicate" }).success, false);
+  assert.equal(historicalDuplicateResolutionSchema.safeParse({ rowKey: "ROW-1", candidateId: uuid, outcome: "distinct", reason: "Reviewed as distinct" }).success, false);
+  assert.equal(historicalDuplicateResolutionSchema.safeParse({ rowKey: "ROW-1", candidateId: uuid, outcome: "link_existing", reason: "Reviewed duplicate" }).success, true);
 });
 
 test("Structured proposal contract enforces origin, lead, target overlap, and 1-17 SDGs", () => {

@@ -31,9 +31,9 @@ export async function POST(request: Request) {
     volunteer_count: value.volunteerCount ?? null, volunteer_hours: value.volunteerHours ?? null, budget_total: value.budgetTotal ?? null,
     currency: value.currency, resources: value.resources ?? null, historical_need_description: value.historicalNeedDescription ?? null,
     outcomes: value.outcomes ?? null, follow_up: value.followUp ?? null, source_type: value.sourceType, source_notes: value.sourceNotes ?? null,
-    partner_ids: value.partnerIds, barangay_ids: value.barangayIds,
+    partner_ids: value.partnerIds, barangay_ids: value.barangayIds, need_ids: value.needIds,
     sdgs: value.sdgs.map((sdg) => ({ number: sdg.number, source: sdg.source })),
   } });
   if (error) return phase2RpcError(error);
-  return NextResponse.json({ data: { id: data } }, { status: 201 });
+  return NextResponse.json({ data: { id: data, rowVersion: 1 } }, { status: 201 });
 }

@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "0863b42a6d023b1fc4225bede9286f40d8a9f7a2",
+  "head": "8ef75b8aae6a89892974795e166103df5d642ffd",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 18,
-    "include": 18,
+    "total": 20,
+    "include": 20,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/legacy-partner-mappings/[userId]/route.ts",
+      "path": "src/app/api/v2/historical-programs/[id]/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,7 +52,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/legacy-partner-mappings/route.ts",
+      "path": "src/app/api/v2/historical-programs/[id]/workflow/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -61,7 +61,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/partners/[id]/contacts/[contactId]/route.ts",
+      "path": "src/app/api/v2/historical-programs/analytics/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -70,25 +70,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/partners/[id]/merge/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/partners/[id]/needs/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/partners/[id]/route.ts",
+      "path": "src/app/api/v2/historical-programs/imports/[batchId]/duplicates/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -97,7 +79,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/partners/[id]/terms/[termId]/transition/route.ts",
+      "path": "src/app/api/v2/historical-programs/imports/[batchId]/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -106,9 +88,27 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/partners/policies/route.ts",
-      "state": "??",
-      "tracked": false,
+      "path": "src/app/api/v2/historical-programs/imports/preview/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/historical-programs/imports/template/route.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/app/api/v2/historical-programs/route.ts",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -116,6 +116,24 @@
     },
     {
       "path": "src/lib/phase2/contracts.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/phase2/historical-import.ts",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "src/lib/phase2/types.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -133,7 +151,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818000860_phase2_partner_vertical_completion.sql",
+      "path": "supabase/migrations/20260818000870_phase2_historical_vertical_completion.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -151,7 +169,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/tests/seeded/phase2/01_partner_vertical_workflows.sql",
+      "path": "supabase/tests/seeded/phase2/02_historical_vertical_workflows.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -181,7 +199,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "test/security/phase2-partner-vertical-completion.test.mjs",
+      "path": "test/security/phase2-historical-vertical-completion.test.mjs",
       "state": "??",
       "tracked": false,
       "classification": "include",

@@ -28,6 +28,10 @@ export default function AdvisoryRecommendationsPage() {
   const [data, setData] = useState<AdvisoryRecommendationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState("all");
+  const [priority, setPriority] = useState("all");
+  const [coverage, setCoverage] = useState("all");
+  const [barangay, setBarangay] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +49,16 @@ export default function AdvisoryRecommendationsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const barangays = Array.from(new Map(
+    (data?.recommendations ?? []).map((item) => [item.barangay.id, item.barangay.name]),
+  ).entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  const visibleRecommendations = (data?.recommendations ?? []).filter((item) =>
+    (category === "all" || item.category === category)
+    && (priority === "all" || item.priority.label === priority)
+    && (coverage === "all" || item.coverage.state === coverage)
+    && (barangay === "all" || item.barangay.id === barangay)
+  );
 
   if (loading && !data) {
     return (
@@ -108,6 +122,46 @@ export default function AdvisoryRecommendationsPage() {
             ))}
           </div>
 
+          <Card className="border-border shadow-card">
+            <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                Category
+                <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                  <option value="all">All categories</option>
+                  {Object.entries(CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                Priority
+                <select value={priority} onChange={(event) => setPriority(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                  <option value="all">All priorities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                Coverage
+                <select value={coverage} onChange={(event) => setCoverage(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                  <option value="all">All response states</option>
+                  <option value="unaddressed">No plan</option>
+                  <option value="planned">Plan exists</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                Barangay
+                <select value={barangay} onChange={(event) => setBarangay(event.target.value)} className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground">
+                  <option value="all">All barangays</option>
+                  {barangays.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                </select>
+              </label>
+              <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-4">
+                Showing {visibleRecommendations.length} of {data.recommendations.length} recommendations
+              </p>
+            </CardContent>
+          </Card>
+
           {data.recommendations.length === 0 ? (
             <Card className="border-border shadow-card">
               <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
@@ -118,9 +172,19 @@ export default function AdvisoryRecommendationsPage() {
                 </p>
               </CardContent>
             </Card>
+          ) : visibleRecommendations.length === 0 ? (
+            <Card className="border-border shadow-card">
+              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                <p className="font-medium text-foreground">No recommendations match these filters</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => { setCategory("all"); setPriority("all"); setCoverage("all"); setBarangay("all"); }}>
+                  Clear filters
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-5 xl:grid-cols-2">
-              {data.recommendations.map((recommendation) => (
+              {visibleRecommendations.map((recommendation) => (
                 <Card key={recommendation.needId} className="border-border shadow-card" data-testid="recommendation-card">
                   <CardHeader className="space-y-3 pb-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -146,20 +210,30 @@ export default function AdvisoryRecommendationsPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
-                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.completedPrograms} completed
+                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.completedPrograms} completed · {recommendation.confidence} confidence
                       </div>
                       <div className="flex flex-wrap gap-1.5" aria-label="Suggested Sustainable Development Goals">
                         {recommendation.suggestedSdgs.map((sdg) => <Badge key={sdg} variant="outline">SDG {sdg}</Badge>)}
                       </div>
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Approved need evidence · identified {new Date(`${recommendation.evidence.identifiedDate}T00:00:00`).toLocaleDateString("en-PH")}
+                    </p>
                     <div className="flex justify-end border-t border-border pt-3">
-                      <Link
-                        className={buttonVariants({ size: "sm" })}
-                        href={`/officer/proposals?from_need=${encodeURIComponent(recommendation.needId)}`}
-                      >
-                        Prepare a proposal draft
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
+                      {recommendation.action === "develop_response" ? (
+                        <Link
+                          className={buttonVariants({ size: "sm" })}
+                          href={`/officer/proposals?from_need=${encodeURIComponent(recommendation.needId)}`}
+                        >
+                          Prepare a proposal draft
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      ) : (
+                        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/officer/proposals">
+                          Review proposal pipeline
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

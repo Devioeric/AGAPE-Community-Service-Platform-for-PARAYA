@@ -432,13 +432,19 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Existing defect corrected: V1 proposal list/detail routes now select the
   canonical fields used by the interface through explicit allowlists; obsolete
   column names and broad row selections were removed.
+- Workflow completion: the recommendation screen supports category, priority,
+  coverage, and barangay filters; planned needs link to pipeline review instead
+  of encouraging a duplicate draft; the Officer dashboard surfaces advisory
+  counts without blocking its normal data if the optional advisory endpoint is
+  unavailable; and the proposal form captures and displays a non-negative
+  expected beneficiary count with aggregate/manual-source guidance.
 - Security/privacy: recommendations require both `analytics.aggregate.read`
   and `ai.assist`, respect deny-only overrides in both API and navigation, omit
   need narratives and resident/contact/document/financial descriptions, use
   no service-role `select("*")`, and append a minimal read audit. The output is
   advisory-only and contains no resident drill-through.
-- Verification: focused advisory tests pass 8/8; the complete static suite
-  passes 212/212; typecheck and lint pass; the 165-page production build passes;
+- Verification: focused advisory tests pass 9/9; the complete static suite
+  passes 213/213; typecheck and lint pass; the 165-page production build passes;
   migration inventory reports 40 ordered migrations and no findings; Docker
   preflight passes; and the complete Phase 2 disposable gate passes two clean
   replays with matching schema hash
@@ -453,9 +459,12 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   and forward compatibility migration. Do not use a down migration after the
   compatibility correction has been applied; use a forward correction and
   keep workflow decisions human-controlled.
-- Next exact action: checkpoint this locally verified slice, then continue with
-  evidence-bound beneficiary planning and recommendation filtering without
-  enabling external AI or production features.
+- Checkpoints: `b2a0640` contains the initial advisory foundation. The next
+  normal development checkpoint will contain the filtering, dashboard, and
+  expected-beneficiary-count workflow completion described above.
+- Next exact action: inspect the existing evidence-bound beneficiary estimator
+  and structured proposal interface, then integrate only demonstrated missing
+  planning behavior without enabling external AI or production features.
 
 ## Migration, security, and rollback notes
 

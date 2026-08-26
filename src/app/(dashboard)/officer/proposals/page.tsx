@@ -46,6 +46,7 @@ interface Proposal {
   rationale: string;
   objectives: string | null;
   target_beneficiaries: string | null;
+  expected_beneficiary_count: number | null;
   expected_output: string | null;
   timeline_start: string | null;
   timeline_end: string | null;
@@ -137,6 +138,7 @@ const schema = z.object({
   rationale:            z.string().min(10, "Rationale is required"),
   objectives:           z.string().optional(),
   target_beneficiaries: z.string().optional(),
+  expected_beneficiary_count: z.string().optional(),
   expected_output:      z.string().optional(),
   timeline_start:       z.string().optional(),
   timeline_end:         z.string().optional(),
@@ -305,6 +307,7 @@ export default function ProposalsPage() {
       rationale:            p.rationale,
       objectives:           p.objectives ?? "",
       target_beneficiaries: p.target_beneficiaries ?? "",
+      expected_beneficiary_count: p.expected_beneficiary_count != null ? String(p.expected_beneficiary_count) : "",
       expected_output:      p.expected_output ?? "",
       timeline_start:       p.timeline_start ?? "",
       timeline_end:         p.timeline_end ?? "",
@@ -342,6 +345,7 @@ export default function ProposalsPage() {
     const payload = {
       ...data,
       budget:                data.budget ? parseFloat(data.budget) : null,
+      expected_beneficiary_count: data.expected_beneficiary_count ? Number(data.expected_beneficiary_count) : null,
       barangay_id:           data.barangay_id || null,
       is_income_generating:  !!data.is_income_generating,
       sdg_alignments:        sdgSelected.map((n) => ({ sdg_number: n, indicator: sdgIndicators[n] ?? null })),
@@ -737,6 +741,11 @@ export default function ProposalsPage() {
                   <Input id="target_beneficiaries" placeholder="e.g. 200 out-of-school youth in Barangay Sta. Ana" className="focus-visible:ring-primary/30" {...register("target_beneficiaries")} />
                 </div>
                 <div className="space-y-1.5">
+                  <Label htmlFor="expected_beneficiary_count">Expected beneficiary count</Label>
+                  <Input id="expected_beneficiary_count" type="number" min="0" step="1" placeholder="Use an approved aggregate or documented estimate" className="focus-visible:ring-primary/30" {...register("expected_beneficiary_count")} />
+                  <p className="text-xs text-muted-foreground">Use a completed profiling aggregate when available; otherwise document the manual source during structured review.</p>
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="expected_output">Expected output</Label>
                   <Textarea id="expected_output" rows={2} placeholder="What will be produced or achieved?" className="focus-visible:ring-primary/30 resize-none" {...register("expected_output")} />
                 </div>
@@ -989,6 +998,7 @@ export default function ProposalsPage() {
                     { label: "Rationale",            value: detail.rationale },
                     { label: "Objectives",            value: detail.objectives },
                     { label: "Target Beneficiaries",  value: detail.target_beneficiaries },
+                    { label: "Expected Count",         value: detail.expected_beneficiary_count != null ? detail.expected_beneficiary_count.toLocaleString("en-PH") : null },
                     { label: "Expected Output",       value: detail.expected_output },
                   ].map(({ label, value }) => value ? (
                     <div key={label}>

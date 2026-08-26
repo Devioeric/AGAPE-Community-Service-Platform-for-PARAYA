@@ -86,6 +86,10 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /do not create or change proposals/);
   assert.match(page, /\/api\/ai\/recommendations/);
   assert.match(page, /Prepare a proposal draft/);
+  assert.match(page, /recommendation\.action === "develop_response"/);
+  assert.match(page, /Review proposal pipeline/);
+  assert.match(page, /Showing \{visibleRecommendations\.length\} of \{data\.recommendations\.length\} recommendations/);
+  assert.match(page, /No recommendations match these filters/);
   assert.match(sidebar, /\/officer\/analytics\/recommendations/);
   assert.match(sidebar, /capabilities: \["analytics\.aggregate\.read", "ai\.assist"\]/);
   assert.match(sidebar, /c\.capabilities\.every/);
@@ -107,6 +111,9 @@ test("legacy proposal reads use the canonical allowlisted fields needed by the w
   }
   assert.doesNotMatch(listRoute, /proposed_date|estimated_beneficiaries/);
   assert.doesNotMatch(detailRoute, /proposal_sdg_alignment\(\*\)|proposal_reviews\(\*/);
+  const proposalsPage = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
+  assert.match(proposalsPage, /expected_beneficiary_count/);
+  assert.match(proposalsPage, /Use a completed profiling aggregate when available/);
 });
 
 test("proposal alignment remains advisory and reports actionable draft gaps", () => {
@@ -158,4 +165,12 @@ test("forward proposal correction supplies beneficiary count and the complete SD
   assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000930_phase2_proposal_compatibility_correction.sql"), false);
   assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000930_phase2_proposal_compatibility_correction.sql");
   for (let sdg = 1; sdg <= 17; sdg += 1) assert.match(proposals, new RegExp(`\\{ n: ${sdg},`));
+});
+
+test("officer dashboard surfaces advisory counts without making workflow decisions", () => {
+  const dashboard = readFileSync("src/app/(dashboard)/officer/page.tsx", "utf8");
+  assert.match(dashboard, /fetch\("\/api\/ai\/recommendations"/);
+  assert.match(dashboard, /approved need\{recommendations\.summary\.recommendationCount === 1/);
+  assert.match(dashboard, /Review recommendations/);
+  assert.doesNotMatch(dashboard, /\/advance|director_approve|finance_clear/);
 });

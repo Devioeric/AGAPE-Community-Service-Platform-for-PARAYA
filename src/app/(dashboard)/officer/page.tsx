@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Users, Clock, Activity, FileText, TrendingUp, Loader2, MapPin,
+  Users, Clock, Activity, FileText, TrendingUp, Loader2, MapPin, Bot, ArrowRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
+import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
 
 interface AnalyticsData {
   programs:    { total: number; byStatus: Record<string, number>; chartData: { status: string; count: number }[] };
@@ -52,17 +53,22 @@ function fmt(n: number) {
 export default function OfficerDashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [programs,  setPrograms]  = useState<Program[]>([]);
+  const [recommendations, setRecommendations] = useState<AdvisoryRecommendationResponse | null>(null);
   const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/analytics").then((r) => r.json()),
       fetch("/api/programs").then((r) => r.json()),
+      fetch("/api/ai/recommendations", { cache: "no-store" })
+        .then(async (r) => r.ok ? r.json() : null)
+        .catch(() => null),
     ])
-      .then(([aJson, pJson]) => {
+      .then(([aJson, pJson, recommendationJson]) => {
         setAnalytics(aJson.data ?? null);
         const raw = (pJson.data ?? []) as Program[];
         setPrograms(raw.slice(0, 6));
+        setRecommendations(recommendationJson?.data ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -134,6 +140,27 @@ export default function OfficerDashboard() {
 
   return (
     <div className="space-y-6">
+      {recommendations && recommendations.summary.recommendationCount > 0 && (
+        <Card className="border-primary/25 bg-primary/5 shadow-card">
+          <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-primary/10 p-2"><Bot className="h-5 w-5 text-primary" /></div>
+              <div>
+                <p className="font-heading font-semibold text-foreground">
+                  {recommendations.summary.recommendationCount} approved need{recommendations.summary.recommendationCount === 1 ? "" : "s"} need planning attention
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {recommendations.summary.unaddressedNeeds} have no planned response and {recommendations.summary.needsWithPlannedResponses} have a plan to review.
+                </p>
+              </div>
+            </div>
+            <Link href="/officer/analytics/recommendations" className="inline-flex items-center text-sm font-medium text-primary hover:text-primary-dark">
+              Review recommendations <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((stat) => (

@@ -20,7 +20,7 @@ const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
 
 function usage() {
-  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--all]
+  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--fixture-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
   [--reconciliation-configuration <private-sql>] [--candidate-mode]
@@ -31,7 +31,7 @@ function parse(argv) {
   const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null, candidateMode: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
-    if (["--preflight", "--replay-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--all"].includes(key)) options.mode = key;
+    if (["--preflight", "--replay-only", "--fixture-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--all"].includes(key)) options.mode = key;
     else if (key === "--candidate-mode") options.candidateMode = true;
     else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
@@ -416,6 +416,16 @@ async function writeResultBundle({ schemaHash, catalogDigest, authoritativeSchem
 }
 
 try {
+  if (options.mode === "--fixture-only") {
+    if (options.scope.startsWith("reconciliation-")) throw new Error("--fixture-only requires phase1 or phase2 scope");
+    await seededCompatibilityCycle({
+      label: `reviewed ${options.scope} synthetic fixture diagnostic`,
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+    });
+    console.log(`${options.scope} synthetic fixture diagnostic passed. This diagnostic is not release evidence by itself.`);
+    process.exit(0);
+  }
   if (options.mode === "--phase1-e2e-only") {
     if (options.scope !== "phase1") throw new Error("--phase1-e2e-only requires --scope phase1");
     await seededCompatibilityCycle({

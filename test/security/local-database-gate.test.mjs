@@ -206,7 +206,13 @@ test("database gate source separates reviewed synthetic and legacy seed replays"
   assert.match(source, /--candidate-mode/);
   assert.match(source, /options\.candidateMode/);
   assert.equal(scopeManifest.scopes.phase1.migrationNames.at(-1), "20260818000840_phase1_ai_report_compatibility.sql");
-  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000840_phase1_ai_report_compatibility.sql");
+  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000850_phase2_runtime_isolation_corrections.sql");
+});
+
+test("database gate can diagnose a reviewed phase fixture without claiming replay evidence", async () => {
+  const source = await readFile(new URL("../../scripts/run-local-database-gates.mjs", import.meta.url), "utf8");
+  assert.match(source, /--fixture-only/);
+  assert.match(source, /synthetic fixture diagnostic passed\. This diagnostic is not release evidence by itself/);
 });
 
 test("release fixtures are phase-split, synthetic-only, and preserve disabled runtime defaults", async () => {

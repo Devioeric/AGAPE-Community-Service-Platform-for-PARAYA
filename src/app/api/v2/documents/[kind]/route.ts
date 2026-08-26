@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: { kind: strin
   if (!validDocumentType || !["paraya_only", "linked_barangay"].includes(visibility)) return NextResponse.json({ error: "Invalid document metadata" }, { status: 400 });
   try {
     const bytes = new Uint8Array(await file.arrayBuffer()); const checked = validatePhase2Document(file, bytes);
-    const path = generatedDocumentPath(parentId, checked.extension); const bucket = PHASE2_DOCUMENT_BUCKET[kind.data]; const admin = createAdminClient();
+    const path = generatedDocumentPath(parentId, checked.extension, checked.sha256); const bucket = PHASE2_DOCUMENT_BUCKET[kind.data]; const admin = createAdminClient();
     const uploaded = await admin.storage.from(bucket).upload(path, bytes, { contentType: file.type, upsert: false });
     if (uploaded.error) return NextResponse.json({ error: "Unable to quarantine document" }, { status: 500 });
     const { data, error } = await auth.supabase.rpc("phase2_register_document", { p_kind: kind.data, p_parent_id: parentId, p_term_id: termId, p_metadata: {

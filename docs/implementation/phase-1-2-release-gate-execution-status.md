@@ -219,6 +219,18 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - External blocker: the authoritative capture, canonical baseline, credential/Auth evidence, and independent approvals remain unavailable. Packet 7 cannot start until those artifacts pass validation.
 - Next exact action: execute Packet 4 only, correcting deterministic Phase 1 DTO/version/minor/import/cycle-context defects without adding or changing a database migration.
 
+## Packet 12 implementation record
+
+- Files changed: per-component runtime capability mapping and routes, server-derived document paths, Phase 2 replay scope, trusted split fixture/bootstrap handling, Phase 2 runtime pgTAP, fixture-only harness diagnostics, focused source tests, and this ledger.
+- Migration added: `20260818000850_phase2_runtime_isolation_corrections.sql`. It is a new transactional forward migration after the complete existing chain; no previously applied migration was rewritten in Packet 12.
+- Commands: repeated fixture-only disposable diagnostics; focused Phase 2/harness tests; complete two-cycle Phase 2 candidate replay; unseeded catalog/runtime/Storage pgTAP; seeded Phase 2 fixture assertions; legacy development seed compatibility; complete Node suite; typecheck; lint; production build.
+- Results: two clean Phase 2 schemas match at `30bccef90c85aa7c34598aea334bfe486a9210481adf2958c98b6e367ee5d1f7`; catalog/runtime/Storage assertions pass 32/32; seeded Phase 2 fixture assertions pass 10/10; focused tests pass 30/30; full static tests pass 173/173; typecheck, lint, legacy seed compatibility, and all 155 build routes pass with zero failures/skips.
+- Runtime/security impact: absent or unknown runtime/cutover state fails closed; configuration uses component-specific capabilities; live mode requires readiness attestations; synthetic actors and roots are both allowlisted; imports bind immutable data mode and replacement lineage; handoff observes proposal and program-finance modes; document paths bind parent/content hash/MIME; historical detail is an explicit allowlisted DTO; private helpers are not executable by `PUBLIC`, `anon`, or `authenticated`.
+- Compatibility correction: authoritative `programs.proposal_id` remains a legacy link to `proposals`. A separate `programs.project_proposal_id` now references current `project_proposals`; routing and composite handoff constraints prevent ambiguous or cross-proposal reinterpretation without rewriting historical links.
+- Rollback: set every Phase 2 runtime to `off`, retain V1 mutation authority, stop workers, and keep the additive schema/history. Before deployment, revert only the Packet 12 checkpoint. Never restore fail-open runtime defaults, caller-selected paths, mixed-mode graphs, or ambiguous proposal links.
+- External blocker: these local results are not approved release evidence. Packet 11 and final Packet 18 still require a distinct reviewer, independent old-credential invalidation, baseline promotion approval, privacy/Auth/document-risk evidence, and the other registered human artifacts.
+- Next exact action: checkpoint Packet 12, then audit and complete Packet 13 Partner and legacy-mapping vertical workflows against the executable candidate chain.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

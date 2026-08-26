@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authorizeAnyCapability } from "@/lib/auth/authorize";
-import { isPhase2ComponentEnabled, phase2RpcError, type Phase2Component } from "@/lib/phase2/feature";
+import { authorizeCapability } from "@/lib/auth/authorize";
+import { isPhase2ComponentEnabled, PHASE2_COMPONENT_MANAGE_CAPABILITY, phase2RpcError, type Phase2Component } from "@/lib/phase2/feature";
 
 const componentSchema = z.enum(["partners", "historical_programs", "proposals", "program_finance", "external_contact_email"]);
 const bodySchema = z.strictObject({ mode: z.enum(["off", "synthetic", "live"]), syntheticUserIds: z.array(z.string().uuid()).default([]), syntheticEntityIds: z.array(z.string().uuid()).default([]), implementationDate: z.string().date().nullable().optional(), configuration: z.record(z.string(), z.unknown()).default({}) });
 
-async function authorizeRuntime() {
-  return authorizeAnyCapability(["partner.policy.manage", "historical_program.review"]);
-}
-
 export async function GET(_request: Request, { params }: { params: { component: string } }) {
   const component = componentSchema.safeParse(params.component);
   if (!component.success) return NextResponse.json({ error: "Unknown component" }, { status: 404 });
-  const auth = await authorizeRuntime();
+  const auth = await authorizeCapability(PHASE2_COMPONENT_MANAGE_CAPABILITY[component.data]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await auth.supabase.rpc("phase2_get_readiness", { p_component: component.data });
   if (error) return phase2RpcError(error);
@@ -23,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: { component: 
 export async function PUT(request: Request, { params }: { params: { component: string } }) {
   const component = componentSchema.safeParse(params.component);
   if (!component.success) return NextResponse.json({ error: "Unknown component" }, { status: 404 });
-  const auth = await authorizeRuntime();
+  const auth = await authorizeCapability(PHASE2_COMPONENT_MANAGE_CAPABILITY[component.data]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid runtime configuration", issues: body.error.issues }, { status: 400 });

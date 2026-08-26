@@ -24,6 +24,7 @@ export function validatePhase2Document(file: File, bytes: Uint8Array) {
   return { extension, safeOriginalName, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 
-export function generatedDocumentPath(parentId: string, extension: string) {
-  return `${parentId}/${randomUUID()}.${extension}`;
+export function generatedDocumentPath(parentId: string, extension: string, sha256?: string) {
+  const serverKey = sha256?.match(/^[0-9a-f]{64}$/) ? sha256 : randomUUID();
+  return `${parentId}/${serverKey}.${extension}`;
 }

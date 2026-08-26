@@ -70,9 +70,14 @@
         "20260818000810_phase1_stable_submission_creation.sql",
         "20260818000820_phase1_private_storage_boundary.sql",
         "20260818000830_phase1_submission_detail_boundary.sql",
-        "20260818000840_phase1_ai_report_compatibility.sql"
+        "20260818000840_phase1_ai_report_compatibility.sql",
+        "20260818000850_phase2_runtime_isolation_corrections.sql"
       ],
-      "databaseTestPaths": ["tests/database"],
+      "databaseTestPaths": [
+        "tests/database/00_catalog_grants_rls.sql",
+        "tests/database/01_synthetic_capabilities_runtime.sql",
+        "tests/database/02_storage_boundaries.sql"
+      ],
       "fixtureSeedPaths": [
         "tests/fixtures/release-gate-phase1.sql",
         "tests/fixtures/release-gate-phase2-supplement.sql"

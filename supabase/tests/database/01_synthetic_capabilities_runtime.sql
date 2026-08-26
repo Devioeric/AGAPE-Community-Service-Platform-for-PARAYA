@@ -18,7 +18,7 @@ INSERT INTO public.users(id,email,full_name,role,status,is_active,permissions,is
  ('f2000000-0000-4000-8000-000000000002','synthetic-finance@agape.invalid','Synthetic Finance','finance_officer','active',true,'{}',true),
  ('f2000000-0000-4000-8000-000000000003','synthetic-finance-denied@agape.invalid','Synthetic Finance Denied','finance_officer','active',true,'{"budgets":false}',true),
  ('f2000000-0000-4000-8000-000000000004','synthetic-admin@agape.invalid','Synthetic Admin','admin','active',true,'{}',true),
- ('f2000000-0000-4000-8000-000000000005','synthetic-inactive@agape.invalid','Synthetic Inactive','paraya_director','inactive',false,'{}',true);
+ ('f2000000-0000-4000-8000-000000000005','synthetic-inactive@agape.invalid','Synthetic Inactive','paraya_director','suspended',false,'{}',true);
 
 UPDATE public.phase2_component_runtime
 SET mode='synthetic',synthetic_user_ids=ARRAY[
@@ -33,17 +33,13 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','f2000000-0000-4000-8000-000000000001',true);
 SELECT ok(public.phase2_current_has_capability('proposal.decide'),'Director has the final proposal-decision capability');
 SELECT ok(NOT public.phase2_current_has_capability('budget.review'),'Director cannot perform Finance clearance');
-SELECT is(public.phase2_assert_actor_runtime('proposals'),'synthetic','allowlisted synthetic Director passes actor runtime');
+SELECT is((public.phase2_get_readiness('proposals')->>'mode'),'synthetic','allowlisted synthetic Director can read proposal readiness');
 SELECT throws_ok(
- $$SELECT public.phase2_assert_runtime('proposals',NULL)$$,
- '42501','A target-bound runtime check is required',
- 'entity-bound operations fail when no target is supplied'
-);
-SELECT throws_ok(
- $$SELECT public.phase2_assert_runtime('proposals','f3000000-0000-4000-8000-000000000099'::uuid)$$,
+ $$SELECT public.phase2_get_proposal('f3000000-0000-4000-8000-000000000099'::uuid)$$,
  '42501','target is outside the active Phase 2 data mode',
- 'synthetic actor cannot target an unknown or live proposal'
+ 'reviewed proposal RPC rejects an unknown or live target'
 );
+SELECT ok(NOT has_function_privilege('authenticated','public.phase2_assert_runtime(text,uuid)','EXECUTE'),'target-check helper is not directly executable');
 
 SELECT set_config('request.jwt.claim.sub','f2000000-0000-4000-8000-000000000002',true);
 SELECT ok(public.phase2_current_has_capability('budget.review'),'Finance can review budgets');
@@ -61,4 +57,3 @@ RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;
-

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Capability } from "@/lib/auth/capabilities";
 
 export type Phase2Component = "partners" | "historical_programs" | "proposals" | "program_finance" | "external_contact_email";
 
@@ -8,6 +9,14 @@ const ENV_BY_COMPONENT: Record<Phase2Component, string> = {
   proposals: "AGAPE_PROPOSALS_V2_ENABLED",
   program_finance: "AGAPE_PROGRAM_FINANCE_V2_ENABLED",
   external_contact_email: "AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED",
+};
+
+export const PHASE2_COMPONENT_MANAGE_CAPABILITY: Record<Phase2Component, Capability> = {
+  partners: "partner.policy.manage",
+  historical_programs: "historical_program.review",
+  proposals: "proposal.catalog.manage",
+  program_finance: "budget.category.manage",
+  external_contact_email: "partner.policy.manage",
 };
 
 export function isPhase2ComponentEnabled(component: Phase2Component): boolean {

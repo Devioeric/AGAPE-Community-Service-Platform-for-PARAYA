@@ -39,6 +39,14 @@
 -- Extension required for the bcrypt hashing of the shared dev password.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- The compatibility runner executes this file only inside the validated
+-- disposable stack. Mark the seed session as trusted service work so the
+-- direct-PostgREST workflow guards continue to reject ordinary callers while
+-- allowing this historical development dataset to be replayed.
+SELECT set_config('request.jwt.claim.role', 'service_role', false);
+SELECT set_config('request.jwt.claim.sub', '', false);
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', false);
+
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 1. AUTH USERS (14 accounts)
@@ -243,26 +251,17 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
--- 4. VOLUNTEERS (10 — extends the 3 volunteer users + 7 more profile-only)
+-- 4. VOLUNTEERS (3 — one profile for each development volunteer identity)
 -- ════════════════════════════════════════════════════════════════════════════
--- The 3 logging-volunteers above + 7 more matching the volunteer accounts so
--- analytics has enough variety. Each volunteer row references a user_id.
+-- The authoritative schema requires every volunteer profile to reference an
+-- application/Auth user. Historical profile-only rows are intentionally not
+-- fabricated by this compatibility seed.
 
-INSERT INTO public.volunteers (id, user_id, student_id, department, year_level, total_hours, consented_to_photo_use, created_at, updated_at)
+INSERT INTO public.volunteers (id, user_id, student_id, course, year_level, total_hours, status, created_at)
 VALUES
-  ('22220001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-000000000012', '2022-1-00345',  'CICS',  3, 48,  TRUE,  NOW() - INTERVAL '3 months', NOW()),
-  ('22220001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-000000000013', '2021-1-01102',  'CCEA',  4, 76,  TRUE,  NOW() - INTERVAL '3 months', NOW()),
-  ('22220001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-000000000014', '2023-1-00871',  'CBA',   2, 22,  FALSE, NOW() - INTERVAL '3 months', NOW()),
-  -- Profile-only volunteers (no auth login — they exist in the volunteers
-  -- table for analytics + signup variety only). user_id intentionally left
-  -- NULL so we don't tie them to non-existent auth users.
-  ('22220001-0000-0000-0000-000000000004', NULL,                                   '2022-1-00501',  'CICS',  3, 36,  TRUE,  NOW() - INTERVAL '4 months', NOW()),
-  ('22220001-0000-0000-0000-000000000005', NULL,                                   '2022-1-00712',  'CAS',   3, 12,  TRUE,  NOW() - INTERVAL '4 months', NOW()),
-  ('22220001-0000-0000-0000-000000000006', NULL,                                   '2021-1-01540',  'CCEA',  4, 92,  TRUE,  NOW() - INTERVAL '5 months', NOW()),
-  ('22220001-0000-0000-0000-000000000007', NULL,                                   '2023-1-00088',  'CBA',   2, 16,  TRUE,  NOW() - INTERVAL '4 months', NOW()),
-  ('22220001-0000-0000-0000-000000000008', NULL,                                   '2022-1-00264',  'CICS',  3, 54,  TRUE,  NOW() - INTERVAL '5 months', NOW()),
-  ('22220001-0000-0000-0000-000000000009', NULL,                                   '2024-1-00012',  'CON',   1, 8,   FALSE, NOW() - INTERVAL '2 months', NOW()),
-  ('22220001-0000-0000-0000-000000000010', NULL,                                   '2022-1-00903',  'CCEA',  3, 64,  TRUE,  NOW() - INTERVAL '5 months', NOW())
+  ('22220001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-000000000012', '2022-1-00345', 'CICS', 3, 48, 'active', NOW() - INTERVAL '3 months'),
+  ('22220001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-000000000013', '2021-1-01102', 'CCEA', 4, 76, 'active', NOW() - INTERVAL '3 months'),
+  ('22220001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-000000000014', '2023-1-00871', 'CBA',  2, 22, 'active', NOW() - INTERVAL '3 months')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -270,8 +269,19 @@ ON CONFLICT (id) DO NOTHING;
 -- 5. PARTNERSHIP HISTORY (10 events across the 10 barangays)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.partnership_history (id, barangay_id, officer_id, event_type, notes, date, created_at)
-VALUES
+INSERT INTO public.partnership_history (
+  id, barangay_id, event_type, description, event_date, recorded_by,
+  officer_id, notes, date, created_at
+)
+SELECT
+  id::uuid, barangay_id::uuid,
+  CASE event_type
+    WHEN 'Partnership Started' THEN 'moa_signed'
+    WHEN 'MOA Renewed' THEN 'renewal'
+    ELSE 'update'
+  END,
+  notes, date::date, officer_id::uuid, officer_id::uuid, notes, date::date, created_at
+FROM (VALUES
   ('22220002-0000-0000-0000-000000000001', '22222222-2222-2222-2222-000000000001', '11111111-1111-1111-1111-000000000002', 'Partnership Started',  'Initial MOA signing with Barangay Antipona for academic year 2024–2025.',                           '2024-06-15', NOW() - INTERVAL '11 months'),
   ('22220002-0000-0000-0000-000000000002', '22222222-2222-2222-2222-000000000002', '11111111-1111-1111-1111-000000000002', 'Partnership Started',  'Bagumbayan formally partnered after community profiling visit.',                                    '2024-04-20', NOW() - INTERVAL '13 months'),
   ('22220002-0000-0000-0000-000000000003', '22222222-2222-2222-2222-000000000003', '11111111-1111-1111-1111-000000000003', 'Partnership Started',  'Bambang council approved partnership during regular session.',                                      '2024-08-01', NOW() - INTERVAL '9 months'),
@@ -282,6 +292,7 @@ VALUES
   ('22220002-0000-0000-0000-000000000008', '22222222-2222-2222-2222-000000000004', '11111111-1111-1111-1111-000000000004', 'Needs Assessment',     'Caingin baseline needs assessment finalized — flood preparedness identified as top priority.',       '2025-02-28', NOW() - INTERVAL '3 months'),
   ('22220002-0000-0000-0000-000000000009', '22222222-2222-2222-2222-000000000009', '11111111-1111-1111-1111-000000000002', 'Program Launch',       'Launched Brigada Eskwela drive in Turo Elementary School — 120 volunteers fielded.',                 '2025-04-10', NOW() - INTERVAL '6 weeks'),
   ('22220002-0000-0000-0000-000000000010', '22222222-2222-2222-2222-000000000010', '11111111-1111-1111-1111-000000000003', 'Partnership Started',  'Wakas formally onboarded as the 10th partner barangay during a brief signing ceremony.',             '2025-04-25', NOW() - INTERVAL '4 weeks')
+) AS seed(id, barangay_id, officer_id, event_type, notes, date, created_at)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -290,8 +301,8 @@ ON CONFLICT (id) DO NOTHING;
 -- ════════════════════════════════════════════════════════════════════════════
 
 INSERT INTO public.project_proposals (
-  id, title, rationale, objectives, target_beneficiaries, expected_beneficiary_count,
-  barangay_id, start_date, end_date, budget, status, created_by, reviewed_by,
+  id, title, rationale, objectives, target_beneficiaries, expected_output,
+  barangay_id, timeline_start, timeline_end, budget, status, created_by, revision_requested_from,
   is_income_generating, finance_clearance, finance_cleared_at, finance_cleared_by, finance_notes,
   prescreening_passed, prescreening_ran_at,
   community_validated, community_validation_notes, community_validated_at, community_validated_by,
@@ -469,7 +480,7 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ── Proposal reviews (10 — span pre-screening, SDG, finance, approval) ─────
-INSERT INTO public.proposal_reviews (id, proposal_id, reviewer_id, stage, decision, comments, reviewed_at)
+INSERT INTO public.proposal_reviews (id, proposal_id, reviewer_id, stage, decision, notes, reviewed_at)
 VALUES
   ('33330002-0000-0000-0000-000000000001', '33333333-3333-3333-3333-000000000001', '11111111-1111-1111-1111-000000000004', 'pre_screening',   'approved',        'Pre-screening passes — all 7 checks satisfied including mission keyword match and Community Validation attestation.',   NOW() - INTERVAL '4 weeks'),
   ('33330002-0000-0000-0000-000000000002', '33333333-3333-3333-3333-000000000001', '11111111-1111-1111-1111-000000000002', 'sdg_review',      'approved',        'SDG 4 alignment is well-articulated. Tutor-to-learner ratio realistic.',                                                  NOW() - INTERVAL '3 weeks 5 days'),
@@ -490,9 +501,9 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.programs (id, proposal_id, title, description, barangay_id, start_date, end_date, status, budget_allocated, budget_spent, created_by, created_at, updated_at)
 VALUES
-  ('44444444-4444-4444-4444-000000000001', '33333333-3333-3333-3333-000000000001', 'Lolomboy Literacy Camp 2025',                  'Twice-weekly remedial reading sessions for OSY in Sitio Malusak.',                                       '22222222-2222-2222-2222-000000000007', '2025-06-01', '2025-07-15', 'planning',  75000.00, 0.00,     '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NOW()),
-  ('44444444-4444-4444-4444-000000000002', '33333333-3333-3333-3333-000000000004', 'Turo Brigada Eskwela 2025',                    'Repainting, deep cleaning, and supply kit distribution at Turo Elementary.',                              '22222222-2222-2222-2222-000000000009', '2025-05-10', '2025-05-31', 'completed', 95000.00, 91420.00, '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '3 days'),
-  ('44444444-4444-4444-4444-000000000003', '33333333-3333-3333-3333-000000000009', 'Wakas School Supplies Drive 2025',             'Collection + packing + distribution of 65 supply kits for Grade 1 indigents.',                            '22222222-2222-2222-2222-000000000010', '2025-05-20', '2025-06-08', 'active',    18500.00, 12180.00, '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NOW()),
+  ('44444444-4444-4444-4444-000000000001', NULL, 'Lolomboy Literacy Camp 2025',                  'Twice-weekly remedial reading sessions for OSY in Sitio Malusak.',                                       '22222222-2222-2222-2222-000000000007', '2025-06-01', '2025-07-15', 'planning',  75000.00, 0.00,     '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NOW()),
+  ('44444444-4444-4444-4444-000000000002', NULL, 'Turo Brigada Eskwela 2025',                    'Repainting, deep cleaning, and supply kit distribution at Turo Elementary.',                              '22222222-2222-2222-2222-000000000009', '2025-05-10', '2025-05-31', 'completed', 95000.00, 91420.00, '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '3 days'),
+  ('44444444-4444-4444-4444-000000000003', NULL, 'Wakas School Supplies Drive 2025',             'Collection + packing + distribution of 65 supply kits for Grade 1 indigents.',                            '22222222-2222-2222-2222-000000000010', '2025-05-20', '2025-06-08', 'active',    18500.00, 12180.00, '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NOW()),
   ('44444444-4444-4444-4444-000000000004', NULL,                                   'Bagumbayan Community Health Fair',             'Quarterly free clinic in coordination with Bagumbayan RHU.',                                              '22222222-2222-2222-2222-000000000002', '2025-04-15', '2025-04-15', 'completed', 22000.00, 21450.00, '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '3 weeks'),
   ('44444444-4444-4444-4444-000000000005', NULL,                                   'Bambang Tree-Planting Day',                    'Earth Day reforestation along Bocaue riverbank.',                                                          '22222222-2222-2222-2222-000000000003', '2025-04-22', '2025-04-22', 'completed', 8500.00,  8240.00,  '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '4 weeks'),
   ('44444444-4444-4444-4444-000000000006', NULL,                                   'Antipona Youth Mental Health Conversations',   'Series of three Friday-afternoon group dialogues for youth ages 14–18.',                                  '22222222-2222-2222-2222-000000000001', '2025-03-07', '2025-03-21', 'completed', 14500.00, 14100.00, '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '12 weeks', NOW() - INTERVAL '8 weeks'),
@@ -504,18 +515,18 @@ ON CONFLICT (id) DO NOTHING;
 
 
 -- ── Program Activities (10 across programs) ────────────────────────────────
-INSERT INTO public.program_activities (id, program_id, title, description, date, location, volunteer_count, beneficiary_count, status, approval_status, approved_by, approved_at, attendance_otp, attendance_otp_expires_at, attendance_otp_issued_at, attendance_otp_issued_by, report_1, report_2, created_by, created_at, updated_at)
+INSERT INTO public.program_activities (id, program_id, title, description, date, location, status, approval_status, approved_by, approved_at, attendance_otp, attendance_otp_expires_at, attendance_otp_issued_at, attendance_otp_issued_by, report_1, report_2, created_by, created_at, updated_at)
 VALUES
-  ('45454545-4545-4545-4545-000000000001', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Repainting Day 1',         'Repaint 5 classrooms (Grade 1 wing).',                          '2025-05-10', 'Turo Elementary School',           42, 0,   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks', NULL,     NULL, NULL, NULL, 'Activity proceeded smoothly. 5 classrooms repainted on schedule.',     'Paint and brushes procured at PHP 18,420; supplier OR# 4421 on file.', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '4 weeks'),
-  ('45454545-4545-4545-4545-000000000002', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Window Repair Day',        'Replace broken windows in 8 classrooms.',                       '2025-05-17', 'Turo Elementary School',           35, 0,   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NULL,     NULL, NULL, NULL, 'All 8 windows repaired. 2 carpenters volunteered.',                       'Glass + frames PHP 12,800; OR# 4503.',                                  '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks', NOW() - INTERVAL '3 weeks'),
-  ('45454545-4545-4545-4545-000000000003', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Supply Kit Distribution',  'Distribute 200 school supply kits to scholar-recipients.',      '2025-05-24', 'Turo Elementary Gymnasium',        28, 200, 'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NULL,     NULL, NULL, NULL, 'All 200 kits distributed. Parents present.',                              'Supplies bulk-purchase PHP 42,200; itemized list attached.',            '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '2 weeks'),
-  ('45454545-4545-4545-4545-000000000004', '44444444-4444-4444-4444-000000000003', 'Wakas Supplies — Drop-Off Box Setup',        'Install 4 drop-off boxes around the DYCI campus.',              '2025-05-22', 'DYCI Main Lobby',                  6,  0,   'completed', 'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '11 days',  NULL,     NULL, NULL, NULL, 'Boxes installed by lunch.',                                                'Box materials PHP 1,800; no liquidation needed.',                       '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '12 days',  NOW() - INTERVAL '11 days'),
-  ('45454545-4545-4545-4545-000000000005', '44444444-4444-4444-4444-000000000003', 'Wakas Supplies — Kit Packing',               'Pack 65 kits using donated supplies.',                          '2025-06-01', 'CICS Computer Lab',                12, 0,   'ongoing',   'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '3 days',   '4F2K9X', NOW() + INTERVAL '2 hours', NOW() - INTERVAL '1 hour',  '11111111-1111-1111-1111-000000000003', NULL,                                                                NULL,                                                                    '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '4 days',   NOW()),
-  ('45454545-4545-4545-4545-000000000006', '44444444-4444-4444-4444-000000000004', 'Bagumbayan Health Fair — Free Clinic Day',   'Free check-ups by 4 RNs + 2 doctors. BP, glucose, GenMed.',     '2025-04-15', 'Bagumbayan Brgy Hall Covered Court', 18, 215, 'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '6 weeks', NULL,     NULL, NULL, NULL, '215 patients served. 28 referrals to Bocaue District Hospital.',          'Medicines + supplies PHP 21,450; itemized.',                            '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '7 weeks', NOW() - INTERVAL '6 weeks'),
-  ('45454545-4545-4545-4545-000000000007', '44444444-4444-4444-4444-000000000005', 'Bambang Tree-Planting',                      'Plant 200 narra + bamboo seedlings along riverbank.',           '2025-04-22', 'Bambang Riverbank',                55, 0,   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NULL,     NULL, NULL, NULL, '210 seedlings planted (slight overshoot). DENR rep present.',             'Seedlings PHP 6,800; tools rental PHP 1,440.',                          '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '5 weeks'),
-  ('45454545-4545-4545-4545-000000000008', '44444444-4444-4444-4444-000000000007', 'Caingin — Emergency Kit Pre-positioning',    'Deliver bug-out bags to 25 high-risk households.',              '2025-05-15', 'Sitio Pulo, Caingin',              14, 25,  'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NULL,     NULL, NULL, NULL, '25 households received kits + safety briefing. Family heads signed acknowledgment forms.', 'Bag contents PHP 14,200; itemized invoice attached.',                   '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '2 weeks'),
-  ('45454545-4545-4545-4545-000000000009', '44444444-4444-4444-4444-000000000008', 'Duhat — Senior Welfare Home Visits',         'Home visits + grocery packs for 30 senior citizens.',           '2025-04-12', 'Duhat (scattered)',                10, 30,  'completed', 'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '5 weeks', NULL,     NULL, NULL, NULL, 'All 30 packs delivered. 4 referrals to PARAYA medical follow-up.',         'Grocery packs PHP 18,650; OSCA Duhat acknowledgment form attached.',     '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '5 weeks'),
-  ('45454545-4545-4545-4545-000000000010', '44444444-4444-4444-4444-000000000001', 'Lolomboy Literacy — Session 1',              'Opening session — diagnostic reading assessment + ice-breakers.','2025-06-07', 'Sitio Malusak Covered Court',      0,  80,  'planned',   'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '1 week', '7Q8N2P', NOW() + INTERVAL '1 day', NOW() - INTERVAL '2 days', '11111111-1111-1111-1111-000000000002', NULL,                                                                NULL,                                                                    '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NOW() - INTERVAL '2 days')
+  ('45454545-4545-4545-4545-000000000001', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Repainting Day 1',         'Repaint 5 classrooms (Grade 1 wing).',                          '2025-05-10', 'Turo Elementary School',   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks', NULL,     NULL, NULL, NULL, 'Activity proceeded smoothly. 5 classrooms repainted on schedule.',     'Paint and brushes procured at PHP 18,420; supplier OR# 4421 on file.', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '4 weeks'),
+  ('45454545-4545-4545-4545-000000000002', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Window Repair Day',        'Replace broken windows in 8 classrooms.',                       '2025-05-17', 'Turo Elementary School',   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NULL,     NULL, NULL, NULL, 'All 8 windows repaired. 2 carpenters volunteered.',                       'Glass + frames PHP 12,800; OR# 4503.',                                  '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks', NOW() - INTERVAL '3 weeks'),
+  ('45454545-4545-4545-4545-000000000003', '44444444-4444-4444-4444-000000000002', 'Brigada Eskwela — Supply Kit Distribution',  'Distribute 200 school supply kits to scholar-recipients.',      '2025-05-24', 'Turo Elementary Gymnasium', 'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NULL,     NULL, NULL, NULL, 'All 200 kits distributed. Parents present.',                              'Supplies bulk-purchase PHP 42,200; itemized list attached.',            '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '2 weeks'),
+  ('45454545-4545-4545-4545-000000000004', '44444444-4444-4444-4444-000000000003', 'Wakas Supplies — Drop-Off Box Setup',        'Install 4 drop-off boxes around the DYCI campus.',              '2025-05-22', 'DYCI Main Lobby',   'completed', 'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '11 days',  NULL,     NULL, NULL, NULL, 'Boxes installed by lunch.',                                                'Box materials PHP 1,800; no liquidation needed.',                       '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '12 days',  NOW() - INTERVAL '11 days'),
+  ('45454545-4545-4545-4545-000000000005', '44444444-4444-4444-4444-000000000003', 'Wakas Supplies — Kit Packing',               'Pack 65 kits using donated supplies.',                          '2025-06-01', 'CICS Computer Lab',   'ongoing',   'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '3 days',   '4F2K9X', NOW() + INTERVAL '2 hours', NOW() - INTERVAL '1 hour',  '11111111-1111-1111-1111-000000000003', NULL,                                                                NULL,                                                                    '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '4 days',   NOW()),
+  ('45454545-4545-4545-4545-000000000006', '44444444-4444-4444-4444-000000000004', 'Bagumbayan Health Fair — Free Clinic Day',   'Free check-ups by 4 RNs + 2 doctors. BP, glucose, GenMed.',     '2025-04-15', 'Bagumbayan Brgy Hall Covered Court', 'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '6 weeks', NULL,     NULL, NULL, NULL, '215 patients served. 28 referrals to Bocaue District Hospital.',          'Medicines + supplies PHP 21,450; itemized.',                            '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '7 weeks', NOW() - INTERVAL '6 weeks'),
+  ('45454545-4545-4545-4545-000000000007', '44444444-4444-4444-4444-000000000005', 'Bambang Tree-Planting',                      'Plant 200 narra + bamboo seedlings along riverbank.',           '2025-04-22', 'Bambang Riverbank',   'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '5 weeks', NULL,     NULL, NULL, NULL, '210 seedlings planted (slight overshoot). DENR rep present.',             'Seedlings PHP 6,800; tools rental PHP 1,440.',                          '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '5 weeks'),
+  ('45454545-4545-4545-4545-000000000008', '44444444-4444-4444-4444-000000000007', 'Caingin — Emergency Kit Pre-positioning',    'Deliver bug-out bags to 25 high-risk households.',              '2025-05-15', 'Sitio Pulo, Caingin',  'completed', 'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NULL,     NULL, NULL, NULL, '25 households received kits + safety briefing. Family heads signed acknowledgment forms.', 'Bag contents PHP 14,200; itemized invoice attached.',                   '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '2 weeks'),
+  ('45454545-4545-4545-4545-000000000009', '44444444-4444-4444-4444-000000000008', 'Duhat — Senior Welfare Home Visits',         'Home visits + grocery packs for 30 senior citizens.',           '2025-04-12', 'Duhat (scattered)',  'completed', 'approved', '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '5 weeks', NULL,     NULL, NULL, NULL, 'All 30 packs delivered. 4 referrals to PARAYA medical follow-up.',         'Grocery packs PHP 18,650; OSCA Duhat acknowledgment form attached.',     '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '5 weeks'),
+  ('45454545-4545-4545-4545-000000000010', '44444444-4444-4444-4444-000000000001', 'Lolomboy Literacy — Session 1',              'Opening session — diagnostic reading assessment + ice-breakers.','2025-06-07', 'Sitio Malusak Covered Court',  'planned',   'approved', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '1 week', '7Q8N2P', NOW() + INTERVAL '1 day', NOW() - INTERVAL '2 days', '11111111-1111-1111-1111-000000000002', NULL,                                                                NULL,                                                                    '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '2 weeks', NOW() - INTERVAL '2 days')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -571,8 +582,22 @@ ON CONFLICT (activity_id, volunteer_id) DO NOTHING;
 -- 8. COMMUNITY NEEDS (10 — mix of categories, priorities, approval states)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.community_needs (id, barangay_id, submitted_by, category, title, description, priority, affected_count, sitio, approval_status, approved_by, approved_at, approval_notes, created_at)
-VALUES
+INSERT INTO public.community_needs (
+  id, barangay_id, submitted_by, category, need_description, priority_score,
+  source, sitio, approval_status, approved_by, approved_at, approval_notes, created_at
+)
+SELECT
+  id::uuid, barangay_id::uuid, submitted_by::uuid,
+  CASE category
+    WHEN 'environmental' THEN 'environment'
+    WHEN 'economic' THEN 'livelihood'
+    WHEN 'social' THEN 'education'
+    ELSE category
+  END,
+  title || ': ' || description,
+  CASE priority WHEN 'critical' THEN 5 WHEN 'high' THEN 4 WHEN 'medium' THEN 3 WHEN 'low' THEN 2 ELSE 1 END,
+  'household_profile', sitio, approval_status, approved_by::uuid, approved_at, approval_notes, created_at
+FROM (VALUES
   ('55555555-5555-5555-5555-000000000001', '22222222-2222-2222-2222-000000000007', '11111111-1111-1111-1111-000000000008', 'health',        'Maternal nutrition gaps in Sitio Malusak',           'Mother-leaders observed inadequate iron/folate uptake among pregnant residents.',             'high',     14, 'Malusak',    'approved',       '11111111-1111-1111-1111-000000000006', NOW() - INTERVAL '5 weeks', 'Endorsed for Maternal Health Symposium proposal.',  NOW() - INTERVAL '6 weeks'),
   ('55555555-5555-5555-5555-000000000002', '22222222-2222-2222-2222-000000000004', '11111111-1111-1111-1111-000000000004', 'environmental','Recurring flooding in Sitio Pulo',                   'Knee-deep flooding 4+ times per rainy season. Bocaue River backflow.',                        'critical', 320,'Pulo',       'approved',       '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '4 weeks', NULL,                                                NOW() - INTERVAL '4 weeks'),
   ('55555555-5555-5555-5555-000000000003', '22222222-2222-2222-2222-000000000002', '11111111-1111-1111-1111-000000000007', 'economic',      'Food insecurity in Bagumbayan',                       '41% of surveyed households skip ≥1 meal per week.',                                            'high',     805,NULL,         'approved',       '11111111-1111-1111-1111-000000000006', NOW() - INTERVAL '8 weeks', 'Approved — basis for Backyard Garden proposal.',     NOW() - INTERVAL '10 weeks'),
@@ -583,6 +608,7 @@ VALUES
   ('55555555-5555-5555-5555-000000000008', '22222222-2222-2222-2222-000000000003', '11111111-1111-1111-1111-000000000007', 'social',        'Bambang youth report lack of recreation outlets',     'Youth interviewed during home visits — high mobile/social media dependency.',                  'low',      60, NULL,         'pending_captain', NULL,                                  NULL,                       NULL,                                                NOW() - INTERVAL '10 days'),
   ('55555555-5555-5555-5555-000000000009', '22222222-2222-2222-2222-000000000001', '11111111-1111-1111-1111-000000000008', 'health',        'Antipona dengue surge',                                '6 confirmed dengue cases in past 14 days; standing water in 3 alleys.',                         'critical', 6,  'Centro',     'pending_captain', NULL,                                  NULL,                       NULL,                                                NOW() - INTERVAL '4 days'),
   ('55555555-5555-5555-5555-000000000010', '22222222-2222-2222-2222-000000000010', '11111111-1111-1111-1111-000000000007', 'social',        'Wakas grade 1 students arrive without school supplies','School class advisers report 65 grade 1 enrollees from indigent households unsupplied.',         'medium',   65, NULL,         'approved',       '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '3 weeks', 'Approved — basis for Wakas Supplies Drive.',         NOW() - INTERVAL '4 weeks')
+) AS seed(id, barangay_id, submitted_by, category, title, description, priority, affected_count, sitio, approval_status, approved_by, approved_at, approval_notes, created_at)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -590,25 +616,9 @@ ON CONFLICT (id) DO NOTHING;
 -- 9. HOUSEHOLD PROFILES (10 — spread across barangays + sitios)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.household_profiles (id, barangay_id, household_number, head_of_household, family_name, member_count, income_bracket, primary_needs, sitio, notes, extended_data, collected_by, collected_at, created_at, updated_at)
-VALUES
-  ('56565656-5656-5656-5656-000000000001', '22222222-2222-2222-2222-000000000007', 'HH-001', 'Romeo Bautista',     'Bautista',     5, 'below_poverty', ARRAY['health','economic']::TEXT[],         'Malusak',  'Single-parent family. Eldest child works odd jobs.', '{"housing_type":"semi-permanent","water_source":"deep_well","electricity":true,"toilet":"sealed_pit","flood_prone":true,"breadwinner_employment":"informal"}'::jsonb,                                                                   '11111111-1111-1111-1111-000000000008', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks'),
-  ('56565656-5656-5656-5656-000000000002', '22222222-2222-2222-2222-000000000007', 'HH-002', 'Linda Cruz',         'Cruz',         7, 'below_poverty', ARRAY['health','economic','social']::TEXT[],'Malusak',  'Pregnant teen daughter.',                            '{"housing_type":"makeshift","water_source":"shared_faucet","electricity":false,"toilet":"none","flood_prone":true,"breadwinner_employment":"unemployed"}'::jsonb,                                                                         '11111111-1111-1111-1111-000000000008', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks'),
-  ('56565656-5656-5656-5656-000000000003', '22222222-2222-2222-2222-000000000007', 'HH-003', 'Dario Soriano',      'Soriano',      4, 'low_income',    ARRAY['economic']::TEXT[],                  'Centro',   NULL,                                                  '{"housing_type":"permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"breadwinner_employment":"farming"}'::jsonb,                                                                                  '11111111-1111-1111-1111-000000000008', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks'),
-  ('56565656-5656-5656-5656-000000000004', '22222222-2222-2222-2222-000000000002', 'HH-001', 'Susana del Rosario', 'del Rosario',  6, 'below_poverty', ARRAY['economic','health']::TEXT[],         NULL,       'Diabetic head of household.',                         '{"housing_type":"semi-permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"breadwinner_employment":"informal"}'::jsonb,                                                                            '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '8 weeks'),
-  ('56565656-5656-5656-5656-000000000005', '22222222-2222-2222-2222-000000000002', 'HH-002', 'Edgar Mateo',        'Mateo',        4, 'low_income',    ARRAY['economic']::TEXT[],                  NULL,       NULL,                                                  '{"housing_type":"permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"breadwinner_employment":"contractual"}'::jsonb,                                                                              '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '8 weeks', NOW() - INTERVAL '8 weeks'),
-  ('56565656-5656-5656-5656-000000000006', '22222222-2222-2222-2222-000000000004', 'HH-001', 'Bonifacio Garcia',   'Garcia',       8, 'below_poverty', ARRAY['environmental','economic']::TEXT[],  'Pulo',     'Most flood-affected family in Sitio Pulo.',           '{"housing_type":"makeshift","water_source":"deep_well","electricity":true,"toilet":"shared","flood_prone":true,"breadwinner_employment":"fishing","disaster_kit":false}'::jsonb,                                                          '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks'),
-  ('56565656-5656-5656-5656-000000000007', '22222222-2222-2222-2222-000000000004', 'HH-002', 'Adoracion Tomas',    'Tomas',        3, 'below_poverty', ARRAY['environmental']::TEXT[],             'Pulo',     'Widow + two grandchildren.',                          '{"housing_type":"makeshift","water_source":"deep_well","electricity":false,"toilet":"sealed_pit","flood_prone":true,"breadwinner_employment":"none"}'::jsonb,                                                                              '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks'),
-  ('56565656-5656-5656-5656-000000000008', '22222222-2222-2222-2222-000000000005', 'HH-001', 'Lola Pacing Domingo','Domingo',      2, 'low_income',    ARRAY['health','social']::TEXT[],           NULL,       '78 y/o head of household.',                           '{"housing_type":"permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"senior_only":true,"phc_card":true}'::jsonb,                                                                                   '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '4 weeks', NOW() - INTERVAL '4 weeks', NOW() - INTERVAL '4 weeks'),
-  ('56565656-5656-5656-5656-000000000009', '22222222-2222-2222-2222-000000000006', 'HH-001', 'Carmela Pascual',    'Pascual',      5, 'low_income',    ARRAY['environmental']::TEXT[],             'San Roque','No segregation practice at home.',                     '{"housing_type":"permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"waste_segregation":"no"}'::jsonb,                                                                                            '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks', NOW() - INTERVAL '3 weeks'),
-  ('56565656-5656-5656-5656-000000000010', '22222222-2222-2222-2222-000000000008', 'HH-001', 'Auring Mendoza',     'Mendoza',      5, 'low_income',    ARRAY['economic']::TEXT[],                  NULL,       'Mother active in soap-making group.',                  '{"housing_type":"semi-permanent","water_source":"piped","electricity":true,"toilet":"flush","flood_prone":false,"livelihood_member":true}'::jsonb,                                                                                       '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '5 weeks')
-ON CONFLICT (id) DO NOTHING;
-
-
--- ════════════════════════════════════════════════════════════════════════════
--- 10. BARANGAY SKILLS (10) + BARANGAY ASSETS (10)
--- ════════════════════════════════════════════════════════════════════════════
-
+-- Legacy household rows are intentionally not seeded after Phase 1. The
+-- compatibility table is immutable legacy-unverified evidence and its write
+-- guard must remain active even for development datasets.
 INSERT INTO public.barangay_skills (id, barangay_id, skill_name, category, practitioner_count, proficiency_level, notes, created_by)
 VALUES
   ('57575757-5757-5757-5757-000000000001', '22222222-2222-2222-2222-000000000007', 'Carpentry',                'trade',       12, 'intermediate', '4 with bench-carpenter experience.',                              '11111111-1111-1111-1111-000000000003'),
@@ -642,8 +652,22 @@ ON CONFLICT (id) DO NOTHING;
 -- 11. SURVEYS, QUESTIONS, RESPONSES, ANSWERS, TEMPLATES
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.surveys (id, title, description, category, status, target_barangay_id, created_by, published_at, methodology, parent_survey_id, opens_at, is_anonymous, is_editable, reminder_enabled, submission_type, created_at, updated_at)
-VALUES
+INSERT INTO public.surveys (
+  id, title, description, template_type, status, target_barangay_id, created_by,
+  published_at, methodology, parent_survey_id, opens_at, is_anonymous,
+  is_editable, reminder_enabled, submission_type, created_at, updated_at
+)
+SELECT
+  id::uuid, title, description,
+  CASE category
+    WHEN 'social' THEN 'education'
+    WHEN 'economic' THEN 'livelihood'
+    WHEN 'environmental' THEN 'custom'
+    ELSE category
+  END,
+  status, target_barangay_id::uuid, created_by::uuid, published_at, methodology, parent_survey_id::uuid,
+  opens_at::timestamptz, is_anonymous, is_editable, reminder_enabled, submission_type, created_at, updated_at
+FROM (VALUES
   ('66666666-6666-6666-6666-000000000001', 'Lolomboy Baseline Literacy Assessment',          'Pre-camp diagnostic for reading proficiency.',                        'social',        'published', '22222222-2222-2222-2222-000000000007', '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '4 weeks',  'quantitative', NULL, NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '5 weeks',  NOW() - INTERVAL '4 weeks'),
   ('66666666-6666-6666-6666-000000000002', 'Lolomboy Post-Literacy Camp Assessment',         'Post-camp re-test for the same 80 OSY learners.',                     'social',        'draft',     '22222222-2222-2222-2222-000000000007', '11111111-1111-1111-1111-000000000004', NULL,                          'quantitative', '66666666-6666-6666-6666-000000000001', NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '1 week',   NOW()),
   ('66666666-6666-6666-6666-000000000003', 'Bagumbayan Food Security Survey',                'Quantify food insecurity prevalence.',                                'economic',      'closed',    '22222222-2222-2222-2222-000000000002', '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '12 weeks', 'quantitative', NULL, NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '13 weeks', NOW() - INTERVAL '8 weeks'),
@@ -654,6 +678,7 @@ VALUES
   ('66666666-6666-6666-6666-000000000008', 'Igulot Waste Segregation Self-Report',           'Household-level habits + barriers.',                                  'environmental', 'published', '22222222-2222-2222-2222-000000000006', '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '10 days',  'mixed',        NULL, NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '2 weeks',  NOW() - INTERVAL '10 days'),
   ('66666666-6666-6666-6666-000000000009', 'Wakas Indigent Family Verification',             'Verify which families need supply kits.',                             'social',        'closed',    '22222222-2222-2222-2222-000000000010', '11111111-1111-1111-1111-000000000004', NOW() - INTERVAL '5 weeks',  'quantitative', NULL, NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '6 weeks',  NOW() - INTERVAL '4 weeks'),
   ('66666666-6666-6666-6666-000000000010', 'Bambang Youth Engagement Survey',                'Recreational activity preferences for youth ages 11–17.',             'social',        'draft',     '22222222-2222-2222-2222-000000000003', '11111111-1111-1111-1111-000000000004', NULL,                          'mixed',        NULL, NULL, FALSE, FALSE, FALSE, 'once', NOW() - INTERVAL '4 days',   NOW())
+) AS seed(id, title, description, category, status, target_barangay_id, created_by, published_at, methodology, parent_survey_id, opens_at, is_anonymous, is_editable, reminder_enabled, submission_type, created_at, updated_at)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -698,18 +723,18 @@ UPDATE public.survey_responses
 
 
 -- ── Survey Answers (10 — one per question above) ───────────────────────────
-INSERT INTO public.survey_answers (id, response_id, question_id, answer_text, answer_options)
+INSERT INTO public.survey_answers (id, response_id, question_id, answer_text)
 VALUES
-  ('68680000-0000-0000-0000-000000000001', '68686868-6868-6868-6868-000000000001', '67676767-6767-6767-6767-000000000001', 'With some effort',     NULL),
-  ('68680000-0000-0000-0000-000000000002', '68686868-6868-6868-6868-000000000001', '67676767-6767-6767-6767-000000000002', 'Rarely',                NULL),
-  ('68680000-0000-0000-0000-000000000003', '68686868-6868-6868-6868-000000000002', '67676767-6767-6767-6767-000000000001', 'Yes, fluently',         NULL),
-  ('68680000-0000-0000-0000-000000000004', '68686868-6868-6868-6868-000000000003', '67676767-6767-6767-6767-000000000003', '5',                     NULL),
-  ('68680000-0000-0000-0000-000000000005', '68686868-6868-6868-6868-000000000003', '67676767-6767-6767-6767-000000000004', 'Not enough money',      NULL),
-  ('68680000-0000-0000-0000-000000000006', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000005', '5',                     NULL),
-  ('68680000-0000-0000-0000-000000000007', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000006', 'No',                    NULL),
-  ('68680000-0000-0000-0000-000000000008', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000007', 'I would carry my children upstairs and call my brother.', NULL),
-  ('68680000-0000-0000-0000-000000000009', '68686868-6868-6868-6868-000000000007', '67676767-6767-6767-6767-000000000008', NULL,                    ARRAY['Messenger','Facebook']),
-  ('68680000-0000-0000-0000-000000000010', '68686868-6868-6868-6868-000000000009', '67676767-6767-6767-6767-000000000010', 'Sometimes',             NULL)
+  ('68680000-0000-0000-0000-000000000001', '68686868-6868-6868-6868-000000000001', '67676767-6767-6767-6767-000000000001', 'With some effort'),
+  ('68680000-0000-0000-0000-000000000002', '68686868-6868-6868-6868-000000000001', '67676767-6767-6767-6767-000000000002', 'Rarely'),
+  ('68680000-0000-0000-0000-000000000003', '68686868-6868-6868-6868-000000000002', '67676767-6767-6767-6767-000000000001', 'Yes, fluently'),
+  ('68680000-0000-0000-0000-000000000004', '68686868-6868-6868-6868-000000000003', '67676767-6767-6767-6767-000000000003', '5'),
+  ('68680000-0000-0000-0000-000000000005', '68686868-6868-6868-6868-000000000003', '67676767-6767-6767-6767-000000000004', 'Not enough money'),
+  ('68680000-0000-0000-0000-000000000006', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000005', '5'),
+  ('68680000-0000-0000-0000-000000000007', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000006', 'No'),
+  ('68680000-0000-0000-0000-000000000008', '68686868-6868-6868-6868-000000000006', '67676767-6767-6767-6767-000000000007', 'I would carry my children upstairs and call my brother.'),
+  ('68680000-0000-0000-0000-000000000009', '68686868-6868-6868-6868-000000000007', '67676767-6767-6767-6767-000000000008', 'Messenger; Facebook'),
+  ('68680000-0000-0000-0000-000000000010', '68686868-6868-6868-6868-000000000009', '67676767-6767-6767-6767-000000000010', 'Sometimes')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -771,8 +796,14 @@ ON CONFLICT (id) DO NOTHING;
 -- 14. DONATIONS (10) + DISTRIBUTIONS (10)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.donations (id, donor_name, donor_type, item_type, quantity, unit, received_date, program_id, barangay_id, notes, created_by, created_at, updated_at)
-VALUES
+INSERT INTO public.donations (
+  id, donor_name, donor_type, item_type, quantity, unit, received_date,
+  program_id, barangay_id, notes, created_by, created_at
+)
+SELECT
+  id::uuid, donor_name, CASE WHEN donor_type = 'corporate' THEN 'organization' ELSE donor_type END,
+  item_type, quantity, unit, received_date::date, program_id::uuid, barangay_id::uuid, notes, created_by::uuid, created_at
+FROM (VALUES
   ('88888888-8888-8888-8888-000000000001', 'DYCI Alumni Association',          'organization', 'School Supplies', 200, 'sets',   '2025-05-15', '44444444-4444-4444-4444-000000000002', '22222222-2222-2222-2222-000000000009', 'Brigada Eskwela kits.',                                       '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '5 weeks'),
   ('88888888-8888-8888-8888-000000000002', 'San Miguel Foundation',            'corporate',    'Canned Goods',    500, 'pcs',    '2025-05-08', '44444444-4444-4444-4444-000000000004', '22222222-2222-2222-2222-000000000002', 'For Bagumbayan health fair packs.',                            '11111111-1111-1111-1111-000000000003', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks'),
   ('88888888-8888-8888-8888-000000000003', 'Eng. Reynaldo Ocampo',             'individual',   'Cash',            30000, 'PHP',  '2025-04-20', '44444444-4444-4444-4444-000000000002', NULL,                                   'Earmarked for paint and brushes.',                            '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '7 weeks', NOW() - INTERVAL '7 weeks'),
@@ -783,6 +814,7 @@ VALUES
   ('88888888-8888-8888-8888-000000000008', 'Mercury Drug Lolomboy',            'corporate',    'Medicine',        45,  'boxes',  '2025-03-21', NULL,                                   '22222222-2222-2222-2222-000000000007', 'Pediatric meds for Mother Leader emergency stock.',           '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '11 weeks', NOW() - INTERVAL '11 weeks'),
   ('88888888-8888-8888-8888-000000000009', 'DPWH Region III Office',           'government',   'Equipment',       10,  'sets',   '2025-04-25', '44444444-4444-4444-4444-000000000007', '22222222-2222-2222-2222-000000000004', 'Emergency tools (shovels, rope, bags) for flood preparedness.','11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '6 weeks', NOW() - INTERVAL '6 weeks'),
   ('88888888-8888-8888-8888-000000000010', 'DYCI Parents Council',             'organization', 'Cash',            18000, 'PHP', '2025-05-10', '44444444-4444-4444-4444-000000000003', NULL,                                   'Pledged for Wakas supplies — donation receipt PR-2025-0510.', '11111111-1111-1111-1111-000000000010', NOW() - INTERVAL '5 weeks', NOW() - INTERVAL '5 weeks')
+) AS seed(id, donor_name, donor_type, item_type, quantity, unit, received_date, program_id, barangay_id, notes, created_by, created_at, updated_at)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -838,15 +870,15 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.follow_up_records (id, program_id, followup_type, scheduled_date, status, notes, created_by)
 VALUES
   ('9B9B9B9B-9B9B-9B9B-9B9B-000000000001', '44444444-4444-4444-4444-000000000002', 'immediate', '2025-06-07', 'completed', 'Same-week walk-through with the principal — all repairs confirmed durable.', '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000002', '44444444-4444-4444-4444-000000000002', '6_month',   '2025-11-15', 'pending',   'Check if repaint holds through rainy season.',                                 '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000003', '44444444-4444-4444-4444-000000000004', '6_month',   '2025-10-15', 'pending',   'Track referrals + RHU follow-up.',                                              '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000004', '44444444-4444-4444-4444-000000000005', '6_month',   '2025-10-22', 'pending',   'Survival rate of seedlings.',                                                   '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000005', '44444444-4444-4444-4444-000000000005', '12_month',  '2026-04-22', 'pending',   '1-yr survival + canopy assessment.',                                            '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000006', '44444444-4444-4444-4444-000000000008', '6_month',   '2025-10-12', 'pending',   'Senior wellness check.',                                                        '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000002', '44444444-4444-4444-4444-000000000002', '6_month',   '2025-11-15', 'scheduled',   'Check if repaint holds through rainy season.',                                 '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000003', '44444444-4444-4444-4444-000000000004', '6_month',   '2025-10-15', 'scheduled',   'Track referrals + RHU follow-up.',                                              '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000004', '44444444-4444-4444-4444-000000000005', '6_month',   '2025-10-22', 'scheduled',   'Survival rate of seedlings.',                                                   '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000005', '44444444-4444-4444-4444-000000000005', '12_month',  '2026-04-22', 'scheduled',   '1-yr survival + canopy assessment.',                                            '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000006', '44444444-4444-4444-4444-000000000008', '6_month',   '2025-10-12', 'scheduled',   'Senior wellness check.',                                                        '11111111-1111-1111-1111-000000000004'),
   ('9B9B9B9B-9B9B-9B9B-9B9B-000000000007', '44444444-4444-4444-4444-000000000007', 'immediate', '2025-05-22', 'completed', 'All 25 kits accounted for one week post-distribution.',                          '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000008', '44444444-4444-4444-4444-000000000006', '6_month',   '2025-09-21', 'pending',   'Reach out to participating youth via barangay coordinator.',                     '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000009', '44444444-4444-4444-4444-000000000009', '12_month',  '2026-05-17', 'pending',   'Did Igulot junk-to-funds become a sustained livelihood?',                       '11111111-1111-1111-1111-000000000004'),
-  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000010', '44444444-4444-4444-4444-000000000002', '12_month',  '2026-05-31', 'pending',   'One-year durability of repairs.',                                                '11111111-1111-1111-1111-000000000004')
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000008', '44444444-4444-4444-4444-000000000006', '6_month',   '2025-09-21', 'scheduled',   'Reach out to participating youth via barangay coordinator.',                     '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000009', '44444444-4444-4444-4444-000000000009', '12_month',  '2026-05-17', 'scheduled',   'Did Igulot junk-to-funds become a sustained livelihood?',                       '11111111-1111-1111-1111-000000000004'),
+  ('9B9B9B9B-9B9B-9B9B-9B9B-000000000010', '44444444-4444-4444-4444-000000000002', '12_month',  '2026-05-31', 'scheduled',   'One-year durability of repairs.',                                                '11111111-1111-1111-1111-000000000004')
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -854,8 +886,20 @@ ON CONFLICT (id) DO NOTHING;
 -- 16. AI REPORTS (10) + ANALYTICS SNAPSHOTS (10)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.ai_reports (id, title, period_start, period_end, narrative, status, generated_by, reviewed_by, approved_at, snapshot_id)
-VALUES
+INSERT INTO public.ai_reports (id, report_type, content, prompt_used, generated_by, generated_at)
+SELECT
+  id::uuid,
+  CASE
+    WHEN title ILIKE '%volunteer%' THEN 'volunteer'
+    WHEN title ILIKE '%sdg%' THEN 'sdg'
+    WHEN title ILIKE '%program%' OR title ILIKE '%activity%' THEN 'program'
+    ELSE 'impact'
+  END,
+  narrative,
+  'Legacy development seed summary: ' || title || ' (' || period_start || ' to ' || period_end || ')',
+  generated_by::uuid,
+  COALESCE(approved_at, now())
+FROM (VALUES
   ('AAAA0000-0000-0000-0000-000000000001', 'AGAPE Monthly Narrative — April 2025',     '2025-04-01', '2025-04-30', 'In April 2025, PARAYA delivered 4 programs across 4 barangays. Bagumbayan Health Fair, Bambang Tree Planting, Duhat Senior Welfare visits, and Antipona Youth Mental Health closed sessions accounted for 305 direct beneficiaries and 178 volunteer hours. Key insight: dialogues on youth mental health saw consistent week-over-week growth (12 → 18 → 15 participants).', 'approved', '11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks',  NULL),
   ('AAAA0000-0000-0000-0000-000000000002', 'AGAPE Monthly Narrative — May 2025',       '2025-05-01', '2025-05-31', 'May 2025 was a high-activity month: Brigada Eskwela in Turo Elementary, Caingin Flood Watch Pilot rollout, Igulot Junk-to-Funds, and the start of Wakas Supplies Drive. 1,090 beneficiaries reached; 1,287 volunteer hours logged.',                                                                                                                                          'reviewed', '11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-000000000003', NULL,                       NULL),
   ('AAAA0000-0000-0000-0000-000000000003', 'AGAPE Q1 Narrative — Jan–Mar 2025',         '2025-01-01', '2025-03-31', 'Q1 2025 focused on community profiling and Antipona Youth Mental Health Conversations.',                                                                                                                                                                                                                                                                                            'approved', '11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '7 weeks',  NULL),
@@ -866,6 +910,7 @@ VALUES
   ('AAAA0000-0000-0000-0000-000000000008', 'SDG Footprint AY 2024–2025 (interim)',     '2024-08-01', '2025-04-30', 'Across 9 months: SDG 4 covered by 5 programs (Brigada Eskwela, Wakas Drive, Antipona Mental Health, Literacy Camp planning, Duhat Digital Skills proposal). SDG 11 covered by 3. SDG 9 by 1 active proposal.',                                                                                                                                                                       'approved', '11111111-1111-1111-1111-000000000002', '11111111-1111-1111-1111-000000000002', NOW() - INTERVAL '4 weeks',  NULL),
   ('AAAA0000-0000-0000-0000-000000000009', 'Volunteer Engagement — May 2025',          '2025-05-01', '2025-05-31', '3 active volunteer leads contributing 31, 22, and 16 hours respectively. CICS and CCEA lead departments. Engagement skewed toward facility-prep work; opportunity to balance toward research/data tasks.',                                                                                                                                                                            'draft',    '11111111-1111-1111-1111-000000000004', NULL,                                  NULL,                       NULL),
   ('AAAA0000-0000-0000-0000-000000000010', 'Donations Quarterly Summary — Q2 2025',    '2025-04-01', '2025-06-30', 'Through Q2: PHP 48,000 cash + 925 items received from 10 donors. Distribution efficiency: 92% (of received items distributed within 3 weeks).',                                                                                                                                                                                                                                       'draft',    '11111111-1111-1111-1111-000000000003', NULL,                                  NULL,                       NULL)
+) AS seed(id, title, period_start, period_end, narrative, status, generated_by, reviewed_by, approved_at, snapshot_id)
 ON CONFLICT (id) DO NOTHING;
 
 
@@ -888,8 +933,12 @@ ON CONFLICT (id) DO NOTHING;
 -- 17. NOTIFICATIONS (10 — spread across user roles)
 -- ════════════════════════════════════════════════════════════════════════════
 
-INSERT INTO public.notifications (id, user_id, type, title, message, is_read, action_url, created_at)
-VALUES
+INSERT INTO public.notifications (id, user_id, type, title, message, is_read, channel, created_at)
+SELECT
+  id::uuid, user_id::uuid,
+  CASE type WHEN 'warning' THEN 'alert' WHEN 'reminder' THEN 'reminder' ELSE 'program' END,
+  title, message, is_read, 'in_app', created_at
+FROM (VALUES
   ('CCCC0000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-000000000006', 'reminder',     'Community need awaiting your approval', '"Antipona dengue surge" was just submitted by a Mother Leader. Please review and approve to forward to PARAYA.',  FALSE, '/barangay/approvals', NOW() - INTERVAL '4 days'),
   ('CCCC0000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-000000000012', 'info',         'You''ve been confirmed for Lolomboy Literacy Camp',  'See you on June 7 at the Sitio Malusak Covered Court.',                                                            TRUE,  '/volunteer/programs', NOW() - INTERVAL '12 days'),
   ('CCCC0000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-000000000005', 'reminder',     'Finance clearance pending: Sulucan Soap-Making',     'This is an income-generating proposal requiring your independent clearance.',                                       FALSE, '/officer/finance',     NOW() - INTERVAL '7 days'),
@@ -900,6 +949,7 @@ VALUES
   ('CCCC0000-0000-0000-0000-000000000008', '11111111-1111-1111-1111-000000000014', 'reminder',     'Upcoming activity',                                   'Wakas Supply Kit Packing on June 1, 9:00 AM. Don''t forget to scan the QR at the venue.',                            FALSE, '/volunteer/check-in',  NOW() - INTERVAL '4 days'),
   ('CCCC0000-0000-0000-0000-000000000009', '11111111-1111-1111-1111-000000000008', 'info',         'New survey assigned',                                 'You''ve been assigned to facilitate Lolomboy Baseline Literacy Assessment with Sitio Malusak households.',           TRUE,  '/barangay/surveys',    NOW() - INTERVAL '4 weeks'),
   ('CCCC0000-0000-0000-0000-000000000010', '11111111-1111-1111-1111-000000000001', 'warning',      'Backup reminder',                                     'Monthly backup verification is due this Friday. Confirm the latest Supabase auto-snapshot.',                          FALSE, '/admin/backup',        NOW() - INTERVAL '1 day')
+) AS seed(id, user_id, type, title, message, is_read, action_url, created_at)
 ON CONFLICT (id) DO NOTHING;
 
 

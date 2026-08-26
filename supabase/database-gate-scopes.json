@@ -27,7 +27,8 @@
         "20260817000300_phase1_domain_containment.sql",
         "20260817000310_phase1_function_execute_hardening.sql",
         "20260817000400_phase1_completion_gate.sql",
-        "20260817000410_phase1_release_gate_remediation.sql"
+        "20260817000410_phase1_release_gate_remediation.sql",
+        "20260818000800_phase1_effective_period_integrity.sql"
       ],
       "databaseTestPaths": ["tests/database/phase1"],
       "fixtureSeedPaths": ["tests/fixtures/release-gate-phase1.sql"],
@@ -60,7 +61,8 @@
         "20260818000720_phase2_proposal_budget_operations.sql",
         "20260818000730_phase2_program_finance_operations.sql",
         "20260818000740_phase2_historical_imports.sql",
-        "20260818000750_phase2_document_boundary.sql"
+        "20260818000750_phase2_document_boundary.sql",
+        "20260818000800_phase1_effective_period_integrity.sql"
       ],
       "databaseTestPaths": ["tests/database"],
       "fixtureSeedPaths": [

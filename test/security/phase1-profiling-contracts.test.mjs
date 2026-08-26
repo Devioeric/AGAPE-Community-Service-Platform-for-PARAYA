@@ -59,11 +59,11 @@ test("cycle context and mutation DTOs are resolved only through actor-scoped RPC
   const calls = [];
   const client = { rpc: async (name, args) => {
     calls.push([name, args]);
-    if (name === "phase1_list_profiling_cycles") return { data: [{ id: cycleId, barangay_id: "44444444-4444-4444-8444-444444444444", status: "collecting", collection_starts_on: "2026-08-01", collection_ends_on: "2026-08-31", row_version: 3, name: "ignored" }], error: null };
-    return { data: [{ id: "55555555-5555-4555-8555-555555555555", row_version: 7, household_code: "ignored" }], error: null };
+    if (name === "phase1_get_profiling_cycle_context") return { data: { id: cycleId, barangay_id: "44444444-4444-4444-8444-444444444444", status: "collecting", collection_starts_on: "2026-08-01", collection_ends_on: "2026-08-31", row_version: 3 }, error: null };
+    return { data: { id: "55555555-5555-4555-8555-555555555555", row_version: 7, cycle_id: cycleId }, error: null };
   } };
   const cycle = await getAuthorizedProfilingCycleContext(client, cycleId);
   assert.deepEqual(cycle, { id: cycleId, barangay_id: "44444444-4444-4444-8444-444444444444", status: "collecting", collection_starts_on: "2026-08-01", collection_ends_on: "2026-08-31", row_version: 3 });
   assert.deepEqual(await getProfilingSubmissionMutationDTO(client, cycleId, "55555555-5555-4555-8555-555555555555"), { id: "55555555-5555-4555-8555-555555555555", rowVersion: 7 });
-  assert.deepEqual(calls.map(([name]) => name), ["phase1_list_profiling_cycles", "phase1_list_profiling_submissions"]);
+  assert.deepEqual(calls.map(([name]) => name), ["phase1_get_profiling_cycle_context", "phase1_get_profiling_submission_mutation"]);
 });

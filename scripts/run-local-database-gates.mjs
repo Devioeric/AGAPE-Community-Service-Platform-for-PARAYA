@@ -17,18 +17,19 @@ const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
 
 function usage() {
-  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--all]
+  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--legacy-seed-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
-  [--reconciliation-configuration <private-sql>]
+  [--reconciliation-configuration <private-sql>] [--candidate-mode]
   [--artifact-dir <outside-repository-directory>]`);
 }
 
 function parse(argv) {
-  const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null };
+  const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null, candidateMode: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
-    if (["--preflight", "--replay-only", "--all"].includes(key)) options.mode = key;
+    if (["--preflight", "--replay-only", "--legacy-seed-only", "--all"].includes(key)) options.mode = key;
+    else if (key === "--candidate-mode") options.candidateMode = true;
     else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
       if (!value || value.startsWith("--")) throw new Error(`${key} requires a value`);
@@ -43,6 +44,9 @@ function parse(argv) {
   if (!["phase1", "phase2", "reconciliation-applied", "reconciliation-full"].includes(options.scope)) throw new Error("invalid --scope");
   if (options.scope.startsWith("reconciliation-") && (!options.baselineCandidate || !options.captureDirectory || !options.reconciliationConfiguration)) {
     throw new Error("reconciliation scope requires --baseline-candidate, --capture-dir, and --reconciliation-configuration");
+  }
+  if (options.candidateMode && (!['phase1','phase2'].includes(options.scope) || !options.baselineCandidate || !options.captureDirectory || !options.reconciliationConfiguration)) {
+    throw new Error("--candidate-mode requires phase1/phase2 plus --baseline-candidate, --capture-dir, and --reconciliation-configuration");
   }
   return options;
 }
@@ -59,7 +63,7 @@ const scopeManifest = await loadDatabaseGateScopeManifest(root).catch((error) =>
 const configuredScope = scopeConfiguration(scopeManifest, options.scope);
 
 let appliedVersions = [];
-if (options.scope.startsWith("reconciliation-")) {
+if (options.scope.startsWith("reconciliation-") || options.candidateMode) {
   const capture = await validateAuthoritativeCapture({ captureDirectory: options.captureDirectory });
   if (!capture.valid) {
     console.error(`Private authoritative capture is invalid (${capture.problems.length} finding(s)); no contents were printed.`);
@@ -73,7 +77,7 @@ if (options.scope.startsWith("reconciliation-")) {
 
 const failures = await collectStaticPreflightFailures(root, process.env, {
   scope: options.scope, baselineCandidate: options.baselineCandidate,
-  reconciliationConfiguration: options.reconciliationConfiguration, appliedVersions, scopeManifest,
+  reconciliationConfiguration: options.reconciliationConfiguration, candidateMode: options.candidateMode, appliedVersions, scopeManifest,
 });
 if (options.artifactDirectory && !isArtifactDirectoryOutsideRepository(root, options.artifactDirectory)) {
   failures.push("--artifact-dir must resolve outside the repository");
@@ -91,7 +95,8 @@ if (failures.length) {
 if (options.mode === "--preflight") { console.log("Disposable database gate prerequisites are available. No database was changed."); process.exit(0); }
 
 const sourceNames = await readdir(resolve(root, "supabase", "migrations"));
-const selected = selectMigrationNames(sourceNames, { scope: options.scope, appliedVersions, scopeManifest });
+const selectableSourceNames = options.candidateMode && !sourceNames.includes(BASELINE_FILE) ? [BASELINE_FILE,...sourceNames] : sourceNames;
+const selected = selectMigrationNames(selectableSourceNames, { scope: options.scope, appliedVersions, scopeManifest });
 const migrationNames = options.scope.startsWith("reconciliation-")
   ? [BASELINE_FILE, ...selected.filter((name) => name !== BASELINE_FILE)] : selected;
 const cliEnv = isolatedChildEnvironment();
@@ -332,6 +337,11 @@ async function writeResultBundle({ schemaHash, catalogDigest, authoritativeSchem
 }
 
 try {
+  if (options.mode === "--legacy-seed-only") {
+    await seededCompatibilityCycle({ label: "legacy development seed compatibility check", seedPaths: ["seed.sql"] });
+    console.log("Legacy development seed compatibility passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
   const first = await replayCycle(1, false);
   const second = await replayCycle(2, options.mode === "--all");
   const comparison = compareSchemaDumps(first.source, second.source);

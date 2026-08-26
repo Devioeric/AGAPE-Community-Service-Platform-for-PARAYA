@@ -209,7 +209,7 @@ export async function findMissingGateInputs(root, relativePaths) {
 }
 
 export async function collectStaticPreflightFailures(root, env = process.env, {
-  scope = "phase2", baselineCandidate = null, reconciliationConfiguration = null, appliedVersions = [], scopeManifest = null,
+  scope = "phase2", baselineCandidate = null, reconciliationConfiguration = null, candidateMode = false, appliedVersions = [], scopeManifest = null,
 } = {}) {
   const failures = [];
   const migrationDir = resolve(root, "supabase", "migrations");
@@ -230,18 +230,20 @@ export async function collectStaticPreflightFailures(root, env = process.env, {
   let migrationNames = [];
   try {
     migrationNames = await readdir(migrationDir);
-    if (scope.startsWith("reconciliation-")) {
-      if (!baselineCandidate) failures.push("reconciliation replay requires a private baseline candidate");
+    if (scope.startsWith("reconciliation-") || candidateMode) {
+      const label = candidateMode ? "candidate gate" : "reconciliation replay";
+      if (!baselineCandidate) failures.push(`${label} requires a private baseline candidate`);
       else {
         try { await access(resolve(baselineCandidate), fsConstants.R_OK); }
         catch { failures.push("private baseline candidate is missing or unreadable"); }
       }
-      if (!reconciliationConfiguration) failures.push("reconciliation replay requires private environment configuration");
+      if (!reconciliationConfiguration) failures.push(`${label} requires private environment configuration`);
       else {
         try { await access(resolve(reconciliationConfiguration), fsConstants.R_OK); }
         catch { failures.push("private reconciliation configuration is missing or unreadable"); }
       }
-      const selected = selectMigrationNames(migrationNames, { scope, appliedVersions, scopeManifest: manifest });
+      const candidateNames = migrationNames.includes(BASELINE_FILE) ? migrationNames : [BASELINE_FILE,...migrationNames];
+      const selected = selectMigrationNames(candidateNames, { scope, appliedVersions, scopeManifest: manifest });
       failures.push(...inspectMigrationNames([BASELINE_FILE, ...selected.filter((name) => name !== BASELINE_FILE)]));
     } else {
       failures.push(...inspectMigrationNames(migrationNames));
@@ -260,7 +262,14 @@ export async function collectStaticPreflightFailures(root, env = process.env, {
     failures.push("supabase/migrations is missing or unreadable");
   }
 
-  if (migrationNames.includes(BASELINE_FILE)) {
+  if (candidateMode && baselineCandidate) {
+    try {
+      const baseline = await readFile(resolve(baselineCandidate), "utf8");
+      if (baseline.trim().length < 1_000) failures.push("private baseline candidate is unexpectedly small");
+    } catch {
+      failures.push("private baseline candidate cannot be read");
+    }
+  } else if (migrationNames.includes(BASELINE_FILE)) {
     try {
       const baseline = await readFile(resolve(migrationDir, BASELINE_FILE), "utf8");
       if (baseline.trim().length < 1_000) failures.push("canonical baseline is unexpectedly small and is not accepted as verified");

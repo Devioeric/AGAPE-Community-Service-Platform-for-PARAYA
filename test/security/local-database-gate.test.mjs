@@ -192,7 +192,13 @@ test("database gate source separates reviewed synthetic and legacy seed replays"
   assert.match(source, /async function newIsolatedProject/);
   assert.match(source, /const isolated = await newIsolatedProject\(\)/);
   assert.match(source, /legacy development seed compatibility check/);
+  assert.match(source, /--legacy-seed-only/);
+  assert.match(source, /This diagnostic is not release evidence by itself/);
   assert.match(source, /db", "reset", "--local", "--no-seed"/);
+  assert.match(source, /--candidate-mode/);
+  assert.match(source, /options\.candidateMode/);
+  assert.equal(scopeManifest.scopes.phase1.migrationNames.at(-1), "20260818000800_phase1_effective_period_integrity.sql");
+  assert.equal(scopeManifest.scopes.phase2.migrationNames.at(-1), "20260818000800_phase1_effective_period_integrity.sql");
 });
 
 test("release fixtures are phase-split, synthetic-only, and preserve disabled runtime defaults", async () => {

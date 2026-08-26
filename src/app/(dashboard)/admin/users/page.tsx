@@ -21,10 +21,10 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge, RoleBadge } from "@/components/shared/StatusBadge";
 import { toast } from "sonner";
-import { DYCI_DEPARTMENTS, DYCI_OFFICES, DYCI_STUDENT_ORGS } from "@/lib/constants";
+import { DYCI_DEPARTMENTS } from "@/lib/constants";
 import { permissionModulesForRole } from "@/lib/auth/capabilities";
 
-import { ASSIGNABLE_ROLES, type Role } from "@/lib/auth/roles";
+import { ASSIGNABLE_ROLES, isBarangayRole, type Role } from "@/lib/auth/roles";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,7 @@ const ROLE_FILTERS = [
   { value: "paraya_director",          label: "PARAYA — Director" },
   { value: "paraya_associate",         label: "PARAYA — Associate" },
   { value: "paraya_researcher",        label: "PARAYA — Researcher" },
+  { value: "finance_officer",          label: "Finance Officer" },
   { value: "volunteer",                label: "Volunteers" },
   { value: "barangay_captain",         label: "Barangay — Captain" },
   { value: "barangay_secretary",       label: "Barangay — Secretary" },
@@ -69,14 +70,6 @@ const STATUS_FILTERS = [
 
 // Roles assignable via invite + edit dropdowns (admin is excluded — admins are created via DB).
 const EDITABLE_ROLES = ASSIGNABLE_ROLES.map((r) => ({ value: r.value, label: r.label }));
-
-// Roles that can be linked to a specific barangay. All barangay roles plus
-// PARAYA staff (who may be assigned to a barangay for focus) and volunteers.
-const BARANGAY_ROLES = [
-  "barangay_captain", "barangay_secretary", "barangay_mother_leader", "barangay_official",
-  "paraya_director", "paraya_associate", "paraya_researcher", "paraya_officer",
-  "volunteer",
-];
 
 function formatDate(iso: string) {
   const d   = new Date(iso);
@@ -129,8 +122,6 @@ export default function AdminUsersPage() {
   const [addName, setAddName]           = useState("");
   const [addRole, setAddRole]           = useState<string>("volunteer");
   const [addBrgy, setAddBrgy]           = useState<string>("");
-  const [addOrgName, setAddOrgName]     = useState("");
-  const [addOrgIsCustom, setAddOrgIsCustom] = useState(false);
   const [addDepartment, setAddDepartment] = useState("");
   const [addPassword, setAddPassword]   = useState("");
   const [addShowPw, setAddShowPw]       = useState(false);
@@ -168,7 +159,19 @@ export default function AdminUsersPage() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   useEffect(() => {
-    fetch("/api/partnerships").then((r) => r.json()).then((j) => setBarangays(j.data ?? []));
+    let active = true;
+    fetch("/api/admin/user-provisioning-options")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load barangay assignment options.");
+        return response.json() as Promise<{ data?: { barangays?: Barangay[] } }>;
+      })
+      .then((payload) => {
+        if (active) setBarangays(payload.data?.barangays ?? []);
+      })
+      .catch(() => {
+        if (active) toast.error("Unable to load barangay assignment options.");
+      });
+    return () => { active = false; };
   }, []);
 
   // ── Filtering ─────────────────────────────────────────────────────────────────
@@ -230,8 +233,6 @@ export default function AdminUsersPage() {
     setAddName("");
     setAddRole("volunteer");
     setAddBrgy("");
-    setAddOrgName("");
-    setAddOrgIsCustom(false);
     setAddDepartment("");
     setAddPassword(generatePassword());
     setAddShowPw(false);
@@ -242,19 +243,7 @@ export default function AdminUsersPage() {
     setAddRole(newRole);
     // Reset role-specific fields so a previous role's data doesn't leak in
     setAddBrgy("");
-    setAddOrgName("");
-    setAddOrgIsCustom(false);
     setAddDepartment("");
-  }
-
-  function handleOrgSelect(value: string) {
-    if (value === "__other") {
-      setAddOrgIsCustom(true);
-      setAddOrgName("");
-    } else {
-      setAddOrgIsCustom(false);
-      setAddOrgName(value);
-    }
   }
 
   async function copyPassword() {
@@ -271,14 +260,8 @@ export default function AdminUsersPage() {
     if (addName.trim().length < 2) { toast.error("Full name is required.");            return; }
     if (addPassword.length < 8)    { toast.error("Password must be at least 8 characters."); return; }
 
-    const isPartner   = ["office", "student_org", "department"].includes(addRole);
-    const isBarangay  = ["barangay_captain", "barangay_secretary", "barangay_mother_leader"].includes(addRole);
+    const isBarangay  = isBarangayRole(addRole);
     const isVolunteer = addRole === "volunteer";
-
-    if (isPartner && !addOrgName.trim()) {
-      toast.error("Please specify the organization name.");
-      return;
-    }
 
     setAddSubmitting(true);
     const res = await fetch("/api/admin/users/create", {
@@ -289,7 +272,6 @@ export default function AdminUsersPage() {
         password:    addPassword,
         role:        addRole,
         barangay_id: isBarangay ? (addBrgy || null) : null,
-        org_name:    isPartner  ? addOrgName.trim() : null,
         department:  isVolunteer ? (addDepartment.trim() || null) : null,
       }),
     });
@@ -353,7 +335,7 @@ export default function AdminUsersPage() {
       body: JSON.stringify({
         full_name:   editName.trim(),
         role:        editUser.role === "admin" ? undefined : editRole,
-        barangay_id: BARANGAY_ROLES.includes(editRole) ? (editBrgy || null) : null,
+        barangay_id: isBarangayRole(editRole) ? (editBrgy || null) : null,
         status:      editStatus,
         permissions: compactPerms,
       }),
@@ -365,7 +347,8 @@ export default function AdminUsersPage() {
         u.id === editUser.id
           ? { ...u, full_name: editName.trim(),
               role: (editUser.role === "admin" ? "admin" : editRole) as UserRole,
-              barangay_id: editBrgy || null, status: editStatus, permissions: compactPerms }
+              barangay_id: isBarangayRole(editRole) ? (editBrgy || null) : null,
+              status: editStatus, permissions: compactPerms }
           : u
       ));
       setEditUser(null);
@@ -647,7 +630,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Barangay assignment — barangay roles */}
-            {BARANGAY_ROLES.includes(addRole) && (
+            {isBarangayRole(addRole) && (
               <div className="space-y-1.5">
                 <Label htmlFor="add-brgy" className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" /> Barangay assignment
@@ -660,77 +643,6 @@ export default function AdminUsersPage() {
                   <option value="">No barangay assignment</option>
                   {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
-              </div>
-            )}
-
-            {/* Department (DYCI dept) — partner role: department */}
-            {addRole === "department" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="add-dept-org" className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" /> Department
-                </Label>
-                <select
-                  id="add-dept-org" value={addOrgName} onChange={(e) => setAddOrgName(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-transparent text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer appearance-none"
-                >
-                  <option value="">Select a department…</option>
-                  {DYCI_DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <p className="text-xs text-muted-foreground">Used to match this account with volunteers from the same department.</p>
-              </div>
-            )}
-
-            {/* Office — partner role: office */}
-            {addRole === "office" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="add-office" className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" /> Office
-                </Label>
-                <select
-                  id="add-office"
-                  value={addOrgIsCustom ? "__other" : addOrgName}
-                  onChange={(e) => handleOrgSelect(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-transparent text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer appearance-none"
-                >
-                  <option value="">Select an office…</option>
-                  {DYCI_OFFICES.map((o) => <option key={o} value={o}>{o}</option>)}
-                  <option value="__other">Other (type below)</option>
-                </select>
-                {addOrgIsCustom && (
-                  <Input
-                    placeholder="Type office name"
-                    value={addOrgName}
-                    onChange={(e) => setAddOrgName(e.target.value)}
-                    className="mt-2 focus-visible:ring-primary/30"
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Student Org — partner role: student_org */}
-            {addRole === "student_org" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="add-org" className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" /> Student Organization
-                </Label>
-                <select
-                  id="add-org"
-                  value={addOrgIsCustom ? "__other" : addOrgName}
-                  onChange={(e) => handleOrgSelect(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-transparent text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer appearance-none"
-                >
-                  <option value="">Select an organization…</option>
-                  {DYCI_STUDENT_ORGS.map((o) => <option key={o} value={o}>{o}</option>)}
-                  <option value="__other">Other (type below)</option>
-                </select>
-                {addOrgIsCustom && (
-                  <Input
-                    placeholder="Type organization name"
-                    value={addOrgName}
-                    onChange={(e) => setAddOrgName(e.target.value)}
-                    className="mt-2 focus-visible:ring-primary/30"
-                  />
-                )}
               </div>
             )}
 
@@ -748,7 +660,7 @@ export default function AdminUsersPage() {
                   <option value="">Select a department…</option>
                   {DYCI_DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <p className="text-xs text-muted-foreground">Used by Department partner accounts to find their student volunteers.</p>
+                <p className="text-xs text-muted-foreground">Used for volunteer eligibility and aggregate reporting.</p>
               </div>
             )}
 
@@ -872,7 +784,7 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Barangay */}
-            {!isAdminEdit && BARANGAY_ROLES.includes(editRole) && (
+            {!isAdminEdit && isBarangayRole(editRole) && (
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" /> Barangay assignment

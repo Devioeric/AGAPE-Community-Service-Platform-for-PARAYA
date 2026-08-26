@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "3087f30a2288f1cc6889f51861b5512dd74b09d3",
+  "head": "f393cbc1942a85e84b58cd03dbbdb4734765c34e",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 10,
-    "include": 10,
+    "total": 5,
+    "include": 5,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "docs/requirements/phase-1-release-gate-status.md",
+      "path": "src/app/(dashboard)/admin/users/page.tsx",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,25 +52,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "docs/requirements/phase-2-release-gate-status.md",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "scripts/lib/evidence-artifact-specs.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "scripts/lib/release-gate-config.mjs",
+      "path": "src/app/api/admin/user-provisioning-options/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -79,34 +61,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "scripts/lib/run-release-gate.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "scripts/verify-phase1-release-gate.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "scripts/verify-phase2-release-gate.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/release-evidence-gate.test.mjs",
+      "path": "test/security/auth-contracts.test.mjs",
       "state": " M",
       "tracked": true,
       "classification": "include",

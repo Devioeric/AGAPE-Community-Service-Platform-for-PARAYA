@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -99,5 +100,26 @@ test("administrator provisioning includes only the nine approved login categorie
   }
   for (const role of ["admin", "office", "student_org", "department", "paraya_officer"]) {
     assert.equal(isAdminAssignableLoginRole(role), false);
+  }
+});
+
+test("Admin account provisioning uses a narrow barangay selector without operational partnership access", async () => {
+  const page = await readFile("src/app/(dashboard)/admin/users/page.tsx", "utf8");
+  const route = await readFile("src/app/api/admin/user-provisioning-options/route.ts", "utf8");
+
+  assert.match(page, /fetch\("\/api\/admin\/user-provisioning-options"\)/);
+  assert.doesNotMatch(page, /fetch\("\/api\/partnerships"\)/);
+  assert.doesNotMatch(page, /addRole === "(?:office|student_org|department)"/);
+  assert.match(page, /isBarangayRole\(addRole\)/);
+  assert.match(page, /isBarangayRole\(editRole\)/);
+  assert.match(page, /value: "finance_officer",\s+label: "Finance Officer"/);
+
+  assert.match(route, /authorizeCapability\("admin\.users\.manage"\)/);
+  assert.match(route, /createAdminClient\(\)[\s\S]*?\.from\("barangays"\)/);
+  assert.match(route, /\.select\("id,name"\)/);
+  assert.match(route, /\.eq\("is_active", true\)/);
+  assert.doesNotMatch(route, /select\(["']\*["']\)/);
+  for (const prohibited of ["contact_person", "contact_phone", "contact_email", "total_population", "total_households"]) {
+    assert.equal(route.includes(prohibited), false, `selector must not expose ${prohibited}`);
   }
 });

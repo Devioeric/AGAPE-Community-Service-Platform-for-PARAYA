@@ -376,3 +376,40 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   create a normal development checkpoint if clean, then continue any remaining
   locally executable release-preparation work. Stop only when an external input
   is indispensable.
+
+## Admin provisioning isolation correction record
+
+- Status: `locally_complete`. The correction responds to the authenticated
+  development observation that `/admin/users` called `/api/partnerships` and
+  received the intended Admin-isolation `403`.
+- Files changed: Admin user-management page, a new narrow
+  `/api/admin/user-provisioning-options` selector route, focused authorization
+  tests, and this informational ledger. No migration was added.
+- Authorization correction: the selector independently requires
+  `admin.users.manage`, uses the service client only after authentication, reads
+  active barangays through the explicit `id,name` allowlist, and returns no
+  partnership contacts, population, agreement, or operational fields. The
+  existing partnership API remains inaccessible to Admin.
+- Interface correction: Admin no longer calls the operational partnership API;
+  dead Office, Student Organization, and Department account-creation controls
+  were removed; barangay assignment is shown only for barangay roles; changing
+  to a non-barangay role clears the stored assignment; and Finance is present in
+  the approved role filter.
+- Commands: focused Auth contract tests, complete Node suite, typecheck, lint,
+  production build, and a read-only local browser attempt.
+- Results: focused Auth tests pass 6/6; complete Node tests pass 203/203 with
+  zero failures/skips; typecheck and lint pass; all 162 pages/routes build. The
+  in-app browser correctly redirected an unauthenticated request to login. The
+  user's authenticated Chrome session was not connected to the browser-control
+  extension, so no authenticated browser result is claimed here; final E2E
+  remains mandatory against `R`.
+- Security/RLS impact: Admin isolation is preserved and the noisy forbidden
+  operational request is eliminated. No direct table mutation, broad DTO, or
+  new partnership capability was introduced.
+- Rollback: revert this checkpoint to restore the prior UI call and remove the
+  selector route. Do not weaken the partnership API's `partnership.read`
+  capability or grant Admin operational access.
+- Next exact action: regenerate the inclusion/secret manifest, checkpoint this
+  correction, then audit the remaining release preparation for work that can be
+  completed without external privacy, historical, account, risk, or evidence
+  inputs.

@@ -43,6 +43,8 @@ export default function AdvisoryRecommendationsPage() {
   const [reviewReasons, setReviewReasons] = useState<Record<string, keyof typeof DISMISSAL_REASON_LABEL>>({});
   const [reviewingNeedId, setReviewingNeedId] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [thresholdDraft, setThresholdDraft] = useState("80");
+  const [thresholdSaving, setThresholdSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +54,7 @@ export default function AdvisoryRecommendationsPage() {
       const body = await response.json().catch(() => null) as { data?: AdvisoryRecommendationResponse; error?: string } | null;
       if (!response.ok || !body?.data) throw new Error(body?.error ?? "Unable to load advisory recommendations");
       setData(body.data);
+      setThresholdDraft(String(body.data.scope.sufficientCoveragePercent));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load advisory recommendations");
     } finally {
@@ -92,6 +95,36 @@ export default function AdvisoryRecommendationsPage() {
       setError(reviewError instanceof Error ? reviewError.message : "Unable to record recommendation review");
     } finally {
       setReviewingNeedId(null);
+    }
+  };
+
+  const saveThreshold = async () => {
+    if (!data?.scope.canConfigureThreshold || data.scope.recommendationSettingsRowVersion === null) return;
+    const threshold = Number(thresholdDraft);
+    if (!Number.isInteger(threshold) || threshold < 1 || threshold > 100) {
+      setError("The sufficient-coverage threshold must be a whole percentage from 1 to 100.");
+      return;
+    }
+    setThresholdSaving(true);
+    setError(null);
+    setReviewMessage(null);
+    try {
+      const response = await fetch("/api/ai/recommendations/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sufficientCoveragePercent: threshold,
+          expectedVersion: data.scope.recommendationSettingsRowVersion,
+        }),
+      });
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Unable to update recommendation settings");
+      setReviewMessage("Recommendation threshold updated. Existing human reviews may become stale when material classifications change.");
+      await load();
+    } catch (settingsError) {
+      setError(settingsError instanceof Error ? settingsError.message : "Unable to update recommendation settings");
+    } finally {
+      setThresholdSaving(false);
     }
   };
 
@@ -158,6 +191,43 @@ export default function AdvisoryRecommendationsPage() {
 
       {data && (
         <>
+          {data.scope.canConfigureThreshold && (
+            <Card className="border-border shadow-card" data-testid="recommendation-threshold-settings">
+              <CardHeader className="pb-2">
+                <CardTitle className="font-heading text-base">Director alert threshold</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {data.scope.recommendationSettingsRowVersion === null ? (
+                  <p className="text-sm text-muted-foreground">
+                    The system is using the safe 80% default. Versioned database settings are not available yet, so configuration is disabled.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <label className="space-y-1 text-xs font-medium text-muted-foreground">
+                      Sufficient planned coverage (%)
+                      <input
+                        aria-label="Sufficient planned coverage percentage"
+                        type="number"
+                        min="1"
+                        max="100"
+                        step="1"
+                        value={thresholdDraft}
+                        onChange={(event) => setThresholdDraft(event.target.value)}
+                        className="block h-9 w-40 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                      />
+                    </label>
+                    <Button type="button" size="sm" onClick={() => void saveThreshold()} disabled={thresholdSaving}>
+                      {thresholdSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Save threshold
+                    </Button>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  This changes advisory alert classification only. It does not enable the weekly worker, change a community need, or create, submit, approve, or reject a proposal.
+                </p>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               ["Approved open needs", data.summary.approvedOpenNeeds],

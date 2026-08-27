@@ -23,7 +23,7 @@ export const CAPABILITIES = [
   "analytics.aggregate.read",
   "report.read", "report.manage",
   "communication.read", "communication.write", "communication.manage", "communication.moderate",
-  "ai.assist", "ai.recommendation.review",
+  "ai.assist", "ai.recommendation.review", "ai.recommendation.configure",
   "profiling.cycle.manage", "profiling.collect", "profiling.validate", "profiling.endorse",
   "profiling.detail.read", "profiling.aggregate.read", "profiling.privacy.configure",
 ] as const;
@@ -89,7 +89,7 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
   "analytics.aggregate.read": "analytics",
   "report.read": "reports", "report.manage": "reports",
   "communication.read": "communication", "communication.write": "communication", "communication.manage": "communication", "communication.moderate": "communication",
-  "ai.assist": "ai_assistance", "ai.recommendation.review": "ai_assistance",
+  "ai.assist": "ai_assistance", "ai.recommendation.review": "ai_assistance", "ai.recommendation.configure": "ai_assistance",
   "profiling.cycle.manage": "profiling", "profiling.collect": "profiling", "profiling.validate": "profiling",
   "profiling.endorse": "profiling", "profiling.detail.read": "profiling", "profiling.aggregate.read": "profiling",
   "profiling.privacy.configure": "profiling",
@@ -120,7 +120,7 @@ const PARAYA_OPERATE: Capability[] = [
 export const ROLE_CAPABILITIES: Readonly<Partial<Record<Role, readonly Capability[]>>> = {
   paraya_director: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE,
     "proposal.decide", "proposal.catalog.manage", "proposal.evidence.confirm", "partner.policy.manage", "partner.legacy_mapping.manage",
-    "historical_program.review", "budget.category.manage", "profiling.privacy.configure", "ai.recommendation.review"],
+    "historical_program.review", "budget.category.manage", "profiling.privacy.configure", "ai.recommendation.review", "ai.recommendation.configure"],
   paraya_associate: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE, "budget.actual.record"],
   paraya_researcher: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE,
     "historical_program.review", "proposal.evidence.confirm", "budget.actual.record",

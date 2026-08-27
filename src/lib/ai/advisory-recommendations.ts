@@ -191,7 +191,10 @@ export const advisoryRecommendationResponseSchema = z.object({
     source: z.literal("approved_community_needs"),
     asOfDate: z.string().date(),
     sufficientCoveragePercent: z.number().min(1).max(100),
+    recommendationSettingsRowVersion: z.number().int().positive().nullable(),
+    recommendationSettingsSource: z.enum(["database", "safe_default"]),
     canReview: z.boolean(),
+    canConfigureThreshold: z.boolean(),
   }).strict(),
   summary: z.object({
     approvedOpenNeeds: z.number().int().nonnegative(),
@@ -457,6 +460,8 @@ export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
   sufficientCoveragePercent?: number;
+  recommendationSettingsRowVersion?: number | null;
+  recommendationSettingsSource?: "database" | "safe_default";
   now?: Date;
 }): AdvisoryRecommendationResponse {
   const needs = z.array(advisoryNeedInputSchema).max(5_000).parse(input.needs);
@@ -596,7 +601,10 @@ export function buildAdvisoryRecommendations(input: {
       source: "approved_community_needs",
       asOfDate,
       sufficientCoveragePercent,
+      recommendationSettingsRowVersion: input.recommendationSettingsRowVersion ?? null,
+      recommendationSettingsSource: input.recommendationSettingsSource ?? "safe_default",
       canReview: false,
+      canConfigureThreshold: false,
     },
     summary: {
       approvedOpenNeeds: needs.length,

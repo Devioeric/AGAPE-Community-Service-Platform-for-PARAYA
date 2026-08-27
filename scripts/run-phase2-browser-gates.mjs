@@ -21,7 +21,7 @@ const PARTNERS = [
 const COMPONENTS = ["partners", "historical_programs", "proposals", "program_finance", "external_contact_email"];
 
 export function phase2BrowserGateContract() {
-  return { schema: "agape.phase2-browser-gates.v1", cases: 8, aiRequests: 3, finalState: { phase2Modes: "off", recommendationAutomation: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
+  return { schema: "agape.phase2-browser-gates.v1", cases: 9, aiRequests: 3, finalState: { phase2Modes: "off", recommendationAutomation: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
 }
 
 async function startAiRecorder() {
@@ -132,6 +132,7 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
     { name: "program_finance", modes: [["program_finance", ["f3320000-0000-4000-8000-000000000001"]]], flags: { AGAPE_PROGRAM_FINANCE_V2_ENABLED: "true" } },
     { name: "barangay_scope", modes: [["partners", PARTNERS], ["historical_programs", ["f3200000-0000-4000-8000-000000000001", "f3200000-0000-4000-8000-000000000002"], "2026-01-01"]], flags: { AGAPE_PARTNER_REGISTRY_V2_ENABLED: "true", AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED: "true" } },
     { name: "recommendation_review", modes: [], flags: {} },
+    { name: "recommendation_settings", modes: [], flags: {} },
     { name: "recommendation_automation", modes: [], flags: { AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED: "true", AGAPE_AI_RECOMMENDATION_AUTOMATION_MODE: "synthetic" } },
     { name: "ai_privacy", modes: [], flags: {} },
   ];

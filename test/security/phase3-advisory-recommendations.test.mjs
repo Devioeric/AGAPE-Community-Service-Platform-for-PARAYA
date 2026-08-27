@@ -327,7 +327,7 @@ test("recommendation review is capability-gated, strict, append-only, and cannot
   assert.doesNotMatch(route, /proposal|advance|approve|reject|submit/i);
   assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000950_phase3_recommendation_review_state.sql"), false);
   assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000950_phase3_recommendation_review_state.sql"), true);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000960_phase3_recommendation_notifications.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000960_phase3_recommendation_notifications.sql"), true);
 });
 
 test("scheduled recommendation notices are disabled, mode-bound, deduplicated, and advisory-only", () => {
@@ -357,6 +357,27 @@ test("scheduled recommendation notices are disabled, mode-bound, deduplicated, a
   assert.doesNotMatch(route, /director_approve|finance_clear|\/advance/);
   assert.doesNotMatch(notifications, /\.select\("\*"\)/);
   assert.match(notifications, /markReadSchema/);
+});
+
+test("recommendation thresholds are Director-only, versioned, audited, and cannot enable automation", () => {
+  const route = readFileSync("src/app/api/ai/recommendations/settings/route.ts", "utf8");
+  const page = readFileSync("src/app/(dashboard)/officer/analytics/recommendations/page.tsx", "utf8");
+  const migration = readFileSync("supabase/migrations/20260818000970_phase3_recommendation_settings.sql", "utf8");
+  const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));
+  assert.match(route, /authorizeCapability\("ai\.recommendation\.configure"\)/);
+  assert.match(route, /recommendationSettingsUpdateSchema/);
+  assert.match(route, /phase3_update_recommendation_settings/);
+  assert.match(migration, /CREATE TABLE public\.ai_recommendation_settings/);
+  assert.match(migration, /sufficient_coverage_percent BETWEEN 1 AND 100/);
+  assert.match(migration, /actor\.role<>'paraya_director'/);
+  assert.match(migration, /phase2_current_has_capability\('ai\.recommendation\.configure'\)/);
+  assert.match(migration, /current_settings\.row_version<>p_expected_version/);
+  assert.match(migration, /ai\.recommendation\.settings\.updated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.phase3_update_recommendation_settings\(integer,bigint\) FROM PUBLIC,anon/);
+  assert.match(page, /Director alert threshold/);
+  assert.match(page, /does not enable the weekly worker/);
+  assert.doesNotMatch(route, /AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED|proposal|submit|approve|reject/i);
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000970_phase3_recommendation_settings.sql");
 });
 
 test("recommendation interface clearly remains advisory and is reachable from Analytics", () => {

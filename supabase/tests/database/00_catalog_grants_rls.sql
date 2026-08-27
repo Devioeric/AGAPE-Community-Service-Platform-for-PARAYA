@@ -12,7 +12,7 @@ INSERT INTO expected_secured_tables(name) VALUES
  ('proposal_budget_funding_sources'),('proposal_budget_documents'),('program_handoffs'),
  ('program_budget_revisions'),('program_budget_items'),('program_financial_documents'),
  ('program_expenditures'),('liquidation_submissions'),('liquidation_expenditures'),
- ('ai_recommendation_reviews'),('ai_recommendation_notification_deliveries');
+ ('ai_recommendation_reviews'),('ai_recommendation_notification_deliveries'),('ai_recommendation_settings');
 
 SELECT is(
   (SELECT count(*) FROM expected_secured_tables e WHERE to_regclass('public.' || e.name) IS NULL),
@@ -60,7 +60,7 @@ INSERT INTO sensitive_functions(name) VALUES
  ('phase2_save_proposal_graph'),('phase2_apply_proposal_action'),
  ('phase2_handoff_proposal'),('phase2_record_expenditure'),
  ('phase2_review_expenditure'),('phase2_create_liquidation'),
- ('phase3_record_recommendation_review'),('phase3_sync_recommendation_notifications');
+ ('phase3_record_recommendation_review'),('phase3_sync_recommendation_notifications'),('phase3_update_recommendation_settings');
 
 SELECT is(
   (SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace JOIN sensitive_functions f ON f.name=p.proname

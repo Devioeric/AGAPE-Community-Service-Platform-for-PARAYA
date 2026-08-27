@@ -948,3 +948,43 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   configuration behind an authenticated, versioned setting boundary, keeping
   80% as the fail-safe default and never permitting configuration to activate
   automation.
+
+## Phase 3 Director-managed recommendation threshold
+
+- Status: `locally_complete`. The setting changes advisory classification only;
+  the scheduled worker remains separately disabled/off and no proposal or need
+  workflow can be changed through this boundary.
+- Implemented: added canonical capability `ai.recommendation.configure`, granted
+  only to the PARAYA Director and still subject to the deny-only
+  `ai_assistance` override. A strict versioned settings DTO and authenticated
+  PUT endpoint call one fixed-search-path database RPC.
+- Database boundary: forward-only migration
+  `20260818000970_phase3_recommendation_settings.sql` adds a singleton threshold
+  setting with the safe 80% default, 1-100 validation, expected-version locking,
+  Director/capability checks, restrictive RLS, explicit execution grants, and a
+  durable audit event. `PUBLIC` and `anon` cannot execute the RPC.
+- Runtime behavior: recommendation reads use the configured threshold when the
+  optional setting exists and fail safely to 80% when it has not been deployed.
+  The response states the setting source and row version. The Director UI can
+  update it, while Researcher and Associate views remain read/review scoped.
+- Browser proof: the authenticated Director workflow loads 80%, saves 85%,
+  observes the success state, reloads, and reads 85% from the actual API. The
+  page explicitly states that this does not enable the weekly worker or create,
+  submit, approve, or reject a proposal.
+- Commands/results: focused contracts pass 42/42; complete Node tests pass
+  227/227; typecheck and lint pass; and the 167-page/route production build
+  passes. Two clean Phase 2 database replays match at SHA-256
+  `e1bf780a64c09ce1852463198de3765062a8dc80fc2771acecdf6a40698be74c`;
+  catalog/runtime/Storage assertions pass 32/32, seeded SQL passes 168/168,
+  behavioral security passes 83/83, legacy-seed compatibility passes, and the
+  authenticated browser/AI privacy gate passes 9/9.
+- Final state: disposable stacks were removed; all committed Phase 1/2 feature
+  flags remain false, database component modes remain off, recommendation
+  automation remains off, and V1 mutation authority remains the default. No
+  shared or remote database was changed.
+- Rollback: set the recommendation worker mode to `off` and keep its feature
+  flag false. If the migration has been applied, retain the version and audit
+  history and correct defects with a later forward migration.
+- Next exact action: continue the user-visible advisory workflow by adding a
+  bounded planning-alignment assessment to the draft handoff, preserving human
+  editing and prohibiting automatic proposal transitions.

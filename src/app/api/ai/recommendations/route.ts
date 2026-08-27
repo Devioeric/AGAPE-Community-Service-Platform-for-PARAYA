@@ -121,6 +121,28 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
+  let sufficientCoveragePercent = 80;
+  let recommendationSettingsRowVersion: number | null = null;
+  let recommendationSettingsSource: "database" | "safe_default" = "safe_default";
+  const settingsResult = await admin
+    .from("ai_recommendation_settings")
+    .select("sufficient_coverage_percent,row_version")
+    .eq("id", true)
+    .maybeSingle();
+  if (settingsResult.error && !isMissingOptionalPhase2Relation(settingsResult.error)) {
+    console.error("[ai-recommendations] settings query failed", { code: settingsResult.error.code });
+    return NextResponse.json({ error: "Unable to load recommendation settings" }, { status: 500 });
+  }
+  if (settingsResult.data) {
+    const threshold = Number(settingsResult.data.sufficient_coverage_percent);
+    const version = Number(settingsResult.data.row_version);
+    if (!Number.isInteger(threshold) || threshold < 1 || threshold > 100 || !Number.isInteger(version) || version < 1) {
+      return NextResponse.json({ error: "Recommendation settings are invalid" }, { status: 500 });
+    }
+    sufficientCoveragePercent = threshold;
+    recommendationSettingsRowVersion = version;
+    recommendationSettingsSource = "database";
+  }
   let needsQuery = admin
     .from("community_needs")
     .select("id,barangay_id,category,priority_score,status,identified_date,barangays!inner(name,is_synthetic_test)")
@@ -325,6 +347,9 @@ export async function GET(request: Request) {
 
   const generated = buildAdvisoryRecommendations({
     barangayId: parsed.data.barangay_id ?? null,
+    sufficientCoveragePercent,
+    recommendationSettingsRowVersion,
+    recommendationSettingsSource,
     needs: (needRows ?? []).map((need) => {
       const relatedProposalIds = proposalIdsByNeed.get(need.id) ?? new Set<string>();
       const relatedProgramIds = programIdsByNeed.get(need.id) ?? new Set<string>();
@@ -421,6 +446,9 @@ export async function GET(request: Request) {
       ...generated.scope,
       canReview: auth?.ok
         ? hasCapability(auth.actor.role, auth.actor.permissions, "ai.recommendation.review")
+        : false,
+      canConfigureThreshold: auth?.ok
+        ? hasCapability(auth.actor.role, auth.actor.permissions, "ai.recommendation.configure")
         : false,
     },
     recommendations: generated.recommendations.map((recommendation) => {

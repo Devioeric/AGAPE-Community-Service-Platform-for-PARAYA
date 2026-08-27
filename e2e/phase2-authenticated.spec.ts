@@ -109,6 +109,23 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await expect(card).toContainText("do not create or advance a proposal");
   });
 
+  if (component === "recommendation_settings") test("Director can version the advisory coverage threshold without enabling automation", async ({ page }) => {
+    await signIn(page, "director", /\/officer(?:\/)?$/);
+    await page.goto("/officer/analytics/recommendations");
+    const settings = page.getByTestId("recommendation-threshold-settings");
+    await expect(settings).toBeVisible();
+    await expect(settings).toContainText("Director alert threshold");
+    await expect(settings).toContainText("does not enable the weekly worker");
+    const threshold = settings.getByLabel("Sufficient planned coverage percentage");
+    await expect(threshold).toHaveValue("80");
+    await threshold.fill("85");
+    await settings.getByRole("button", { name: "Save threshold" }).click();
+    await expect(page.getByRole("status")).toContainText("Recommendation threshold updated");
+    await expect(threshold).toHaveValue("85");
+    await page.reload();
+    await expect(page.getByTestId("recommendation-threshold-settings").getByLabel("Sufficient planned coverage percentage")).toHaveValue("85");
+  });
+
   if (component === "recommendation_automation") test("weekly advisory refresh creates only deduplicated synthetic in-app notices", async ({ page }) => {
     await signIn(page, "researcher", /\/officer(?:\/)?$/);
     const run = async () => page.request.get("/api/ai/recommendations?scheduled=true", {

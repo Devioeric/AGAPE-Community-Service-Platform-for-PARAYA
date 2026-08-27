@@ -83,7 +83,8 @@
         "20260818000930_phase2_proposal_compatibility_correction.sql",
         "20260818000940_phase2_beneficiary_evidence_options.sql",
         "20260818000950_phase3_recommendation_review_state.sql",
-        "20260818000960_phase3_recommendation_notifications.sql"
+        "20260818000960_phase3_recommendation_notifications.sql",
+        "20260818000970_phase3_recommendation_settings.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

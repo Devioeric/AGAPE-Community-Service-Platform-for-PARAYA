@@ -26,6 +26,9 @@ const NEED = {
   largestLinkedPlannedBeneficiaryCount: null,
   profilingEvidence: null,
   historicalBenchmark: null,
+  localCapacity: null,
+  partnershipAvailability: "component_disabled",
+  partnerCandidates: [],
 };
 
 test("advisory engine ranks uncovered approved needs and excludes active coverage", () => {
@@ -264,6 +267,8 @@ test("verified history produces bounded budget and volunteer ranges without inve
   assert.deepEqual(result.recommendations[0].planningBenchmarks.budgetRange, { low: "1000.00", high: "2500.00", currency: "PHP" });
   assert.deepEqual(result.recommendations[0].planningBenchmarks.volunteerRange, { low: 5, high: 12 });
   assert.equal(result.recommendations[0].planningBenchmarks.confidence, "moderate");
+  assert.deepEqual(result.recommendations[0].volunteerGuidance.estimatedRange, { low: 5, high: 12 });
+  assert.equal(result.recommendations[0].volunteerGuidance.source, "verified_history_only");
 
   const sparse = buildAdvisoryRecommendations({
     needs: [{ ...NEED, category: "education", priorityScore: 4, historicalBenchmark: { matchedRecords: 1, budgetTotals: [1000], volunteerCounts: [5], windowStart: "2021-08-27", asOfDate: "2026-08-27" } }],
@@ -273,6 +278,98 @@ test("verified history produces bounded budget and volunteer ranges without inve
   assert.equal(sparse.recommendations[0].planningBenchmarks.confidence, "limited");
 });
 
+test("volunteer and local-capacity guidance use bounded aggregate evidence", () => {
+  const result = buildAdvisoryRecommendations({
+    now: new Date("2026-08-27T00:00:00.000Z"),
+    needs: [{
+      ...NEED,
+      category: "education",
+      priorityScore: 4,
+      profilingEvidence: {
+        evidenceSnapshotId: "30000000-0000-4000-8000-000000000001",
+        cycleId: "30000000-0000-4000-8000-000000000002",
+        cycleName: "Synthetic Completed Cycle",
+        reportingDate: "2026-07-31",
+        sampleMethod: "systematic",
+        approvedHouseholds: 20,
+        approvedResidents: 75,
+        coveragePercent: 80,
+        responseRatePercent: 90,
+        needCount: { suppressed: false, value: 48, label: "48" },
+        dataQuality: { pendingPackages: 0, returnedPackages: 0, excludedPackages: 0, unresolvedDuplicates: 0 },
+      },
+      historicalBenchmark: {
+        matchedRecords: 2,
+        budgetTotals: [1000, 2000],
+        volunteerCounts: [5, 9],
+        windowStart: "2021-08-27",
+        asOfDate: "2026-08-27",
+      },
+      localCapacity: {
+        skillCategories: [{ category: "education", practitionerCount: 12 }, { category: "health", practitionerCount: 7 }],
+        assetCategories: [{ type: "facility", usableQuantity: 2 }, { type: "natural", usableQuantity: 4 }],
+        asOfDate: "2026-08-27",
+      },
+    }],
+  });
+  const recommendation = result.recommendations[0];
+  assert.equal(recommendation.volunteerGuidance.source, "verified_history_and_aggregate");
+  assert.equal(recommendation.volunteerGuidance.planningTarget, 6);
+  assert.deepEqual(recommendation.volunteerGuidance.estimatedRange, { low: 3, high: 9 });
+  assert.equal(recommendation.localCapacityGuidance.readiness, "documented_capacity");
+  assert.deepEqual(recommendation.localCapacityGuidance.relevantSkills, [{ category: "education", practitionerCount: 12 }]);
+  assert.deepEqual(recommendation.localCapacityGuidance.relevantAssets, [{ type: "facility", usableQuantity: 2 }]);
+});
+
+test("Partner guidance ranks bounded candidates and derives renewal attention from dates", () => {
+  const result = buildAdvisoryRecommendations({
+    now: new Date("2026-08-27T00:00:00.000Z"),
+    needs: [{
+      ...NEED,
+      category: "health",
+      priorityScore: 5,
+      partnershipAvailability: "available",
+      partnerCandidates: [
+        {
+          id: "40000000-0000-4000-8000-000000000001",
+          code: "PTR-000001",
+          name: "Synthetic Health Partner",
+          entityType: "external_organization",
+          isHostBarangay: false,
+          relationshipStatus: "active",
+          expiresOn: "2026-09-02",
+          agreementReadiness: "documented",
+          needCoverage: "partial",
+          relatedProgramCount: 2,
+          recordedOutcomeCount: 3,
+          categoryMatchedVerifiedHistoryCount: 2,
+        },
+        {
+          id: "40000000-0000-4000-8000-000000000002",
+          code: "PTR-000002",
+          name: "Synthetic Host Barangay",
+          entityType: "barangay",
+          isHostBarangay: true,
+          relationshipStatus: "active",
+          expiresOn: null,
+          agreementReadiness: "director_exception",
+          needCoverage: null,
+          relatedProgramCount: 0,
+          recordedOutcomeCount: 0,
+          categoryMatchedVerifiedHistoryCount: 0,
+        },
+      ],
+    }],
+  });
+  const guidance = result.recommendations[0].partnershipGuidance;
+  assert.equal(guidance.state, "available_candidates");
+  assert.equal(guidance.candidates[0].partner.code, "PTR-000001");
+  assert.equal(guidance.candidates[0].relationship.renewalStatus, "due_within_7_days");
+  assert.ok(guidance.candidates[0].signals.includes("recorded_program_outcomes"));
+  assert.equal(guidance.candidates[0].experience.recordedOutcomes, 3);
+  assert.equal(guidance.candidates[1].partner.code, "PTR-000002");
+  assert.equal("contacts" in guidance.candidates[0].partner, false);
+});
 test("advisory response rejects extra or resident-identifying fields", () => {
   const result = buildAdvisoryRecommendations({
     needs: [{ ...NEED, category: "infrastructure", priorityScore: 4 }],
@@ -302,13 +399,18 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /cell\.dimension === "needs"/);
   assert.match(route, /isPhase2ComponentEnabled\("historical_programs"\)/);
   assert.match(route, /\.in\("quality", \["complete", "partial_verified"\]\)/);
-  assert.match(route, /\.select\("category,budget_total,volunteer_count,quality,status,starts_on,data_mode"\)/);
+  assert.match(route, /\.select\("id,category,budget_total,volunteer_count,quality,status,starts_on,data_mode"\)/);
+  assert.match(route, /\.select\("id,code,name,entity_type,barangay_id"\)/);
+  assert.match(route, /\.select\("barangay_id,category,practitioner_count"\)/);
+  assert.match(route, /\.select\("barangay_id,asset_type,quantity,condition"\)/);
+  assert.match(route, /\.select\("id,program_id"\)/);
   assert.match(route, /\.from\("ai_recommendation_reviews"\)/);
   assert.match(route, /event_sequence,recommendation_fingerprint,action,reason_code,actor_id,created_at/);
   assert.match(route, /status: isCurrent \? storedReview\.action : "stale"/);
   assert.match(route, /"ai\.recommendation\.review"/);
   assert.doesNotMatch(route, /select\(["'`]\*["'`]\)/);
   assert.doesNotMatch(route, /need_description|resident_name|contact|receipt|storage_path|profiling_resident_versions|profiling_household_versions/);
+  assert.doesNotMatch(route, /partner_contacts|partnership_documents|historical_need_description|source_notes|\.select\([^\n]*(?:outcomes|follow_up)/);
   assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
   assert.match(route, /\.rpc\("phase3_sync_recommendation_notifications"/);
   assert.doesNotMatch(route, /anthropic|generativelanguage|openai|googleapis/i);
@@ -594,21 +696,34 @@ test("explicit draft creation preserves verified recommendation provenance witho
   assert.match(proposalPage, /recommendation_context:\s*!editProposal && recommendationDraftContext/);
   assert.match(proposalPage, /recommendation_fingerprint:\s*recommendationDraftContext\.recommendationFingerprint/);
   assert.match(proposalPage, /preserved recommendation evidence link/);
-  assert.match(proposalRoute, /recommendation_context:\s*recommendationContext/);
-  assert.match(proposalRoute, /\.select\("id,barangay_id,approval_status"\)/);
-  assert.match(proposalRoute, /need\.approval_status !== "approved"/);
-  assert.match(proposalRoute, /need\.barangay_id !== meta\.barangay_id/);
-  assert.match(proposalRoute, /\.select\("id,cycle_id,aggregate_schema_version"\)/);
-  assert.match(proposalRoute, /\["completed", "archived"\]\.includes/);
-  assert.match(proposalRoute, /\.from\("proposal_validation_links"\)\.insert\(links\)/);
-  assert.match(proposalRoute, /source_type:\s*"community_need"/);
-  assert.match(proposalRoute, /source_type:\s*"profiling_evidence_snapshot"/);
-  assert.match(proposalRoute, /recommendation_fingerprint/);
+  assert.match(proposalRoute, /\.rpc\("proposal_create_draft_graph"/);
+  assert.match(proposalRoute, /p_proposal:\s*meta/);
+  assert.match(proposalRoute, /p_sdg_alignments:\s*sdg_alignments/);
+  assert.match(proposalRoute, /p_recommendation_context:\s*recommendationContext \?\? null/);
+  assert.match(proposalRoute, /proposalCreateResultSchema\.safeParse\(data\)/);
   assert.match(proposalRoute, /recommendationProvenance/);
-  assert.match(proposalRoute, /proposal_sdg_alignment"\)\.delete\(\)\.eq\("proposal_id", proposal\.id\)/);
-  assert.match(proposalRoute, /project_proposals"\)\.delete\(\)\.eq\("id", proposal\.id\)\.eq\("status", "draft"\)/);
+  assert.doesNotMatch(proposalCreateRoute, /\.from\("(?:project_proposals|proposal_sdg_alignment|proposal_validation_links)"\)\.(?:insert|delete)/);
   assert.doesNotMatch(proposalCreateRoute, /\/advance|phase2_\w*workflow|director_approve|finance_clear|status:\s*"(?:submitted|approved|rejected)"/i);
   assert.doesNotMatch(proposalRoute, /recommendation\.rationale|recommendation\.intervention|raw_recommendation/i);
+});
+
+test("atomic proposal creation rechecks capability, strict graph fields, sources, and audit durability", () => {
+  const migration = readFileSync("supabase/migrations/20260818001000_phase3_atomic_proposal_creation.sql", "utf8");
+
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.proposal_create_draft_graph/);
+  assert.match(migration, /SECURITY DEFINER\s+SET search_path = ''/);
+  assert.match(migration, /phase1_current_has_capability\('proposal\.create'\)/);
+  assert.match(migration, /p_proposal - ARRAY\[/);
+  assert.match(migration, /item\.value - ARRAY\['sdg_number', 'indicator'\]/);
+  assert.match(migration, /need\.approval_status = 'approved'/);
+  assert.match(migration, /aggregate_schema_version = 'agape\.profiling\.aggregate\.v2'/);
+  assert.match(migration, /cycle\.status IN \('completed', 'archived'\)/);
+  assert.match(migration, /INSERT INTO public\.project_proposals/);
+  assert.match(migration, /INSERT INTO public\.proposal_sdg_alignment/);
+  assert.match(migration, /INSERT INTO public\.proposal_validation_links/);
+  assert.match(migration, /'proposal\.draft\.created'/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.proposal_create_draft_graph\(jsonb,jsonb,jsonb\)\s+FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(migration, /DELETE FROM public\.(?:project_proposals|proposal_sdg_alignment|proposal_validation_links)/);
 });
 
 test("proposal editing visibly reloads preserved recommendation evidence", () => {
@@ -677,7 +792,7 @@ test("printable PPF uses a reviewed and redacted evidence projection", () => {
 
 test("advisory provenance remains visible but cannot satisfy human community validation", () => {
   const migration = readFileSync("supabase/migrations/20260818000980_phase3_advisory_provenance_boundary.sql", "utf8");
-  const proposalRoute = readFileSync("src/app/api/proposals/route.ts", "utf8");
+  const creationMigration = readFileSync("supabase/migrations/20260818001000_phase3_atomic_proposal_creation.sql", "utf8");
   const linkRoute = readFileSync("src/app/api/proposals/[id]/validation-links/route.ts", "utf8");
   const section = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
   const prescreening = readFileSync("src/lib/proposals/prescreening.ts", "utf8");
@@ -692,7 +807,7 @@ test("advisory provenance remains visible but cannot satisfy human community val
   assert.match(migration, /ELSE NULL/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.recompute_community_validated\(uuid\) FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /COMMIT;\s*$/);
-  assert.match(proposalRoute, /provenance_kind:\s*"advisory_planning"/);
+  assert.match(creationMigration, /'advisory_planning'/);
   assert.match(linkRoute, /source_id, provenance_kind, rationale/);
   assert.match(section, /link\.provenance_kind === "validation"/);
   assert.match(section, /excluded from the human-validation threshold/);
@@ -777,7 +892,7 @@ test("proposal validation events are created atomically through an authenticated
   assert.match(route, /auth\.supabase\.rpc\("proposal_create_validation_event"/);
   assert.doesNotMatch(route.slice(route.indexOf("export async function POST")), /\.from\("proposal_validations"\)|\.delete\(\)|error\.message/);
   assert.equal(scopes.scopes.phase1.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818001000_phase3_atomic_proposal_creation.sql");
 });
 
 test("proposal validation evidence reads and uploads use a bounded private DTO", () => {

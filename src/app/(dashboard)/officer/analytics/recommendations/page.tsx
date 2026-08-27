@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertCircle, ArrowRight, Bot, Building2, CalendarClock, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -30,6 +30,26 @@ const DISMISSAL_REASON_LABEL = {
   outside_current_scope: "Outside the current program scope",
   data_quality_concern: "Data-quality concern",
   defer_until_next_cycle: "Defer until the next profiling cycle",
+} as const;
+
+const PARTNER_SIGNAL_LABEL = {
+  direct_remaining_need_link: "linked remaining need",
+  active_relationship: "active relationship",
+  verified_category_history: "verified relevant history",
+  related_program_experience: "related program experience",
+  recorded_program_outcomes: "recorded outcomes",
+  host_community: "host community",
+  documentation_ready: "documentation ready",
+  renewal_attention: "renewal follow-up",
+} as const;
+
+const RENEWAL_STATUS_LABEL = {
+  current: "Current",
+  due_within_60_days: "Expires within 60 days",
+  due_within_30_days: "Expires within 30 days",
+  due_within_7_days: "Expires within 7 days",
+  expired: "Recorded term expired",
+  not_applicable: "No active renewal clock",
 } as const;
 
 export default function AdvisoryRecommendationsPage() {
@@ -370,6 +390,36 @@ export default function AdvisoryRecommendationsPage() {
                         </ul>
                       </div>
                     </div>
+                    <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80" data-testid="recommendation-local-capacity">
+                      <p className="font-medium text-foreground">Documented local capacity</p>
+                      {recommendation.localCapacityGuidance.readiness === "unavailable" ? (
+                        <p className="mt-1">No approved barangay-level skill or asset aggregate is available.</p>
+                      ) : recommendation.localCapacityGuidance.readiness === "no_matching_capacity" ? (
+                        <p className="mt-1">No documented skill or usable-asset category currently matches this intervention category.</p>
+                      ) : (
+                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <p className="font-medium text-foreground">Relevant skill categories</p>
+                            <ul className="mt-1 space-y-1">
+                              {recommendation.localCapacityGuidance.relevantSkills.map((skill) => (
+                                <li key={skill.category}>{skill.category.replaceAll("_", " ")} · {skill.practitionerCount.toLocaleString("en-PH")} documented practitioner{skill.practitionerCount === 1 ? "" : "s"}</li>
+                              ))}
+                              {recommendation.localCapacityGuidance.relevantSkills.length === 0 && <li>None documented for this category.</li>}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">Relevant usable asset categories</p>
+                            <ul className="mt-1 space-y-1">
+                              {recommendation.localCapacityGuidance.relevantAssets.map((asset) => (
+                                <li key={asset.type}>{asset.type.replaceAll("_", " ")} · {asset.usableQuantity.toLocaleString("en-PH")} recorded item{asset.usableQuantity === 1 ? "" : "s"}</li>
+                              ))}
+                              {recommendation.localCapacityGuidance.relevantAssets.length === 0 && <li>None documented for this category.</li>}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                      <p className="mt-2 text-muted-foreground">{recommendation.localCapacityGuidance.limitation}</p>
+                    </div>
                     <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80">
                       <p className="font-medium text-foreground">Verified five-year history benchmark</p>
                       {recommendation.planningBenchmarks.matchedRecords > 0 ? (
@@ -386,6 +436,65 @@ export default function AdvisoryRecommendationsPage() {
                         </div>
                       ) : <p className="mt-1">No category-matched accepted and verified records are available.</p>}
                       <p className="mt-1 text-muted-foreground">{recommendation.planningBenchmarks.limitation}</p>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/10 p-3" data-testid="recommendation-partner-guidance">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Potential Partner support</p>
+                        </div>
+                        <Badge variant="outline">Advisory only</Badge>
+                      </div>
+                      {recommendation.partnershipGuidance.state === "available_candidates" ? (
+                        <div className="mt-3 space-y-2">
+                          {recommendation.partnershipGuidance.candidates.map((candidate) => (
+                            <div key={candidate.partner.id} className="rounded-md border border-border bg-background p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">
+                                    {candidate.rank}. {candidate.partner.name}
+                                  </p>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {candidate.partner.code} · {candidate.partner.entityType.replaceAll("_", " ")} · fit {candidate.fitScore}/100
+                                  </p>
+                                </div>
+                                <Badge variant="secondary">{candidate.relationship.status.replaceAll("_", " ")}</Badge>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {candidate.signals.map((signal) => <Badge key={signal} variant="outline">{PARTNER_SIGNAL_LABEL[signal]}</Badge>)}
+                              </div>
+                              <p className="mt-2 text-xs leading-relaxed text-foreground/80">{candidate.rationale}</p>
+                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <span>{candidate.experience.relatedPrograms} related operational program{candidate.experience.relatedPrograms === 1 ? "" : "s"}</span>
+                                <span>{candidate.experience.recordedOutcomes} quantitative outcome record{candidate.experience.recordedOutcomes === 1 ? "" : "s"}</span>
+                                <span>{candidate.experience.categoryMatchedVerifiedHistory} verified historical match{candidate.experience.categoryMatchedVerifiedHistory === 1 ? "" : "es"}</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <CalendarClock className="h-3.5 w-3.5" />
+                                  {RENEWAL_STATUS_LABEL[candidate.relationship.renewalStatus]}
+                                  {candidate.relationship.expiresOn ? ` · ${candidate.relationship.expiresOn}` : ""}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex justify-end">
+                            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/officer/phase-2">
+                              Review Partner registry
+                              <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {recommendation.partnershipGuidance.state === "no_matching_candidates"
+                            ? "No evidence-supported Partner candidate currently matches this need."
+                            : recommendation.partnershipGuidance.state === "component_disabled"
+                              ? "Partner matching will appear after the Partner Registry release gate is enabled."
+                              : recommendation.partnershipGuidance.state === "runtime_off"
+                                ? "Partner matching is unavailable while the Partner Registry runtime is off."
+                                : "Partner matching is temporarily unavailable."}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">{recommendation.partnershipGuidance.limitation}</p>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why it appears</p>
@@ -433,6 +542,22 @@ export default function AdvisoryRecommendationsPage() {
                         {" · "}{recommendation.beneficiaryGuidance.confidence} confidence
                       </p>
                       <p className="mt-1 text-muted-foreground">{recommendation.beneficiaryGuidance.limitation}</p>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80" data-testid="recommendation-volunteer-guidance">
+                      <p className="font-medium text-foreground">Volunteer staffing guidance</p>
+                      {recommendation.volunteerGuidance.estimatedRange ? (
+                        <p className="mt-1">
+                          Planning target: {recommendation.volunteerGuidance.planningTarget?.toLocaleString("en-PH")}
+                          {" · "}Indicative range: {recommendation.volunteerGuidance.estimatedRange.low.toLocaleString("en-PH")}–{recommendation.volunteerGuidance.estimatedRange.high.toLocaleString("en-PH")}
+                          {" · "}{recommendation.volunteerGuidance.confidence} confidence
+                        </p>
+                      ) : <p className="mt-1">A staffing estimate is unavailable from the approved aggregate evidence.</p>}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {recommendation.volunteerGuidance.factors.map((factor) => (
+                          <Badge key={factor} variant="outline">{factor.replaceAll("_", " ")}</Badge>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-muted-foreground">{recommendation.volunteerGuidance.limitation}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">

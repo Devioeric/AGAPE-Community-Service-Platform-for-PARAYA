@@ -9,6 +9,40 @@ export const needCategorySchema = z.enum([
   "environment",
 ]);
 
+const partnerEntityTypeSchema = z.enum([
+  "barangay",
+  "dyci_office",
+  "student_organization",
+  "academic_department",
+  "external_organization",
+  "government_agency",
+  "school",
+  "faith_based",
+  "other",
+]);
+
+const partnershipAdvisoryAvailabilitySchema = z.enum([
+  "available",
+  "component_disabled",
+  "runtime_off",
+  "unavailable",
+]);
+
+export const advisoryPartnerCandidateInputSchema = z.object({
+  id: z.string().uuid(),
+  code: z.string().trim().min(3).max(40),
+  name: z.string().trim().min(1).max(160),
+  entityType: partnerEntityTypeSchema,
+  isHostBarangay: z.boolean(),
+  relationshipStatus: z.enum(["proposed", "active", "suspended", "ended", "none"]),
+  expiresOn: z.string().date().nullable(),
+  agreementReadiness: z.enum(["documented", "director_exception", "not_required", "incomplete"]),
+  needCoverage: z.enum(["unaddressed", "partial", "addressed"]).nullable(),
+  relatedProgramCount: z.number().int().nonnegative(),
+  recordedOutcomeCount: z.number().int().nonnegative(),
+  categoryMatchedVerifiedHistoryCount: z.number().int().nonnegative(),
+}).strict();
+
 const evidenceCountSchema = z.discriminatedUnion("suppressed", [
   z.object({ suppressed: z.literal(false), value: z.number().int().nonnegative(), label: z.string().regex(/^\d+$/) }).strict(),
   z.object({ suppressed: z.literal(true), value: z.null(), label: z.string().regex(/^(suppressed|<([5-9]|[1-9][0-9]|100))$/) }).strict(),
@@ -41,6 +75,18 @@ export const advisoryHistoricalBenchmarkInputSchema = z.object({
   asOfDate: z.string().date(),
 }).strict();
 
+const advisoryLocalCapacityInputSchema = z.object({
+  skillCategories: z.array(z.object({
+    category: z.enum(["trade", "education", "health", "agriculture", "technology", "other"]),
+    practitionerCount: z.number().int().nonnegative(),
+  }).strict()).max(6),
+  assetCategories: z.array(z.object({
+    type: z.enum(["facility", "equipment", "natural", "infrastructure", "other"]),
+    usableQuantity: z.number().int().nonnegative(),
+  }).strict()).max(5),
+  asOfDate: z.string().date(),
+}).strict();
+
 export const advisoryNeedInputSchema = z.object({
   id: z.string().uuid(),
   barangayId: z.string().uuid(),
@@ -57,6 +103,9 @@ export const advisoryNeedInputSchema = z.object({
   largestLinkedPlannedBeneficiaryCount: z.number().int().positive().nullable(),
   profilingEvidence: advisoryProfilingEvidenceSchema.nullable(),
   historicalBenchmark: advisoryHistoricalBenchmarkInputSchema.nullable(),
+  localCapacity: advisoryLocalCapacityInputSchema.nullable(),
+  partnershipAvailability: partnershipAdvisoryAvailabilitySchema,
+  partnerCandidates: z.array(advisoryPartnerCandidateInputSchema).max(500),
 }).strict().superRefine((value, ctx) => {
   if (value.activeFullProgramCount > value.activeProgramCount) {
     ctx.addIssue({ code: "custom", message: "Full active coverage cannot exceed all active coverage" });
@@ -109,6 +158,74 @@ const beneficiaryGuidanceSchema = z.object({
   limitation: z.string().trim().min(1).max(500),
 }).strict();
 
+const volunteerGuidanceSchema = z.object({
+  planningTarget: z.number().int().positive().nullable(),
+  estimatedRange: z.object({
+    low: z.number().int().positive(),
+    high: z.number().int().positive(),
+  }).strict().nullable(),
+  source: z.enum(["verified_history_and_aggregate", "approved_aggregate_rule", "verified_history_only", "unavailable"]),
+  confidence: z.enum(["moderate", "limited", "unavailable"]),
+  factors: z.array(z.enum(["beneficiary_scale", "activity_category", "verified_history", "eligibility_pending", "availability_pending"])).min(2).max(5),
+  limitation: z.string().trim().min(1).max(500),
+}).strict();
+
+const localCapacityGuidanceSchema = z.object({
+  source: z.literal("barangay_skill_asset_aggregate"),
+  asOfDate: z.string().date(),
+  relevantSkills: z.array(z.object({
+    category: z.enum(["trade", "education", "health", "agriculture", "technology", "other"]),
+    practitionerCount: z.number().int().nonnegative(),
+  }).strict()).max(4),
+  relevantAssets: z.array(z.object({
+    type: z.enum(["facility", "equipment", "natural", "infrastructure", "other"]),
+    usableQuantity: z.number().int().nonnegative(),
+  }).strict()).max(4),
+  readiness: z.enum(["documented_capacity", "partial_capacity", "no_matching_capacity", "unavailable"]),
+  limitation: z.string().trim().min(1).max(500),
+}).strict();
+
+const partnershipCandidateSchema = z.object({
+  rank: z.number().int().min(1).max(3),
+  partner: z.object({
+    id: z.string().uuid(),
+    code: z.string().trim().min(3).max(40),
+    name: z.string().trim().min(1).max(160),
+    entityType: partnerEntityTypeSchema,
+  }).strict(),
+  fitScore: z.number().int().min(0).max(100),
+  signals: z.array(z.enum([
+    "direct_remaining_need_link",
+    "active_relationship",
+    "verified_category_history",
+    "related_program_experience",
+    "recorded_program_outcomes",
+    "host_community",
+    "documentation_ready",
+    "renewal_attention",
+  ])).min(1).max(8),
+  relationship: z.object({
+    status: z.enum(["proposed", "active", "suspended", "ended", "none"]),
+    renewalStatus: z.enum(["current", "due_within_60_days", "due_within_30_days", "due_within_7_days", "expired", "not_applicable"]),
+    expiresOn: z.string().date().nullable(),
+    agreementReadiness: z.enum(["documented", "director_exception", "not_required", "incomplete"]),
+  }).strict(),
+  experience: z.object({
+    relatedPrograms: z.number().int().nonnegative(),
+    recordedOutcomes: z.number().int().nonnegative(),
+    categoryMatchedVerifiedHistory: z.number().int().nonnegative(),
+  }).strict(),
+  rationale: z.string().trim().min(1).max(500),
+}).strict();
+
+const partnershipGuidanceSchema = z.object({
+  availability: partnershipAdvisoryAvailabilitySchema,
+  state: z.enum(["available_candidates", "no_matching_candidates", "component_disabled", "runtime_off", "unavailable"]),
+  advisoryOnly: z.literal(true),
+  candidates: z.array(partnershipCandidateSchema).max(3),
+  limitation: z.string().trim().min(1).max(500),
+}).strict();
+
 export const advisoryRecommendationSchema = z.object({
   needId: z.string().uuid(),
   recommendationFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
@@ -140,6 +257,8 @@ export const advisoryRecommendationSchema = z.object({
     }).strict(),
   }).strict(),
   beneficiaryGuidance: beneficiaryGuidanceSchema,
+  volunteerGuidance: volunteerGuidanceSchema,
+  localCapacityGuidance: localCapacityGuidanceSchema,
   automation: z.object({
     eligible: z.boolean(),
     reason: z.enum([
@@ -170,6 +289,7 @@ export const advisoryRecommendationSchema = z.object({
     confidence: z.enum(["moderate", "limited", "unavailable"]),
     limitation: z.string().trim().min(1).max(500),
   }).strict(),
+  partnershipGuidance: partnershipGuidanceSchema,
   suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
   rationale: z.string().trim().min(1).max(500),
   confidence: z.enum(["high", "medium"]),
@@ -211,6 +331,7 @@ export const advisoryRecommendationResponseSchema = z.object({
 }).strict();
 
 export type AdvisoryNeedInput = z.infer<typeof advisoryNeedInputSchema>;
+export type AdvisoryPartnerCandidateInput = z.infer<typeof advisoryPartnerCandidateInputSchema>;
 export type AdvisoryRecommendationResponse = z.infer<typeof advisoryRecommendationResponseSchema>;
 
 type InterventionRule = {
@@ -330,6 +451,17 @@ function recommendationFingerprint(value: {
     source: string;
     asOfDate: string;
   };
+  volunteerGuidance: {
+    planningTarget: number | null;
+    estimatedRange: { low: number; high: number } | null;
+    source: string;
+  };
+  localCapacityGuidance: {
+    asOfDate: string;
+    relevantSkills: Array<{ category: string; practitionerCount: number }>;
+    relevantAssets: Array<{ type: string; usableQuantity: number }>;
+    readiness: string;
+  };
   intervention: { code: string };
   alternatives: Array<{ code: string }>;
   indicativeResources: Array<{ category: string; item: string; indicativeQuantity: string }>;
@@ -337,6 +469,17 @@ function recommendationFingerprint(value: {
     matchedRecords: number;
     budgetRange: unknown;
     volunteerRange: unknown;
+  };
+  partnershipGuidance: {
+    availability: string;
+    state: string;
+    candidates: Array<{
+      partner: { id: string };
+      fitScore: number;
+      signals: string[];
+      relationship: { status: string; renewalStatus: string; expiresOn: string | null; agreementReadiness: string };
+      experience: { relatedPrograms: number; recordedOutcomes: number; categoryMatchedVerifiedHistory: number };
+    }>;
   };
   suggestedSdgs: number[];
   evidence: {
@@ -346,13 +489,19 @@ function recommendationFingerprint(value: {
 }): string {
   const materialState = {
     schema: "agape.ai.need-recommendations.v2",
-    ruleVersion: 3,
+    ruleVersion: 4,
     needId: value.needId,
     category: value.category,
     priority: value.priority,
     coverage: value.coverage,
     automation: value.automation,
     beneficiaryGuidance: value.beneficiaryGuidance,
+    volunteerGuidance: value.volunteerGuidance,
+    localCapacityGuidance: {
+      readiness: value.localCapacityGuidance.readiness,
+      relevantSkills: value.localCapacityGuidance.relevantSkills,
+      relevantAssets: value.localCapacityGuidance.relevantAssets,
+    },
     interventionCode: value.intervention.code,
     alternativeCodes: value.alternatives.map((item) => item.code),
     indicativeResources: value.indicativeResources.map((item) => ({
@@ -365,6 +514,17 @@ function recommendationFingerprint(value: {
       budgetRange: value.planningBenchmarks.budgetRange,
       volunteerRange: value.planningBenchmarks.volunteerRange,
     },
+    partnershipGuidance: {
+      availability: value.partnershipGuidance.availability,
+      state: value.partnershipGuidance.state,
+      candidates: value.partnershipGuidance.candidates.map((candidate) => ({
+        partnerId: candidate.partner.id,
+        fitScore: candidate.fitScore,
+        signals: candidate.signals,
+        relationship: candidate.relationship,
+        experience: candidate.experience,
+      })),
+    },
     suggestedSdgs: value.suggestedSdgs,
     evidence: {
       identifiedDate: value.evidence.identifiedDate,
@@ -373,6 +533,157 @@ function recommendationFingerprint(value: {
     },
   };
   return createHash("sha256").update(stableJson(materialState)).digest("hex");
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.floor((Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) / 86_400_000);
+}
+
+function renewalStatus(
+  status: AdvisoryPartnerCandidateInput["relationshipStatus"],
+  expiresOn: string | null,
+  asOfDate: string,
+) {
+  if (status !== "active" || !expiresOn) return status === "active" ? "current" as const : "not_applicable" as const;
+  const remainingDays = daysBetween(asOfDate, expiresOn);
+  if (remainingDays < 0) return "expired" as const;
+  if (remainingDays <= 7) return "due_within_7_days" as const;
+  if (remainingDays <= 30) return "due_within_30_days" as const;
+  if (remainingDays <= 60) return "due_within_60_days" as const;
+  return "current" as const;
+}
+
+function buildPartnershipGuidance(need: AdvisoryNeedInput, asOfDate: string) {
+  const unavailableState = need.partnershipAvailability === "component_disabled"
+    ? "component_disabled" as const
+    : need.partnershipAvailability === "runtime_off"
+      ? "runtime_off" as const
+      : "unavailable" as const;
+  if (need.partnershipAvailability !== "available") {
+    return {
+      availability: need.partnershipAvailability,
+      state: unavailableState,
+      advisoryOnly: true as const,
+      candidates: [],
+      limitation: need.partnershipAvailability === "component_disabled"
+        ? "Partner matching is unavailable while the Partner Registry component is disabled. Intervention guidance remains usable without Partner data."
+        : need.partnershipAvailability === "runtime_off"
+          ? "Partner matching is unavailable while the Partner Registry database runtime is off. No relationship data was queried."
+          : "Partner matching could not be produced from the approved aggregate Partner contract. Select and validate a Partner manually.",
+    };
+  }
+
+  const ranked = need.partnerCandidates
+    .map((candidate) => {
+      const renewal = renewalStatus(candidate.relationshipStatus, candidate.expiresOn, asOfDate);
+      const signals: Array<z.infer<typeof partnershipCandidateSchema>["signals"][number]> = [];
+      let fitScore = 0;
+      if (candidate.needCoverage === "unaddressed" || candidate.needCoverage === "partial") {
+        signals.push("direct_remaining_need_link");
+        fitScore += candidate.needCoverage === "partial" ? 35 : 30;
+      }
+      if (candidate.relationshipStatus === "active" && renewal !== "expired") {
+        signals.push("active_relationship");
+        fitScore += 20;
+      }
+      if (candidate.categoryMatchedVerifiedHistoryCount > 0) {
+        signals.push("verified_category_history");
+        fitScore += Math.min(20, candidate.categoryMatchedVerifiedHistoryCount * 5);
+      }
+      if (candidate.relatedProgramCount > 0) {
+        signals.push("related_program_experience");
+        fitScore += Math.min(15, candidate.relatedProgramCount * 5);
+      }
+      if (candidate.recordedOutcomeCount > 0) {
+        signals.push("recorded_program_outcomes");
+        fitScore += Math.min(10, candidate.recordedOutcomeCount * 2);
+      }
+      if (candidate.isHostBarangay) {
+        signals.push("host_community");
+        fitScore += 10;
+      }
+      if (["documented", "director_exception", "not_required"].includes(candidate.agreementReadiness)) {
+        signals.push("documentation_ready");
+        fitScore += 5;
+      }
+      if (["due_within_60_days", "due_within_30_days", "due_within_7_days", "expired"].includes(renewal)) {
+        signals.push("renewal_attention");
+      }
+      if (candidate.relationshipStatus === "suspended") fitScore -= 25;
+      if (candidate.relationshipStatus === "ended" || candidate.relationshipStatus === "none") fitScore -= 15;
+      if (renewal === "expired") fitScore -= 20;
+      if (candidate.agreementReadiness === "incomplete") fitScore -= 10;
+
+      const rationaleParts = [
+        candidate.needCoverage === "partial"
+          ? "The active relationship is linked to this need with partial coverage."
+          : candidate.needCoverage === "unaddressed"
+            ? "The relationship already records this need as unaddressed."
+            : null,
+        candidate.categoryMatchedVerifiedHistoryCount > 0
+          ? `${candidate.categoryMatchedVerifiedHistoryCount} accepted, verified historical program${candidate.categoryMatchedVerifiedHistoryCount === 1 ? " matches" : "s match"} this need category.`
+          : null,
+        candidate.relatedProgramCount > 0
+          ? `${candidate.relatedProgramCount} linked operational program${candidate.relatedProgramCount === 1 ? " provides" : "s provide"} relevant implementation context.`
+          : null,
+        candidate.recordedOutcomeCount > 0
+          ? `${candidate.recordedOutcomeCount} active quantitative outcome record${candidate.recordedOutcomeCount === 1 ? " is" : "s are"} available for human review.`
+          : null,
+        candidate.isHostBarangay ? "The Partner represents the host barangay for this need." : null,
+        renewal === "expired" ? "The recorded term is expired and must be reviewed before engagement."
+          : renewal.startsWith("due_within_") ? "The active term is approaching expiry, so renewal readiness should be reviewed."
+            : null,
+      ].filter((value): value is string => Boolean(value));
+
+      return {
+        candidate,
+        fitScore: Math.max(0, Math.min(100, fitScore)),
+        signals,
+        renewal,
+        rationale: rationaleParts.join(" ") || "This Partner is retained as a bounded candidate from approved relationship metadata; PARAYA must validate fit and capacity.",
+      };
+    })
+    .filter((item) => item.signals.some((signal) => [
+      "direct_remaining_need_link",
+      "verified_category_history",
+      "related_program_experience",
+      "host_community",
+    ].includes(signal)))
+    .sort((left, right) => right.fitScore - left.fitScore || left.candidate.name.localeCompare(right.candidate.name) || left.candidate.id.localeCompare(right.candidate.id))
+    .slice(0, 3)
+    .map((item, index) => ({
+      rank: index + 1,
+      partner: {
+        id: item.candidate.id,
+        code: item.candidate.code,
+        name: item.candidate.name,
+        entityType: item.candidate.entityType,
+      },
+      fitScore: item.fitScore,
+      signals: item.signals,
+      relationship: {
+        status: item.candidate.relationshipStatus,
+        renewalStatus: item.renewal,
+        expiresOn: item.candidate.expiresOn,
+        agreementReadiness: item.candidate.agreementReadiness,
+      },
+      experience: {
+        relatedPrograms: item.candidate.relatedProgramCount,
+        recordedOutcomes: item.candidate.recordedOutcomeCount,
+        categoryMatchedVerifiedHistory: item.candidate.categoryMatchedVerifiedHistoryCount,
+      },
+      rationale: item.rationale,
+    }));
+
+  return {
+    availability: "available" as const,
+    state: ranked.length > 0 ? "available_candidates" as const : "no_matching_candidates" as const,
+    advisoryOnly: true as const,
+    candidates: ranked,
+    limitation: ranked.length > 0
+      ? "Candidates are ranked from approved relationship, remaining-need, operational-program, and verified-history metadata only. PARAYA must confirm actual capacity, authority, availability, and agreement readiness."
+      : "No Partner has enough approved relationship, remaining-need, host-community, or verified program evidence for a bounded suggestion. Select and validate a Partner manually.",
+  };
 }
 
 function buildCoverageEstimate(need: AdvisoryNeedInput) {
@@ -430,6 +741,30 @@ const BENEFICIARY_SEGMENT_LABEL: Record<z.infer<typeof needCategorySchema>, stri
   environment: "Households or residents represented in the approved environment-need aggregate",
 };
 
+const BENEFICIARIES_PER_VOLUNTEER: Record<z.infer<typeof needCategorySchema>, number> = {
+  health: 15,
+  livelihood: 12,
+  education: 12,
+  infrastructure: 10,
+  environment: 20,
+};
+
+const RELEVANT_SKILL_CATEGORIES: Record<z.infer<typeof needCategorySchema>, ReadonlySet<string>> = {
+  health: new Set(["health", "education"]),
+  livelihood: new Set(["trade", "agriculture", "technology"]),
+  education: new Set(["education", "technology"]),
+  infrastructure: new Set(["trade", "technology"]),
+  environment: new Set(["agriculture", "trade", "education"]),
+};
+
+const RELEVANT_ASSET_CATEGORIES: Record<z.infer<typeof needCategorySchema>, ReadonlySet<string>> = {
+  health: new Set(["facility", "equipment"]),
+  livelihood: new Set(["equipment", "facility", "natural"]),
+  education: new Set(["facility", "equipment"]),
+  infrastructure: new Set(["infrastructure", "equipment", "facility"]),
+  environment: new Set(["natural", "equipment", "facility"]),
+};
+
 function buildBeneficiaryGuidance(need: AdvisoryNeedInput) {
   const affectedCount = need.profilingEvidence?.needCount ?? null;
   const hasSafeCount = Boolean(affectedCount && !affectedCount.suppressed && affectedCount.value > 0);
@@ -453,6 +788,104 @@ function buildBeneficiaryGuidance(need: AdvisoryNeedInput) {
       : affectedCount?.suppressed
         ? "The matching profile count is suppressed for privacy. Enter a human-validated aggregate target and source; no resident drill-through is available."
         : "No compatible approved profile count is available. Enter a human-validated aggregate target and source before submission.",
+  };
+}
+
+function buildVolunteerGuidance(
+  need: AdvisoryNeedInput,
+  beneficiaryGuidance: z.infer<typeof beneficiaryGuidanceSchema>,
+  observedRange: { low: number; high: number } | null,
+) {
+  const aggregateTarget = beneficiaryGuidance.suggestedCount
+    ? Math.max(3, Math.min(100, Math.ceil(beneficiaryGuidance.suggestedCount / BENEFICIARIES_PER_VOLUNTEER[need.category])))
+    : null;
+  const historyRange = observedRange && observedRange.high > 0
+    ? { low: Math.max(1, observedRange.low), high: Math.max(1, observedRange.high) }
+    : null;
+  const factors: Array<z.infer<typeof volunteerGuidanceSchema>["factors"][number]> = [
+    "activity_category",
+    "eligibility_pending",
+    "availability_pending",
+  ];
+  if (aggregateTarget !== null) factors.unshift("beneficiary_scale");
+  if (historyRange) factors.unshift("verified_history");
+
+  if (aggregateTarget !== null && historyRange) {
+    const aggregateLow = Math.max(1, Math.floor(aggregateTarget * 0.75));
+    const aggregateHigh = Math.max(aggregateLow, Math.ceil(aggregateTarget * 1.25));
+    return {
+      planningTarget: Math.max(1, Math.round((aggregateTarget + (historyRange.low + historyRange.high) / 2) / 2)),
+      estimatedRange: {
+        low: Math.min(aggregateLow, historyRange.low),
+        high: Math.max(aggregateHigh, historyRange.high),
+      },
+      source: "verified_history_and_aggregate" as const,
+      confidence: "moderate" as const,
+      factors,
+      limitation: "This is a non-binding planning estimate based on the approved sample count, activity category, and observed verified programs. Confirm program duration, roles, eligibility, skills, schedule availability, supervision, and final participant reach before assignment.",
+    };
+  }
+  if (aggregateTarget !== null) {
+    const low = Math.max(1, Math.floor(aggregateTarget * 0.75));
+    return {
+      planningTarget: aggregateTarget,
+      estimatedRange: { low, high: Math.max(low, Math.ceil(aggregateTarget * 1.25)) },
+      source: "approved_aggregate_rule" as const,
+      confidence: "limited" as const,
+      factors,
+      limitation: "This is a non-binding category-and-scale estimate from the approved profiled sample. No verified historical staffing range was available; confirm duration, roles, eligibility, skills, schedule availability, supervision, and actual reach.",
+    };
+  }
+  if (historyRange) {
+    return {
+      planningTarget: Math.max(1, Math.round((historyRange.low + historyRange.high) / 2)),
+      estimatedRange: historyRange,
+      source: "verified_history_only" as const,
+      confidence: "limited" as const,
+      factors,
+      limitation: "This non-binding estimate uses only category-matched verified historical staffing. A compatible unsuppressed beneficiary count is unavailable; confirm current scope, duration, roles, eligibility, skills, schedule availability, and supervision.",
+    };
+  }
+  return {
+    planningTarget: null,
+    estimatedRange: null,
+    source: "unavailable" as const,
+    confidence: "unavailable" as const,
+    factors,
+    limitation: "No compatible approved aggregate count or verified historical staffing range is available. A human planner must document the activity duration, roles, eligibility, skills, schedule availability, supervision, and staffing source.",
+  };
+}
+
+function buildLocalCapacityGuidance(need: AdvisoryNeedInput, asOfDate: string) {
+  if (!need.localCapacity) {
+    return {
+      source: "barangay_skill_asset_aggregate" as const,
+      asOfDate,
+      relevantSkills: [],
+      relevantAssets: [],
+      readiness: "unavailable" as const,
+      limitation: "No approved barangay-level skill or asset aggregate is available. Confirm resources manually and do not infer individual availability.",
+    };
+  }
+  const relevantSkills = need.localCapacity.skillCategories
+    .filter((item) => RELEVANT_SKILL_CATEGORIES[need.category].has(item.category) && item.practitionerCount > 0)
+    .sort((left, right) => right.practitionerCount - left.practitionerCount || left.category.localeCompare(right.category))
+    .slice(0, 4);
+  const relevantAssets = need.localCapacity.assetCategories
+    .filter((item) => RELEVANT_ASSET_CATEGORIES[need.category].has(item.type) && item.usableQuantity > 0)
+    .sort((left, right) => right.usableQuantity - left.usableQuantity || left.type.localeCompare(right.type))
+    .slice(0, 4);
+  return {
+    source: "barangay_skill_asset_aggregate" as const,
+    asOfDate: need.localCapacity.asOfDate,
+    relevantSkills,
+    relevantAssets,
+    readiness: relevantSkills.length > 0 && relevantAssets.length > 0
+      ? "documented_capacity" as const
+      : relevantSkills.length > 0 || relevantAssets.length > 0
+        ? "partial_capacity" as const
+        : "no_matching_capacity" as const,
+    limitation: "Counts are barangay-level planning signals, not commitments. Confirm individual consent, eligibility, proficiency, availability, condition, ownership, scheduling, and permission before assigning people or resources.",
   };
 }
 
@@ -492,6 +925,9 @@ export function buildAdvisoryRecommendations(input: {
           : "";
       const coverageEstimate = buildCoverageEstimate(need);
       const beneficiaryGuidance = buildBeneficiaryGuidance(need);
+      const volunteerGuidance = buildVolunteerGuidance(need, beneficiaryGuidance, volunteerRange);
+      const localCapacityGuidance = buildLocalCapacityGuidance(need, asOfDate);
+      const partnershipGuidance = buildPartnershipGuidance(need, asOfDate);
       const isHighPriority = score >= 4;
       const plannedCoverageLooksSufficient = !hasPartialActiveCoverage
         && hasPlan
@@ -530,6 +966,8 @@ export function buildAdvisoryRecommendations(input: {
           estimate: coverageEstimate,
         },
         beneficiaryGuidance,
+        volunteerGuidance,
+        localCapacityGuidance,
         automation,
         action: hasPartialActiveCoverage ? "review_active_gap" as const : hasPlan ? "review_planned_response" as const : "develop_response" as const,
         intervention: {
@@ -558,6 +996,7 @@ export function buildAdvisoryRecommendations(input: {
               ? "Ranges describe observed verified records only. Finance, volunteer eligibility, availability, scope, and current prices still require human validation."
               : "Fewer than two usable budget or volunteer observations are available. No range was generated.",
         },
+        partnershipGuidance,
         suggestedSdgs: intervention.sdgs,
         rationale: hasPartialActiveCoverage
           ? `This approved ${need.category} need has an active linked program, but its recorded coverage is partial. Review the remaining affected group and current outcomes before deciding whether another response is appropriate.${priorProgramNote}`

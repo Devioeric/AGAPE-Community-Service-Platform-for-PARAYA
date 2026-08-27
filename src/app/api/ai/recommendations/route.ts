@@ -6,6 +6,7 @@ import {
   advisoryRecommendationResponseSchema,
   buildAdvisoryRecommendations,
   recommendationDismissalReasonSchema,
+  type AdvisoryPartnerCandidateInput,
 } from "@/lib/ai/advisory-recommendations";
 import {
   getRecommendationAutomationMode,
@@ -73,6 +74,25 @@ type ProposalPlanningLink = {
   needId: string;
   proposalId: string;
   plannedBeneficiaryCount: number | null;
+};
+
+type PartnerEntityRow = {
+  id: string;
+  code: string;
+  name: string;
+  entity_type: AdvisoryPartnerCandidateInput["entityType"];
+  barangay_id: string | null;
+};
+
+type PartnershipTermRow = {
+  id: string;
+  partner_id: string;
+  status: AdvisoryPartnerCandidateInput["relationshipStatus"];
+  starts_on: string;
+  expires_on: string | null;
+  agreement_document_id: string | null;
+  agreement_exception_reason: string | null;
+  agreement_exception_due_on: string | null;
 };
 
 function positiveIntegerOrNull(value: unknown): number | null {
@@ -169,6 +189,7 @@ export async function GET(request: Request) {
   recentProgramWindowStartDate.setUTCMonth(recentProgramWindowStartDate.getUTCMonth() - 24);
   const recentProgramWindowStart = recentProgramWindowStartDate.toISOString().slice(0, 10);
   const historyByCategory = new Map<string, { matchedRecords: number; budgetTotals: number[]; volunteerCounts: number[] }>();
+  const verifiedHistoryCategoryById = new Map<string, string>();
   if (isPhase2ComponentEnabled("historical_programs")) {
     const runtimeResult = await admin
       .from("phase2_component_runtime")
@@ -182,7 +203,7 @@ export async function GET(request: Request) {
     if (runtimeResult.data?.mode === "synthetic" || runtimeResult.data?.mode === "live") {
       const historyResult = await admin
         .from("historical_programs")
-        .select("category,budget_total,volunteer_count,quality,status,starts_on,data_mode")
+        .select("id,category,budget_total,volunteer_count,quality,status,starts_on,data_mode")
         .in("status", ["accepted", "archived"])
         .in("quality", ["complete", "partial_verified"])
         .eq("data_mode", runtimeResult.data.mode)
@@ -194,6 +215,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Unable to load verified historical benchmarks" }, { status: 500 });
       }
       for (const row of historyResult.data ?? []) {
+        verifiedHistoryCategoryById.set(row.id, row.category);
         const values = historyByCategory.get(row.category) ?? { matchedRecords: 0, budgetTotals: [], volunteerCounts: [] };
         values.matchedRecords += 1;
         const budget = row.budget_total === null ? null : Number(row.budget_total);
@@ -247,6 +269,49 @@ export async function GET(request: Request) {
         const evidence = evidenceByCycle.get(cycle.id);
         if (!evidence || evidence.aggregate.cycle.id !== cycle.id) continue;
         profilingByBarangay.set(cycle.barangay_id, { snapshotId: evidence.id, aggregate: evidence.aggregate });
+      }
+    }
+  }
+  const localCapacityByBarangay = new Map<string, {
+    skillCategories: Array<{ category: "trade" | "education" | "health" | "agriculture" | "technology" | "other"; practitionerCount: number }>;
+    assetCategories: Array<{ type: "facility" | "equipment" | "natural" | "infrastructure" | "other"; usableQuantity: number }>;
+    asOfDate: string;
+  }>();
+  if (barangayIds.length > 0) {
+    const [skillsResult, assetsResult] = await Promise.all([
+      admin.from("barangay_skills").select("barangay_id,category,practitioner_count").in("barangay_id", barangayIds).limit(5_000),
+      admin.from("barangay_assets").select("barangay_id,asset_type,quantity,condition").in("barangay_id", barangayIds).limit(5_000),
+    ]);
+    if (skillsResult.error || assetsResult.error) {
+      console.error("[ai-recommendations] local capacity aggregate query failed", { code: skillsResult.error?.code ?? assetsResult.error?.code });
+    } else {
+      const skillCounts = new Map<string, Map<string, number>>();
+      const assetCounts = new Map<string, Map<string, number>>();
+      for (const row of skillsResult.data ?? []) {
+        const categories = skillCounts.get(row.barangay_id) ?? new Map<string, number>();
+        const count = Number(row.practitioner_count);
+        if (Number.isInteger(count) && count >= 0) categories.set(row.category, (categories.get(row.category) ?? 0) + count);
+        skillCounts.set(row.barangay_id, categories);
+      }
+      for (const row of assetsResult.data ?? []) {
+        if (!(["excellent", "good", "fair"] as const).includes(row.condition)) continue;
+        const categories = assetCounts.get(row.barangay_id) ?? new Map<string, number>();
+        const count = Number(row.quantity);
+        if (Number.isInteger(count) && count >= 0) categories.set(row.asset_type, (categories.get(row.asset_type) ?? 0) + count);
+        assetCounts.set(row.barangay_id, categories);
+      }
+      for (const barangayId of barangayIds) {
+        localCapacityByBarangay.set(barangayId, {
+          skillCategories: Array.from(skillCounts.get(barangayId) ?? []).map(([category, practitionerCount]) => ({
+            category: category as "trade" | "education" | "health" | "agriculture" | "technology" | "other",
+            practitionerCount,
+          })),
+          assetCategories: Array.from(assetCounts.get(barangayId) ?? []).map(([type, usableQuantity]) => ({
+            type: type as "facility" | "equipment" | "natural" | "infrastructure" | "other",
+            usableQuantity,
+          })),
+          asOfDate: historyAsOfDate,
+        });
       }
     }
   }
@@ -345,6 +410,148 @@ export async function GET(request: Request) {
     }
   }
 
+  let partnershipAvailability: "available" | "component_disabled" | "runtime_off" | "unavailable" =
+    isPhase2ComponentEnabled("partners") ? "unavailable" : "component_disabled";
+  const partnerCandidatesByNeed = new Map<string, AdvisoryPartnerCandidateInput[]>();
+  if (isPhase2ComponentEnabled("partners")) {
+    const runtimeResult = await admin
+      .from("phase2_component_runtime")
+      .select("mode")
+      .eq("component", "partners")
+      .maybeSingle();
+    if (runtimeResult.error) {
+      console.error("[ai-recommendations] Partner advisory runtime query failed", { code: runtimeResult.error.code });
+    } else if (runtimeResult.data?.mode !== "synthetic" && runtimeResult.data?.mode !== "live") {
+      partnershipAvailability = "runtime_off";
+    } else {
+      const partnerMode = runtimeResult.data.mode;
+      const [entitiesResult, termsResult, policiesResult, needLinksResult, programPartnersResult, historyPartnersResult, outcomesResult] = await Promise.all([
+        admin
+          .from("partner_entities")
+          .select("id,code,name,entity_type,barangay_id")
+          .eq("data_mode", partnerMode)
+          .eq("lifecycle", "active")
+          .order("name")
+          .limit(1_000),
+        admin
+          .from("partnership_terms")
+          .select("id,partner_id,status,starts_on,expires_on,agreement_document_id,agreement_exception_reason,agreement_exception_due_on")
+          .order("starts_on", { ascending: false })
+          .limit(2_000),
+        admin
+          .from("partner_type_policies")
+          .select("entity_type,agreement_required,effective_from")
+          .lte("effective_from", historyAsOfDate)
+          .order("effective_from", { ascending: false })
+          .limit(100),
+        needIds.length > 0
+          ? admin.from("partnership_need_links").select("term_id,need_id,coverage").in("need_id", needIds).limit(5_000)
+          : Promise.resolve({ data: [], error: null }),
+        allProgramIds.length > 0
+          ? admin.from("program_partner_links").select("program_id,partner_id").in("program_id", allProgramIds).limit(5_000)
+          : Promise.resolve({ data: [], error: null }),
+        verifiedHistoryCategoryById.size > 0
+          ? admin.from("historical_program_partner_links").select("historical_program_id,partner_id").in("historical_program_id", Array.from(verifiedHistoryCategoryById.keys())).limit(5_000)
+          : Promise.resolve({ data: [], error: null }),
+        allProgramIds.length > 0
+          ? admin.from("impact_indicators").select("id,program_id").in("program_id", allProgramIds).is("voided_at", null).limit(10_000)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      const partnerError = entitiesResult.error
+        ?? termsResult.error
+        ?? policiesResult.error
+        ?? needLinksResult.error
+        ?? programPartnersResult.error
+        ?? historyPartnersResult.error
+        ?? outcomesResult.error;
+      if (partnerError) {
+        console.error("[ai-recommendations] Partner advisory aggregate query failed", { code: partnerError.code });
+      } else {
+        partnershipAvailability = "available";
+        const entities = (entitiesResult.data ?? []) as PartnerEntityRow[];
+        const entityById = new Map(entities.map((entity) => [entity.id, entity]));
+        const termById = new Map<string, PartnershipTermRow>();
+        const latestTermByPartner = new Map<string, PartnershipTermRow>();
+        for (const term of (termsResult.data ?? []) as PartnershipTermRow[]) {
+          if (!entityById.has(term.partner_id)) continue;
+          termById.set(term.id, term);
+          if (!latestTermByPartner.has(term.partner_id)) latestTermByPartner.set(term.partner_id, term);
+        }
+        const agreementRequiredByType = new Map<string, boolean>();
+        for (const policy of policiesResult.data ?? []) {
+          if (!agreementRequiredByType.has(policy.entity_type)) {
+            agreementRequiredByType.set(policy.entity_type, policy.agreement_required === true);
+          }
+        }
+        const needCoverageByPartner = new Map<string, AdvisoryPartnerCandidateInput["needCoverage"]>();
+        for (const link of needLinksResult.data ?? []) {
+          const partnerId = termById.get(link.term_id)?.partner_id;
+          if (!partnerId || !entityById.has(partnerId)) continue;
+          const key = `${link.need_id}:${partnerId}`;
+          const current = needCoverageByPartner.get(key);
+          const next = link.coverage as AdvisoryPartnerCandidateInput["needCoverage"];
+          const priority = { unaddressed: 3, partial: 2, addressed: 1 } as const;
+          if (!current || (next && priority[next] > priority[current])) needCoverageByPartner.set(key, next);
+        }
+        const programIdsByPartner = new Map<string, Set<string>>();
+        for (const link of programPartnersResult.data ?? []) {
+          if (!entityById.has(link.partner_id)) continue;
+          addToSetMap(programIdsByPartner, link.partner_id, link.program_id);
+        }
+        const outcomeCountByProgram = new Map<string, number>();
+        for (const outcome of outcomesResult.data ?? []) {
+          outcomeCountByProgram.set(outcome.program_id, (outcomeCountByProgram.get(outcome.program_id) ?? 0) + 1);
+        }
+        const historyCategoryCountByPartner = new Map<string, Map<string, number>>();
+        for (const link of historyPartnersResult.data ?? []) {
+          if (!entityById.has(link.partner_id)) continue;
+          const category = verifiedHistoryCategoryById.get(link.historical_program_id);
+          if (!category) continue;
+          const counts = historyCategoryCountByPartner.get(link.partner_id) ?? new Map<string, number>();
+          counts.set(category, (counts.get(category) ?? 0) + 1);
+          historyCategoryCountByPartner.set(link.partner_id, counts);
+        }
+
+        for (const need of needRows ?? []) {
+          const relevantProgramIds = programIdsByNeed.get(need.id) ?? new Set<string>();
+          const candidates = entities.map((entity): AdvisoryPartnerCandidateInput => {
+            const latestTerm = latestTermByPartner.get(entity.id);
+            const agreementRequired = agreementRequiredByType.get(entity.entity_type) ?? true;
+            const agreementReadiness = !agreementRequired
+              ? "not_required" as const
+              : latestTerm?.agreement_document_id
+                ? "documented" as const
+                : latestTerm?.agreement_exception_reason
+                  && latestTerm.agreement_exception_due_on
+                  && latestTerm.agreement_exception_due_on >= historyAsOfDate
+                  ? "director_exception" as const
+                  : "incomplete" as const;
+            const partnerPrograms = programIdsByPartner.get(entity.id) ?? new Set<string>();
+            const relatedProgramCount = Array.from(partnerPrograms).filter((programId) => relevantProgramIds.has(programId)).length;
+            const recordedOutcomeCount = Array.from(partnerPrograms)
+              .filter((programId) => relevantProgramIds.has(programId))
+              .reduce((total, programId) => total + (outcomeCountByProgram.get(programId) ?? 0), 0);
+            return {
+              id: entity.id,
+              code: entity.code,
+              name: entity.name,
+              entityType: entity.entity_type,
+              isHostBarangay: entity.barangay_id === need.barangay_id,
+              relationshipStatus: latestTerm?.status ?? "none",
+              expiresOn: latestTerm?.expires_on ?? null,
+              agreementReadiness,
+              needCoverage: needCoverageByPartner.get(`${need.id}:${entity.id}`) ?? null,
+              relatedProgramCount,
+              recordedOutcomeCount,
+              categoryMatchedVerifiedHistoryCount: historyCategoryCountByPartner.get(entity.id)?.get(need.category) ?? 0,
+            };
+          });
+          partnerCandidatesByNeed.set(need.id, candidates);
+        }
+      }
+    }
+  }
+
   const generated = buildAdvisoryRecommendations({
     barangayId: parsed.data.barangay_id ?? null,
     sufficientCoveragePercent,
@@ -408,6 +615,9 @@ export async function GET(request: Request) {
           windowStart: historyWindowStart,
           asOfDate: historyAsOfDate,
         } : null,
+        localCapacity: localCapacityByBarangay.get(need.barangay_id) ?? null,
+        partnershipAvailability,
+        partnerCandidates: partnerCandidatesByNeed.get(need.id) ?? [],
       };
     }),
   });

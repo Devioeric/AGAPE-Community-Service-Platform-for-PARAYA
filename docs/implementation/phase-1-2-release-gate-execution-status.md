@@ -1556,3 +1556,73 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect proposal creation, where the parent, SDGs, and
   recommendation provenance are still written in separate transactions with
   compensating hard deletes, and replace that graph write atomically.
+
+## Phase 3 atomic proposal creation
+
+- Status: `locally_complete`. Proposal creation now writes its parent, SDG
+  links, initial history, and strict recommendation provenance through one
+  fixed-search-path database operation instead of separate service-role writes
+  with compensating hard deletion.
+- Integrity boundary: the RPC authenticates the active actor, checks proposal
+  preparation capability and deny overrides, validates the parent barangay and
+  recommendation provenance, and returns only the proposal ID and row version.
+  Any failed child write rolls back the complete graph.
+- Migration scope: added forward-only migration
+  `20260818001000_phase3_atomic_proposal_creation.sql` to Phase 2/full replay;
+  Phase 1 scope remains unchanged.
+- Executable database result: the complete disposable Phase 2 gate passed with
+  replay hash `66d31bb60a4a1fe1b108bfba0aa35ff526d8ddeeb6f1ee1f338de8f9a8bcdad8`,
+  32/32 unseeded pgTAP, 207/207 seeded pgTAP, 83/83 behavioral cases, legacy
+  compatibility, and validated cleanup.
+- Rollback: keep the forward migration and disable the calling route if a
+  correction is needed; do not restore destructive compensation.
+
+## Phase 3 advisory planning completion
+
+- Status: `locally_complete`. The workspace now includes ranked Partner
+  support, renewal attention, bounded volunteer staffing guidance, and
+  documented local skills/assets alongside the existing need recommendations.
+- Privacy/runtime boundary: Partner results contain only entity, relationship,
+  agreement, need-coverage, and aggregate experience signals. Capacity uses
+  category totals only. No contacts, signatories, documents, narratives,
+  resident or volunteer identities, receipts, or financial descriptions enter
+  the DTO or AI context. Partner guidance fails closed unless its feature and
+  database runtime permit the same-mode graph.
+- Human authority: staffing is a planning range, Partner ranking is advisory,
+  suppressed data stays unavailable, and no recommendation can change proposal
+  workflow state.
+- Determinism: fingerprint rule version 4 includes material staffing, capacity,
+  and Partner signals while excluding a display-only as-of date.
+- Commands/results: focused tests pass 69/69; complete Node tests pass 243/243
+  with zero failures/skips; typecheck passes; lint passes with zero warnings;
+  the production build produced a fresh artifact; migration inventory reports
+  47 timestamped migrations, zero unordered SQL, and replay preflight PASS.
+- Release state: no remote/shared database operation, feature-state change,
+  account removal, worker action, external AI call, or production activation
+  occurred. Flags remain false, database modes off, and V1 authority unchanged.
+- Rollback: revert the application checkpoint and retain the forward-only atomic
+  migration; correct database behavior with another forward migration.
+- Next exact action: perform one Phase 3 acceptance audit, then prepare a normal
+  reviewed development checkpoint. Do not begin Phase 4 in this milestone.
+## Phase 3 lean acceptance audit
+
+- Status: `locally_complete` for the development checkpoint. Review was limited
+  to the changed advisory and proposal-creation surface; no unrelated suite was
+  rerun.
+- Acceptance result: the changed contracts, privacy allowlists, runtime guards,
+  deterministic fingerprint, atomic proposal graph, UI rendering branches, and
+  migration scope were reviewed with no confirmed defect requiring a change.
+- Local HTTP behavior: the protected recommendations page returns an
+  unauthenticated redirect (`307`) and the advisory API rejects an
+  unauthenticated request (`401`). The local application compiled both paths.
+- Browser limitation: authenticated visual inspection was not executed because
+  the in-app browser could not reach the host loopback server and no connected
+  Chrome control surface was available. This remains a manual presentation
+  check, not a reason to broaden setup or rerun completed database suites.
+- Final technical basis: 243/243 complete Node tests, 69/69 focused tests,
+  typecheck, lint, production build, deterministic migration inventory, and the
+  previously completed disposable Phase 2 database gate all pass.
+- Cleanup: the temporary local development server was stopped. No remote data,
+  runtime, feature flag, account, worker, or AI provider was changed.
+- Next exact action: create the reviewed Phase 3 development checkpoint. Phase 4
+  remains a separate decision.

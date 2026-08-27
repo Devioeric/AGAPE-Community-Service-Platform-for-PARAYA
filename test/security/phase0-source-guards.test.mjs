@@ -62,8 +62,8 @@ test("generic proposal writes do not spread request metadata into database mutat
   assert.doesNotMatch(item, /\.update\s*\(\s*\{\s*\.\.\.body/);
   assert.match(item, /phase0_update_proposal_content/);
   assert.doesNotMatch(item, /proposal_sdg_alignment["']\)\.delete/);
-  assert.match(collection, /error:\s*sdgError/);
-  assert.match(collection, /cleanupError/);
+  assert.match(collection, /auth\.supabase\.rpc\("proposal_create_draft_graph"/);
+  assert.doesNotMatch(collection, /\.from\("(?:project_proposals|proposal_sdg_alignment|proposal_validation_links)"\)\.(?:insert|delete)/);
 });
 
 test("generic program creation does not spread the request body into an insert", async () => {

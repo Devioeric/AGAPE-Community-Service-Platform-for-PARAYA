@@ -4,11 +4,19 @@ import { guardV1Mutation } from "@/lib/phase2/feature";
 import { hasCapability } from "@/lib/auth/capabilities";
 import { parseProposalCreateInput } from "@/lib/proposals/mutation-contracts";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 const PROPOSAL_LIST_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,finance_clearance,finance_cleared_at,finance_notes,prescreening_passed,prescreening_checks,prescreening_ran_at,revision_count,revision_requested_from,community_validated,community_validation_notes,community_validated_at,informed_by_proposals,created_at,updated_at,barangay_id,barangays(name),proposal_sdg_alignment(sdg_number,indicator)";
-const PROPOSAL_WRITE_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,informed_by_proposals,created_at,updated_at,barangay_id";
+const proposalCreateResultSchema = z.object({
+  id: z.string().uuid(),
+  status: z.literal("draft"),
+  recommendationProvenance: z.object({
+    linked: z.literal(true),
+    linkCount: z.number().int().min(1).max(2),
+  }).strict().nullable(),
+}).strict();
 
-// Looser read-only gate for endpoints that should be visible to Finance Officers
+// Read-only gate for endpoints that should be visible to Finance Officers
 // and partner accounts (so they can see their own submissions). The GET handler
 // filters to own rows for partners.
 export async function GET() {
@@ -73,114 +81,30 @@ export async function POST(request: Request) {
   }
   const { sdg_alignments = [], recommendation_context: recommendationContext, ...meta } = parsed.data;
 
-  // Role is already verified above via canSubmitProposal(). Use the admin client
-  // for the write so the insert isn't blocked by RLS policies written before the
-  // role expansion (R-1 / R-6) added paraya_director, partner roles, etc.
-  const admin = createAdminClient();
-
-  let verifiedSnapshotId: string | null = null;
-  if (recommendationContext) {
-    const { data: need, error: needError } = await admin.from("community_needs")
-      .select("id,barangay_id,approval_status")
-      .eq("id", recommendationContext.need_id)
-      .maybeSingle();
-    if (needError) return NextResponse.json({ error: "Recommendation provenance could not be verified" }, { status: 500 });
-    if (!need || need.approval_status !== "approved" || !meta.barangay_id || need.barangay_id !== meta.barangay_id) {
-      return NextResponse.json({ error: "The recommendation need is not approved for the selected barangay" }, { status: 422 });
-    }
-    if (recommendationContext.evidence_snapshot_id) {
-      const { data: snapshot, error: snapshotError } = await admin.from("profiling_evidence_snapshots")
-        .select("id,cycle_id,aggregate_schema_version")
-        .eq("id", recommendationContext.evidence_snapshot_id)
-        .maybeSingle();
-      if (snapshotError) return NextResponse.json({ error: "Recommendation provenance could not be verified" }, { status: 500 });
-      const cycleResult = snapshot
-        ? await admin.from("profiling_cycles").select("id,barangay_id,status").eq("id", snapshot.cycle_id).maybeSingle()
-        : { data: null, error: null };
-      if (cycleResult.error) return NextResponse.json({ error: "Recommendation provenance could not be verified" }, { status: 500 });
-      if (!snapshot || snapshot.aggregate_schema_version !== "agape.profiling.aggregate.v2"
-        || !cycleResult.data || !["completed", "archived"].includes(cycleResult.data.status)
-        || cycleResult.data.barangay_id !== meta.barangay_id) {
-        return NextResponse.json({ error: "The recommendation evidence is not a completed approved snapshot for the selected barangay" }, { status: 422 });
-      }
-      verifiedSnapshotId = snapshot.id;
-    }
-  }
-
-  const { data: proposal, error } = await admin
-    .from("project_proposals")
-    .insert({ ...meta, status: "draft", created_by: auth.actor.id })
-    .select(PROPOSAL_WRITE_FIELDS)
-    .single();
+  const { data, error } = await auth.supabase.rpc("proposal_create_draft_graph", {
+    p_proposal: meta,
+    p_sdg_alignments: sdg_alignments,
+    p_recommendation_context: recommendationContext ?? null,
+  });
 
   if (error) {
+    const status = error.code === "42501" ? 403
+      : error.code === "40001" ? 409
+        : error.code === "22023" ? 400
+          : error.code === "23503" ? 422
+            : 500;
     console.error("Proposal creation failed", { code: error.code });
-    return NextResponse.json({ error: "The proposal could not be created" }, { status: 500 });
+    return NextResponse.json({ error: "The proposal could not be created" }, { status });
   }
 
-  if (sdg_alignments.length > 0) {
-    const { error: sdgError } = await admin.from("proposal_sdg_alignment").insert(
-      sdg_alignments.map((a) => ({
-        proposal_id: proposal.id,
-        sdg_number:  a.sdg_number,
-        indicator:   a.indicator ?? null,
-      }))
-    );
-    if (sdgError) {
-      const { error: cleanupError } = await admin
-        .from("project_proposals")
-        .delete()
-        .eq("id", proposal.id)
-        .eq("status", "draft");
-      console.error("Proposal SDG creation failed", {
-        proposalId: proposal.id,
-        code: sdgError.code,
-        cleanupFailed: Boolean(cleanupError),
-      });
-      return NextResponse.json(
-        { error: "The proposal could not be created with its SDG alignments." },
-        { status: 500 },
-      );
-    }
-  }
-
-  if (recommendationContext) {
-    const rationale = `Preserved from advisory recommendation ${recommendationContext.recommendation_fingerprint}; the officer explicitly created this draft.`;
-    const links = [
-      {
-        proposal_id: proposal.id,
-        source_type: "community_need",
-        source_id: recommendationContext.need_id,
-        provenance_kind: "advisory_planning",
-        rationale,
-        linked_by: auth.actor.id,
-      },
-      ...(verifiedSnapshotId ? [{
-        proposal_id: proposal.id,
-        source_type: "profiling_evidence_snapshot",
-        source_id: verifiedSnapshotId,
-        provenance_kind: "advisory_planning",
-        rationale,
-        linked_by: auth.actor.id,
-      }] : []),
-    ];
-    const { error: provenanceError } = await admin.from("proposal_validation_links").insert(links);
-    if (provenanceError) {
-      const { error: sdgCleanupError } = await admin.from("proposal_sdg_alignment").delete().eq("proposal_id", proposal.id);
-      const { error: proposalCleanupError } = await admin.from("project_proposals").delete().eq("id", proposal.id).eq("status", "draft");
-      console.error("Recommendation provenance creation failed", {
-        proposalId: proposal.id,
-        code: provenanceError.code,
-        cleanupFailed: Boolean(sdgCleanupError || proposalCleanupError),
-      });
-      return NextResponse.json({ error: "The proposal could not be created with its recommendation provenance" }, { status: 500 });
-    }
+  const result = proposalCreateResultSchema.safeParse(data);
+  if (!result.success) {
+    console.error("Proposal creation returned an invalid result");
+    return NextResponse.json({ error: "The proposal returned an invalid result" }, { status: 500 });
   }
 
   return NextResponse.json({
-    data: proposal,
-    recommendationProvenance: recommendationContext
-      ? { linked: true, linkCount: verifiedSnapshotId ? 2 : 1 }
-      : null,
+    data: { id: result.data.id, status: result.data.status },
+    recommendationProvenance: result.data.recommendationProvenance,
   }, { status: 201 });
 }

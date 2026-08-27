@@ -163,7 +163,8 @@ test("forward proposal correction supplies beneficiary count and the complete SD
   assert.match(migration, /CHECK \(sdg_goal BETWEEN 1 AND 17\)/);
   assert.match(migration, /COMMIT;\s*$/);
   assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000930_phase2_proposal_compatibility_correction.sql"), false);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000930_phase2_proposal_compatibility_correction.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000930_phase2_proposal_compatibility_correction.sql"), true);
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000940_phase2_beneficiary_evidence_options.sql");
   for (let sdg = 1; sdg <= 17; sdg += 1) assert.match(proposals, new RegExp(`\\{ n: ${sdg},`));
 });
 

@@ -35,6 +35,24 @@ test("trusted proposal warnings and planning estimates are database derived", as
   assert.match(sql, /warning acknowledgements do not match current trusted warnings/);
 });
 
+test("beneficiary evidence selection exposes only approved aggregate metadata", async () => {
+  const [sql, route, ui] = await Promise.all([
+    read("supabase/migrations/20260818000940_phase2_beneficiary_evidence_options.sql"),
+    read("src/app/api/v2/proposals/beneficiary-estimates/route.ts"),
+    read("src/components/phase2/ProposalOperations.tsx"),
+  ]);
+  assert.match(sql, /phase2_list_beneficiary_evidence_options/);
+  assert.match(sql, /aggregate_schema_version = 'agape\.profiling\.aggregate\.v2'/);
+  assert.match(sql, /source,kind.*approved_sample/);
+  assert.doesNotMatch(sql, /'cells'/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.phase2_list_beneficiary_evidence_options\(uuid\) FROM PUBLIC, anon/);
+  assert.match(route, /beneficiaryEvidenceOptionsQuerySchema/);
+  assert.match(route, /phase2_list_beneficiary_evidence_options/);
+  assert.match(ui, /Calculate aggregate estimate/);
+  assert.match(ui, /Use manual fallback/);
+  assert.match(ui, /No value or drill-through is available/);
+});
+
 test("canonical snapshots use explicit fields and reproducible local hashes", async () => {
   const sql = await read("supabase/migrations/20260818000880_phase2_proposal_finance_vertical_completion.sql");
   const snapshot = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.phase2_proposal_snapshot"), sql.indexOf("CREATE OR REPLACE FUNCTION public.phase2_save_proposal_graph"));
@@ -73,7 +91,7 @@ test("Phase 2 routes call only reviewed Packet 15 wrappers", async () => {
 test("proposal and finance request contracts reject unknown fields", async () => {
   const contracts = await read("src/lib/phase2/contracts.ts");
   for (const name of [
-    "proposalBeneficiaryEstimateSchema", "beneficiaryEstimateRequestSchema", "programAllocationPrepareSchema",
+    "proposalBeneficiaryEstimateSchema", "beneficiaryEstimateRequestSchema", "beneficiaryEvidenceOptionsQuerySchema", "programAllocationPrepareSchema",
     "programAllocationActionSchema", "programExpenditureSchema", "liquidationUpdateSchema",
   ]) assert.match(contracts, new RegExp(`export const ${name} = (?:z\\.strictObject|liquidationCreateSchema\\.extend)`));
 });

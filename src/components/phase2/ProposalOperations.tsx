@@ -1,29 +1,277 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Empty, Field, Panel, Phase2Notice, StatusPill, inputClass, jsonRequest, phase2Api, primaryButton, secondaryButton, textareaClass } from "./Phase2Ui";
+import type { BeneficiaryEvidenceOptionDTO, BeneficiaryPlanningResultDTO } from "@/lib/phase2/types";
+import {
+  Empty, Field, Panel, Phase2Notice, StatusPill, inputClass, jsonRequest,
+  phase2Api, primaryButton, secondaryButton, textareaClass,
+} from "./Phase2Ui";
 
-type ProposalRow = { id: string; title: string; status: string; originChannel: string; startsOn: string; endsOn: string; rowVersion: number; leadBarangayId: string; budget: { id: string; status: string; cashTotal: string; inKindTotal: string; rowVersion: number } | null };
-type ProposalDetail = ProposalRow & { description: string; originatingPartnerId: string | null; responsibleOfficerId: string; projectCategoryId: string; returnStage: string | null; requiredWarnings: string[]; targets: Array<{ id: string; barangayId: string; sitioId: string | null; isLead: boolean }>; needs: Array<{ id: string; needId: string; coverage: string; plannedCount: number | null; snapshot: { title?: string } }>; beneficiaryEstimates: Array<{ id: string; categoryCode: string; kind: string; calculatedCount: number | null; suppressed: boolean; finalCount: number; asOfDate: string }>; sdgs: Array<{ number: number; indicator: string | null }>; activeVersion: { id: string; versionNumber: number; canonicalHash: string } | null; budget: ProposalRow["budget"] & { zeroCash: boolean; zeroCashJustification: string | null; items: Array<{ id: string; description: string; kind: string; amount: string }>; fundingSources: Array<{ id: string; type: string; state: string; cashValue: string; inKindValue: string }> } };
-type Catalog = { partners: Array<{ id: string; code: string; name: string; type: string }>; responsibleOfficers: Array<{ id: string; name: string; role: string }>; projectCategories: Array<{ id: string; code: string; label: string }>; beneficiaryCategories: Array<{ code: string; label: string; planningCubeAvailable: boolean }>; budgetCategories: Array<{ id: string; code: string; label: string }>; barangays: Array<{ id: string; name: string; sitios: Array<{ id: string; name: string }> }>; approvedNeeds: Array<{ id: string; barangayId: string; title: string; category: string; priority: number }>; sdgs: Array<{ number: number; label: string }> };
+type ProposalRow = {
+  id: string; title: string; status: string; originChannel: string; startsOn: string; endsOn: string;
+  rowVersion: number; leadBarangayId: string;
+  budget: { id: string; status: string; cashTotal: string; inKindTotal: string; rowVersion: number } | null;
+};
+type ProposalDetail = ProposalRow & {
+  description: string; originatingPartnerId: string | null; responsibleOfficerId: string; projectCategoryId: string;
+  returnStage: string | null; requiredWarnings: string[];
+  targets: Array<{ id: string; barangayId: string; sitioId: string | null; isLead: boolean }>;
+  needs: Array<{ id: string; needId: string; coverage: string; plannedCount: number | null; snapshot: { title?: string } }>;
+  beneficiaryEstimates: Array<{ id: string; categoryCode: string; kind: string; calculatedCount: number | null; suppressed: boolean; finalCount: number; asOfDate: string }>;
+  sdgs: Array<{ number: number; indicator: string | null }>;
+  activeVersion: { id: string; versionNumber: number; canonicalHash: string } | null;
+  budget: ProposalRow["budget"] & {
+    zeroCash: boolean; zeroCashJustification: string | null;
+    items: Array<{ id: string; description: string; kind: string; amount: string }>;
+    fundingSources: Array<{ id: string; type: string; state: string; cashValue: string; inKindValue: string }>;
+  };
+};
+type Catalog = {
+  partners: Array<{ id: string; code: string; name: string; type: string }>;
+  responsibleOfficers: Array<{ id: string; name: string; role: string }>;
+  projectCategories: Array<{ id: string; code: string; label: string }>;
+  beneficiaryCategories: Array<{ code: string; label: string; planningCubeAvailable: boolean }>;
+  budgetCategories: Array<{ id: string; code: string; label: string }>;
+  barangays: Array<{ id: string; name: string; sitios: Array<{ id: string; name: string }> }>;
+  approvedNeeds: Array<{ id: string; barangayId: string; title: string; category: string; priority: number }>;
+  sdgs: Array<{ number: number; label: string }>;
+};
+type EstimateMode = "manual" | "planning_cube";
 
-export function ProposalOperations({ canCreate, canReview, canEvidence, canDecide, canSubmit, canHandoff }: { canCreate: boolean; canReview: boolean; canEvidence: boolean; canDecide: boolean; canSubmit: boolean; canHandoff: boolean }) {
-  const [rows, setRows] = useState<ProposalRow[]>([]); const [catalog, setCatalog] = useState<Catalog | null>(null); const [selectedId, setSelectedId] = useState(""); const [detail, setDetail] = useState<ProposalDetail | null>(null);
-  const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null); const [busy, setBusy] = useState(false); const [remarks, setRemarks] = useState(""); const [acknowledged, setAcknowledged] = useState<string[]>([]); const [targetBarangay, setTargetBarangay] = useState("");
-  const load = useCallback(async () => { try { const [proposals, proposalCatalog] = await Promise.all([phase2Api<ProposalRow[]>("/api/v2/proposals"), canCreate ? phase2Api<Catalog>("/api/v2/proposals/catalog") : Promise.resolve(null)]); setRows(proposals); setCatalog(proposalCatalog); setSelectedId((current) => current || proposals[0]?.id || ""); setTargetBarangay((current) => current || proposalCatalog?.barangays[0]?.id || ""); } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to load proposals", tone: "error" }); } }, [canCreate]);
-  const loadDetail = useCallback(async (id: string) => { if (!id) return setDetail(null); try { const next = await phase2Api<ProposalDetail>(`/api/v2/proposals/${id}`); setDetail(next); setAcknowledged([]); } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to load proposal", tone: "error" }); } }, []);
-  useEffect(() => { void load(); }, [load]); useEffect(() => { void loadDetail(selectedId); }, [loadDetail, selectedId]);
-  const availableNeeds = useMemo(() => catalog?.approvedNeeds.filter((need) => need.barangayId === targetBarangay) ?? [], [catalog, targetBarangay]);
-  async function mutate<T>(task: () => Promise<T>, success: string): Promise<T | undefined> { setBusy(true); setMessage(null); try { const result = await task(); setMessage({ text: success, tone: "success" }); await load(); if (selectedId) await loadDetail(selectedId); return result; } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Operation failed", tone: "error" }); return undefined; } finally { setBusy(false); } }
-  async function create(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!catalog) return; const form = new FormData(event.currentTarget); const barangayId = String(form.get("barangayId")); const sitioId = String(form.get("sitioId") || ""); const targetAreaKey = `${barangayId}:${sitioId || "all"}`; const zeroCash = form.get("zeroCash") === "on"; const amount = String(form.get("amount") || "0"); const sdgNumbers = form.getAll("sdgs").map(Number); const finalCount = Number(form.get("finalBeneficiaryCount")); const graph = { title: form.get("title"), description: form.get("description"), originChannel: form.get("originChannel"), originatingPartnerId: form.get("originatingPartnerId") || null, responsibleOfficerId: form.get("responsibleOfficerId"), projectCategoryId: form.get("projectCategoryId"), startsOn: form.get("startsOn"), endsOn: form.get("endsOn"), targets: [{ barangayId, sitioId: sitioId || null, isLead: true }], needs: [{ needId: form.get("needId"), targetAreaKey, intendedCoverage: form.get("coverage"), plannedBeneficiaryCount: finalCount, plannedBeneficiaryPercentage: null, notes: null }], beneficiaryCategoryCodes: [form.get("beneficiaryCategoryCode")], finalBeneficiaryCount: finalCount, beneficiarySourceDescription: form.get("beneficiarySourceDescription"), beneficiaryEstimates: [{ categoryCode: form.get("beneficiaryCategoryCode"), targetAreaKey, evidenceSnapshotId: null, finalCount, manualSourceDescription: form.get("beneficiarySourceDescription"), overrideReason: null }], sdgNumbers, zeroCash, zeroCashJustification: zeroCash ? form.get("zeroCashJustification") : null, budgetItems: [{ categoryId: form.get("budgetCategoryId"), kind: zeroCash ? "in_kind" : "cash", description: form.get("budgetDescription"), quantity: "1.000", unit: "project", unitCost: zeroCash ? "0.00" : amount, inKindValuation: zeroCash ? amount : null, notes: null, sortOrder: 0 }], fundingSources: [{ type: zeroCash ? "in_kind_donation" : "internal_dyci", state: "expected", partnerId: null, cashValue: zeroCash ? "0.00" : amount, inKindValue: zeroCash ? amount : "0.00", notes: null }] };
-    const created = await mutate(() => phase2Api<{ id: string }>("/api/v2/proposals", jsonRequest("POST", graph)), "Structured proposal draft created."); if (created?.id) setSelectedId(created.id); event.currentTarget.reset(); }
-  async function workflow(action: string) { if (!detail) return; await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/workflow`, jsonRequest("POST", { action, expectedVersion: detail.rowVersion, remarks: remarks || undefined, acknowledgedWarningCodes: acknowledged })), `Proposal action “${action.replaceAll("_", " ")}” recorded.`); setRemarks(""); }
-  async function handoff() { if (!detail) return; await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/handoff`, jsonRequest("POST", { expectedVersion: detail.rowVersion })), "Approved proposal handed off to one operational program."); }
+export function ProposalOperations({ canCreate, canReview, canEvidence, canDecide, canSubmit, canHandoff }: {
+  canCreate: boolean; canReview: boolean; canEvidence: boolean; canDecide: boolean; canSubmit: boolean; canHandoff: boolean;
+}) {
+  const [rows, setRows] = useState<ProposalRow[]>([]);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [detail, setDetail] = useState<ProposalDetail | null>(null);
+  const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [remarks, setRemarks] = useState("");
+  const [acknowledged, setAcknowledged] = useState<string[]>([]);
+  const [targetBarangay, setTargetBarangay] = useState("");
+  const [targetSitio, setTargetSitio] = useState("");
+  const [beneficiaryCategory, setBeneficiaryCategory] = useState("");
+  const [estimateMode, setEstimateMode] = useState<EstimateMode>("manual");
+  const [evidenceOptions, setEvidenceOptions] = useState<BeneficiaryEvidenceOptionDTO[]>([]);
+  const [evidenceSnapshotId, setEvidenceSnapshotId] = useState("");
+  const [planningResult, setPlanningResult] = useState<BeneficiaryPlanningResultDTO | null>(null);
+  const [finalBeneficiaryCount, setFinalBeneficiaryCount] = useState("");
+  const [manualSource, setManualSource] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const [proposals, proposalCatalog] = await Promise.all([
+        phase2Api<ProposalRow[]>("/api/v2/proposals"),
+        canCreate ? phase2Api<Catalog>("/api/v2/proposals/catalog") : Promise.resolve(null),
+      ]);
+      setRows(proposals);
+      setCatalog(proposalCatalog);
+      setSelectedId((current) => current || proposals[0]?.id || "");
+      setTargetBarangay((current) => current || proposalCatalog?.barangays[0]?.id || "");
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "Unable to load proposals", tone: "error" });
+    }
+  }, [canCreate]);
+  const loadDetail = useCallback(async (id: string) => {
+    if (!id) return setDetail(null);
+    try {
+      const next = await phase2Api<ProposalDetail>(`/api/v2/proposals/${id}`);
+      setDetail(next);
+      setAcknowledged([]);
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "Unable to load proposal", tone: "error" });
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void loadDetail(selectedId); }, [loadDetail, selectedId]);
+  useEffect(() => {
+    setTargetSitio("");
+    setEvidenceSnapshotId("");
+    setPlanningResult(null);
+    if (!canCreate || !targetBarangay) {
+      setEvidenceOptions([]);
+      return;
+    }
+    void phase2Api<BeneficiaryEvidenceOptionDTO[]>(
+      `/api/v2/proposals/beneficiary-estimates?barangayId=${encodeURIComponent(targetBarangay)}`,
+    ).then(setEvidenceOptions).catch((error) => {
+      setEvidenceOptions([]);
+      setMessage({ text: error instanceof Error ? error.message : "Unable to load approved profiling evidence", tone: "error" });
+    });
+  }, [canCreate, targetBarangay]);
+
+  const availableNeeds = useMemo(
+    () => catalog?.approvedNeeds.filter((need) => need.barangayId === targetBarangay) ?? [],
+    [catalog, targetBarangay],
+  );
+  const selectedCategory = catalog?.beneficiaryCategories.find((item) => item.code === beneficiaryCategory);
+  const selectedEvidence = evidenceOptions.find((item) => item.id === evidenceSnapshotId);
+  const requiresOverride = estimateMode === "planning_cube"
+    && planningResult?.calculatedCount != null
+    && Number(finalBeneficiaryCount) !== planningResult.calculatedCount;
+
+  function resetEstimate(mode: EstimateMode = estimateMode) {
+    setEstimateMode(mode);
+    setPlanningResult(null);
+    setFinalBeneficiaryCount("");
+    setManualSource("");
+    setOverrideReason("");
+  }
+  async function mutate<T>(task: () => Promise<T>, success: string): Promise<T | undefined> {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await task();
+      setMessage({ text: success, tone: "success" });
+      await load();
+      if (selectedId) await loadDetail(selectedId);
+      return result;
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "Operation failed", tone: "error" });
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function calculateEstimate() {
+    if (!beneficiaryCategory || !targetBarangay || !evidenceSnapshotId) {
+      setMessage({ text: "Choose a beneficiary category and approved evidence snapshot first.", tone: "error" });
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await phase2Api<BeneficiaryPlanningResultDTO>(
+        "/api/v2/proposals/beneficiary-estimates",
+        jsonRequest("POST", { categoryCode: beneficiaryCategory, barangayId: targetBarangay, sitioId: targetSitio || null, evidenceSnapshotId }),
+      );
+      setPlanningResult(result);
+      if (result.suppressed || result.calculatedCount == null) {
+        setFinalBeneficiaryCount("");
+        setMessage({ text: "This cell is privacy-suppressed. Use an independently sourced manual estimate; the hidden value is not available.", tone: "error" });
+      } else {
+        setFinalBeneficiaryCount(String(result.calculatedCount));
+        setMessage({ text: `Approved aggregate estimate loaded: ${result.calculatedCount.toLocaleString("en-PH")}.`, tone: "success" });
+      }
+    } catch (error) {
+      setPlanningResult(null);
+      setMessage({ text: error instanceof Error ? error.message : "Unable to calculate the aggregate estimate", tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!catalog) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const barangayId = String(form.get("barangayId"));
+    const sitioId = String(form.get("sitioId") || "");
+    const targetAreaKey = `${barangayId}:${sitioId || "all"}`;
+    const zeroCash = form.get("zeroCash") === "on";
+    const amount = String(form.get("amount") || "0");
+    const sdgNumbers = form.getAll("sdgs").map(Number);
+    const finalCount = Number(finalBeneficiaryCount);
+    if (!Number.isInteger(finalCount) || finalCount <= 0) return setMessage({ text: "Enter a positive whole-number beneficiary count.", tone: "error" });
+    if (sdgNumbers.length === 0) return setMessage({ text: "Select at least one SDG.", tone: "error" });
+    if (estimateMode === "manual" && manualSource.trim().length < 10) return setMessage({ text: "Describe the independent source for the manual beneficiary count.", tone: "error" });
+    if (estimateMode === "planning_cube" && (!planningResult || planningResult.suppressed || planningResult.calculatedCount == null)) return setMessage({ text: "Calculate a usable approved aggregate estimate, or switch to a documented manual estimate.", tone: "error" });
+    if (requiresOverride && overrideReason.trim().length < 10) return setMessage({ text: "Explain why the final count differs from the calculated aggregate.", tone: "error" });
+
+    const sourceDescription = estimateMode === "manual"
+      ? manualSource.trim()
+      : `Approved profiling evidence: ${selectedEvidence?.cycleName ?? evidenceSnapshotId} (${planningResult?.asOfDate}).`;
+    const graph = {
+      title: form.get("title"), description: form.get("description"), originChannel: form.get("originChannel"),
+      originatingPartnerId: form.get("originatingPartnerId") || null, responsibleOfficerId: form.get("responsibleOfficerId"),
+      projectCategoryId: form.get("projectCategoryId"), startsOn: form.get("startsOn"), endsOn: form.get("endsOn"),
+      targets: [{ barangayId, sitioId: sitioId || null, isLead: true }],
+      needs: [{ needId: form.get("needId"), targetAreaKey, intendedCoverage: form.get("coverage"), plannedBeneficiaryCount: finalCount, plannedBeneficiaryPercentage: null, notes: null }],
+      beneficiaryCategoryCodes: [beneficiaryCategory], finalBeneficiaryCount: finalCount,
+      beneficiarySourceDescription: sourceDescription,
+      beneficiaryEstimates: [{
+        categoryCode: beneficiaryCategory, targetAreaKey,
+        evidenceSnapshotId: estimateMode === "planning_cube" ? evidenceSnapshotId : null,
+        finalCount, manualSourceDescription: estimateMode === "manual" ? manualSource.trim() : null,
+        overrideReason: requiresOverride ? overrideReason.trim() : null,
+      }],
+      sdgNumbers, zeroCash, zeroCashJustification: zeroCash ? form.get("zeroCashJustification") : null,
+      budgetItems: [{ categoryId: form.get("budgetCategoryId"), kind: zeroCash ? "in_kind" : "cash", description: form.get("budgetDescription"), quantity: "1.000", unit: "project", unitCost: zeroCash ? "0.00" : amount, inKindValuation: zeroCash ? amount : null, notes: null, sortOrder: 0 }],
+      fundingSources: [{ type: zeroCash ? "in_kind_donation" : "internal_dyci", state: "expected", partnerId: null, cashValue: zeroCash ? "0.00" : amount, inKindValue: zeroCash ? amount : "0.00", notes: null }],
+    };
+    const created = await mutate(() => phase2Api<{ id: string }>("/api/v2/proposals", jsonRequest("POST", graph)), "Structured proposal draft created.");
+    if (created?.id) {
+      setSelectedId(created.id);
+      formElement.reset();
+      setBeneficiaryCategory("");
+      setEvidenceSnapshotId("");
+      resetEstimate("manual");
+    }
+  }
+
+  async function workflow(action: string) {
+    if (!detail) return;
+    await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/workflow`, jsonRequest("POST", {
+      action, expectedVersion: detail.rowVersion, remarks: remarks || undefined, acknowledgedWarningCodes: acknowledged,
+    })), `Proposal action “${action.replaceAll("_", " ")}” recorded.`);
+    setRemarks("");
+  }
+  async function handoff() {
+    if (!detail) return;
+    await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/handoff`, jsonRequest("POST", { expectedVersion: detail.rowVersion })), "Approved proposal handed off to one operational program.");
+  }
 
   return <div className="space-y-5" data-testid="proposal-operations">
     {message && <Phase2Notice message={message.text} tone={message.tone} />}
-    {canCreate && catalog && <Panel title="Structured proposal wizard" description="All beneficiary estimates are manual-with-source or from the fixed suppressed planning cube; no resident drill-through is available."><form onSubmit={create} className="grid gap-3 md:grid-cols-3"><input className={inputClass} name="title" placeholder="Editable project title" required /><select className={inputClass} name="projectCategoryId" required><option value="">Project category</option>{catalog.projectCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><select className={inputClass} name="responsibleOfficerId" required><option value="">Responsible officer</option>{catalog.responsibleOfficers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select className={inputClass} name="originChannel"><option value="paraya_internal">PARAYA internal</option><option value="partner_document">Partner document</option><option value="barangay_referral">Barangay referral</option></select><select className={inputClass} name="originatingPartnerId"><option value="">No originating proponent</option>{catalog.partners.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className={inputClass} name="startsOn" type="date" required /><input className={inputClass} name="endsOn" type="date" required /></div><textarea className={`${textareaClass} md:col-span-3`} name="description" placeholder="Rationale and implementation description" required /><select className={inputClass} name="barangayId" value={targetBarangay} onChange={(event) => setTargetBarangay(event.target.value)} required><option value="">Lead barangay</option>{catalog.barangays.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select className={inputClass} name="sitioId"><option value="">Barangay-wide target</option>{catalog.barangays.find((item) => item.id === targetBarangay)?.sitios.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><select className={inputClass} name="needId" required><option value="">Approved community need</option>{availableNeeds.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><select className={inputClass} name="coverage"><option value="partial">Partial coverage</option><option value="full">Full coverage</option></select><select className={inputClass} name="beneficiaryCategoryCode" required><option value="">Beneficiary category</option>{catalog.beneficiaryCategories.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select><input className={inputClass} name="finalBeneficiaryCount" type="number" min="1" placeholder="Final beneficiary count" required /><input className={`${inputClass} md:col-span-3`} name="beneficiarySourceDescription" minLength={10} placeholder="Manual count source and reason (required when no compatible approved cube is selected)" required /><fieldset className="md:col-span-3"><legend className="mb-2 text-sm font-medium">SDG alignment (select at least one)</legend><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{catalog.sdgs.map((sdg) => <label className="rounded border p-2 text-xs" key={sdg.number}><input name="sdgs" type="checkbox" value={sdg.number} /> {sdg.number}</label>)}</div></fieldset><select className={inputClass} name="budgetCategoryId" required><option value="">Budget category</option>{catalog.budgetCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><input className={inputClass} name="budgetDescription" placeholder="Budget/resource item" required /><input className={inputClass} name="amount" inputMode="decimal" placeholder="PHP or in-kind value" required /><label className="text-sm"><input name="zeroCash" type="checkbox" /> Zero-cash project</label><input className={`${inputClass} md:col-span-2`} name="zeroCashJustification" placeholder="Zero-cash justification" /><button className={`${primaryButton} md:col-span-3`} disabled={busy}>Save atomic proposal graph</button></form></Panel>}
+    {canCreate && catalog && <Panel title="Structured proposal wizard" description="Choose a completed, de-identified planning snapshot or document an independent manual count. Suppressed cells remain unavailable.">
+      <form onSubmit={create} className="grid gap-3 md:grid-cols-3">
+        <input className={inputClass} name="title" placeholder="Editable project title" required />
+        <select className={inputClass} name="projectCategoryId" required><option value="">Project category</option>{catalog.projectCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+        <select className={inputClass} name="responsibleOfficerId" required><option value="">Responsible officer</option>{catalog.responsibleOfficers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <select className={inputClass} name="originChannel"><option value="paraya_internal">PARAYA internal</option><option value="partner_document">Partner document</option><option value="barangay_referral">Barangay referral</option></select>
+        <select className={inputClass} name="originatingPartnerId"><option value="">No originating proponent</option>{catalog.partners.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <div className="grid grid-cols-2 gap-2"><input className={inputClass} name="startsOn" type="date" required /><input className={inputClass} name="endsOn" type="date" required /></div>
+        <textarea className={`${textareaClass} md:col-span-3`} name="description" placeholder="Rationale and implementation description" required />
+        <select className={inputClass} name="barangayId" value={targetBarangay} onChange={(event) => setTargetBarangay(event.target.value)} required><option value="">Lead barangay</option>{catalog.barangays.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <select className={inputClass} name="sitioId" value={targetSitio} onChange={(event) => { setTargetSitio(event.target.value); setPlanningResult(null); setFinalBeneficiaryCount(""); }}><option value="">Barangay-wide target</option>{catalog.barangays.find((item) => item.id === targetBarangay)?.sitios.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <select className={inputClass} name="needId" required><option value="">Approved community need</option>{availableNeeds.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
+        <select className={inputClass} name="coverage"><option value="partial">Partial coverage</option><option value="full">Full coverage</option></select>
+        <select className={inputClass} name="beneficiaryCategoryCode" value={beneficiaryCategory} onChange={(event) => { setBeneficiaryCategory(event.target.value); setPlanningResult(null); setFinalBeneficiaryCount(""); }} required><option value="">Beneficiary category</option>{catalog.beneficiaryCategories.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select>
+        <fieldset className="rounded-md border p-3 md:col-span-2"><legend className="px-1 text-sm font-medium">Beneficiary estimate source</legend><div className="flex flex-wrap gap-4 text-sm"><label><input type="radio" name="estimateMode" checked={estimateMode === "manual"} onChange={() => resetEstimate("manual")} /> Documented manual source</label><label className={!selectedCategory?.planningCubeAvailable ? "text-slate-400" : ""}><input type="radio" name="estimateMode" checked={estimateMode === "planning_cube"} disabled={!selectedCategory?.planningCubeAvailable} onChange={() => resetEstimate("planning_cube")} /> Approved profiling aggregate</label></div></fieldset>
+
+        {estimateMode === "planning_cube" ? <>
+          <select className={`${inputClass} md:col-span-2`} value={evidenceSnapshotId} onChange={(event) => { setEvidenceSnapshotId(event.target.value); setPlanningResult(null); setFinalBeneficiaryCount(""); }} required><option value="">Completed profiling evidence</option>{evidenceOptions.map((item) => <option key={item.id} value={item.id}>{item.cycleName} · as of {item.asOfDate} · {item.approvedHouseholds} households</option>)}</select>
+          <button className={secondaryButton} type="button" disabled={busy || !evidenceSnapshotId || !beneficiaryCategory} onClick={() => void calculateEstimate()}>Calculate aggregate estimate</button>
+          {planningResult && <div className="rounded-md border bg-slate-50 p-3 text-sm md:col-span-3" data-testid="beneficiary-planning-result">{planningResult.suppressed ? <><strong>Suppressed ({planningResult.suppressedLabel ?? "small cell"}).</strong> No value or drill-through is available. <button type="button" className="underline" onClick={() => resetEstimate("manual")}>Use manual fallback</button>.</> : <><strong>{planningResult.calculatedCount?.toLocaleString("en-PH")}</strong> calculated from {selectedEvidence?.cycleName}, as of {planningResult.asOfDate}. Sample: {selectedEvidence?.approvedHouseholds ?? 0} approved households; coverage {selectedEvidence?.coveragePercent ?? "not stated"}%.</>}</div>}
+        </> : <textarea className={`${textareaClass} md:col-span-3`} value={manualSource} onChange={(event) => setManualSource(event.target.value)} minLength={10} placeholder="Independent count source and reason (required; no resident-level details)" required />}
+
+        <input className={inputClass} name="finalBeneficiaryCount" type="number" min="1" step="1" value={finalBeneficiaryCount} onChange={(event) => setFinalBeneficiaryCount(event.target.value)} placeholder="Final beneficiary count" required />
+        {requiresOverride && <input className={`${inputClass} md:col-span-2`} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} minLength={10} placeholder="Reason for overriding the calculated count" required />}
+        <fieldset className="md:col-span-3"><legend className="mb-2 text-sm font-medium">SDG alignment (select at least one)</legend><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{catalog.sdgs.map((sdg) => <label className="rounded border p-2 text-xs" key={sdg.number}><input name="sdgs" type="checkbox" value={sdg.number} /> {sdg.number}</label>)}</div></fieldset>
+        <select className={inputClass} name="budgetCategoryId" required><option value="">Budget category</option>{catalog.budgetCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+        <input className={inputClass} name="budgetDescription" placeholder="Budget/resource item" required />
+        <input className={inputClass} name="amount" inputMode="decimal" placeholder="PHP or in-kind value" required />
+        <label className="text-sm"><input name="zeroCash" type="checkbox" /> Zero-cash project</label>
+        <input className={`${inputClass} md:col-span-2`} name="zeroCashJustification" placeholder="Zero-cash justification" />
+        <button className={`${primaryButton} md:col-span-3`} disabled={busy}>Save atomic proposal graph</button>
+      </form>
+    </Panel>}
+
     <Panel title="Proposal workspace"><select className={inputClass} value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Select a proposal</option>{rows.map((row) => <option key={row.id} value={row.id}>{row.title} — {row.status}</option>)}</select>{rows.length === 0 && <Empty />}</Panel>
-    {detail && <><Panel title={detail.title} description={`${detail.originChannel.replaceAll("_", " ")} · ${detail.startsOn} to ${detail.endsOn}`} actions={<StatusPill value={detail.status} />} testId="proposal-detail"><p className="rounded-md bg-slate-50 p-3 text-sm">{detail.description}</p><dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Targets" value={detail.targets.length} /><Field label="Needs" value={detail.needs.length} /><Field label="Final beneficiaries" value={detail.beneficiaryEstimates.reduce((sum, estimate) => sum + estimate.finalCount, 0)} /><Field label="SDGs" value={detail.sdgs.map((sdg) => sdg.number).join(", ")} /><Field label="Budget status" value={<StatusPill value={detail.budget?.status} />} /><Field label="Cash" value={`PHP ${detail.budget?.cashTotal ?? "0.00"}`} /><Field label="In kind" value={`PHP ${detail.budget?.inKindTotal ?? "0.00"}`} /><Field label="Version" value={detail.rowVersion} /></dl>{detail.requiredWarnings.length > 0 && <fieldset className="rounded-md border border-amber-200 bg-amber-50 p-3"><legend className="font-medium text-amber-900">Human warning acknowledgment</legend>{detail.requiredWarnings.map((warning) => <label className="mt-2 block text-sm" key={warning}><input type="checkbox" checked={acknowledged.includes(warning)} onChange={(event) => setAcknowledged((values) => event.target.checked ? [...values, warning] : values.filter((value) => value !== warning))} /> {warning.replaceAll("_", " ")}</label>)}</fieldset>}<textarea className={textareaClass} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Human review remarks" /><div className="flex flex-wrap gap-2">{canSubmit && ["draft", "revisions_requested"].includes(detail.status) && <button className={primaryButton} onClick={() => void workflow("submit")}>Submit</button>}{canReview && detail.status === "submitted" && <button className={primaryButton} onClick={() => void workflow("pass_pre_screening")}>Pass pre-screening</button>}{canEvidence && detail.status === "evidence_review" && <button className={primaryButton} onClick={() => void workflow("confirm_evidence")}>Confirm evidence</button>}{canReview && ["pre_screening", "evidence_review", "director_review"].includes(detail.status) && <button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("request_revision")}>Request revisions</button>}{canDecide && detail.status === "director_review" && <><button className={primaryButton} onClick={() => void workflow("director_approve")}>Director approve</button><button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("director_reject")}>Director reject</button></>}{canHandoff && detail.status === "approved" && <button className={primaryButton} onClick={() => void handoff()}>Create or open operational program</button>}</div></Panel><Panel title="Frozen versions and budget"><div className="grid gap-4 sm:grid-cols-2"><Field label="Proposal snapshot" value={detail.activeVersion ? `v${detail.activeVersion.versionNumber} · ${detail.activeVersion.canonicalHash.slice(0, 12)}…` : "Not submitted"} /><Field label="Budget declaration" value={detail.budget?.zeroCash ? "Zero cash with in-kind resources" : "Cash/in-kind plan"} /></div><div className="mt-3 space-y-2">{detail.budget?.items.map((item) => <div className="rounded border p-3 text-sm" key={item.id}>{item.description}<span className="float-right">{item.kind === "cash" ? "PHP" : "In kind"} {item.amount}</span></div>)}</div></Panel></>}
+    {detail && <>
+      <Panel title={detail.title} description={`${detail.originChannel.replaceAll("_", " ")} · ${detail.startsOn} to ${detail.endsOn}`} actions={<StatusPill value={detail.status} />} testId="proposal-detail">
+        <p className="rounded-md bg-slate-50 p-3 text-sm">{detail.description}</p>
+        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Targets" value={detail.targets.length} /><Field label="Needs" value={detail.needs.length} /><Field label="Final beneficiaries" value={detail.beneficiaryEstimates.reduce((sum, estimate) => sum + estimate.finalCount, 0)} /><Field label="SDGs" value={detail.sdgs.map((sdg) => sdg.number).join(", ")} /><Field label="Budget status" value={<StatusPill value={detail.budget?.status} />} /><Field label="Cash" value={`PHP ${detail.budget?.cashTotal ?? "0.00"}`} /><Field label="In kind" value={`PHP ${detail.budget?.inKindTotal ?? "0.00"}`} /><Field label="Version" value={detail.rowVersion} /></dl>
+        {detail.requiredWarnings.length > 0 && <fieldset className="rounded-md border border-amber-200 bg-amber-50 p-3"><legend className="font-medium text-amber-900">Human warning acknowledgment</legend>{detail.requiredWarnings.map((warning) => <label className="mt-2 block text-sm" key={warning}><input type="checkbox" checked={acknowledged.includes(warning)} onChange={(event) => setAcknowledged((values) => event.target.checked ? [...values, warning] : values.filter((value) => value !== warning))} /> {warning.replaceAll("_", " ")}</label>)}</fieldset>}
+        <textarea className={textareaClass} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Human review remarks" />
+        <div className="flex flex-wrap gap-2">{canSubmit && ["draft", "revisions_requested"].includes(detail.status) && <button className={primaryButton} onClick={() => void workflow("submit")}>Submit</button>}{canReview && detail.status === "submitted" && <button className={primaryButton} onClick={() => void workflow("pass_pre_screening")}>Pass pre-screening</button>}{canEvidence && detail.status === "evidence_review" && <button className={primaryButton} onClick={() => void workflow("confirm_evidence")}>Confirm evidence</button>}{canReview && ["pre_screening", "evidence_review", "director_review"].includes(detail.status) && <button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("request_revision")}>Request revisions</button>}{canDecide && detail.status === "director_review" && <><button className={primaryButton} onClick={() => void workflow("director_approve")}>Director approve</button><button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("director_reject")}>Director reject</button></>}{canHandoff && detail.status === "approved" && <button className={primaryButton} onClick={() => void handoff()}>Create or open operational program</button>}</div>
+      </Panel>
+      <Panel title="Frozen versions and budget"><div className="grid gap-4 sm:grid-cols-2"><Field label="Proposal snapshot" value={detail.activeVersion ? `v${detail.activeVersion.versionNumber} · ${detail.activeVersion.canonicalHash.slice(0, 12)}…` : "Not submitted"} /><Field label="Budget declaration" value={detail.budget?.zeroCash ? "Zero cash with in-kind resources" : "Cash/in-kind plan"} /></div><div className="mt-3 space-y-2">{detail.budget?.items.map((item) => <div className="rounded border p-3 text-sm" key={item.id}>{item.description}<span className="float-right">{item.kind === "cash" ? "PHP" : "In kind"} {item.amount}</span></div>)}</div></Panel>
+    </>}
   </div>;
 }

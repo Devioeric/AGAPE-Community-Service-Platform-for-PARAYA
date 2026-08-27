@@ -466,6 +466,47 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   and structured proposal interface, then integrate only demonstrated missing
   planning behavior without enabling external AI or production features.
 
+## Phase 3 evidence-bound beneficiary planning (owner-authorized local development)
+
+- Status: `locally_complete`. This is a dark local implementation checkpoint,
+  not release evidence and not production activation.
+- Implemented: the structured proposal wizard now lists only compatible,
+  completed `agape.profiling.aggregate.v2` evidence metadata for its selected
+  synthetic/live barangay, invokes the existing fixed planning-cube estimator,
+  displays source/as-of/sample/coverage provenance, pre-fills a usable aggregate
+  count, and records a reason when a human overrides that count.
+- Privacy behavior: aggregate cells are never returned by the evidence-options
+  RPC. A suppressed cell returns only its suppression marker, has no
+  drill-through, cannot be committed as a planning-cube estimate, and directs
+  the user to a separately documented manual source instead.
+- Migration: added forward-only
+  `20260818000940_phase2_beneficiary_evidence_options.sql`, with fixed search
+  path, actor/runtime/capability/data-mode checks, an explicit metadata DTO,
+  audit logging, `PUBLIC`/`anon` revocation, and reviewed `authenticated`
+  execution. Existing timestamped migrations were not edited.
+- Interface behavior: changing barangay, sitio, category, or evidence clears a
+  stale calculation; manual estimates require a source; aggregate overrides
+  require a reason; at least one SDG and a positive whole-number final count are
+  checked before the atomic proposal graph is sent.
+- Verification: focused contract tests pass 24/24; the complete Node suite
+  passes 214/214; typecheck and lint pass; the 165-page production build passes;
+  migration inventory reports 41 ordered migrations and no findings. The full
+  disposable Phase 2 gate passes two clean replays with matching schema hash
+  `43736504d7a3964f3819536316c91b313fd6c1adba17a9a758d30bf47ab296b7`,
+  catalog/runtime/Storage assertions 32/32, seeded workflow assertions 116/116,
+  behavioral cases 83/83, and legacy-seed compatibility. The authenticated
+  Phase 2 browser gate passes 6/6 scenarios.
+- Final state: all disposable stacks were removed; Phase 2 modes are `off` and
+  V1 mutation authority remains the default. No shared database, Auth account,
+  or real personal/financial row was changed.
+- Rollback: revert this development checkpoint before deployment. If the new
+  migration has ever been applied, replace defects with a later forward
+  migration; do not expose aggregate cells or restore arbitrary resident
+  filtering.
+- Next exact action: audit the combined recommendation, alignment, beneficiary,
+  and unmet-need behavior against the Phase 3 advisory boundary, then implement
+  only a demonstrated remaining local gap.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

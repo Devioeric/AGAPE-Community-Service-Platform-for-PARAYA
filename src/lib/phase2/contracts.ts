@@ -186,6 +186,7 @@ export const proposalWorkflowSchema = z.strictObject({ action: z.enum(["submit",
 });
 
 export const beneficiaryEstimateRequestSchema = z.strictObject({ categoryCode: z.string().trim().min(1).max(80), barangayId: id, sitioId: id.nullable().optional(), evidenceSnapshotId: id });
+export const beneficiaryEvidenceOptionsQuerySchema = z.strictObject({ barangayId: id });
 
 export const programAllocationItemSchema = z.strictObject({
   sourceItemId: id.nullable().optional(), categoryId: id, kind: z.enum(["cash", "in_kind"]),

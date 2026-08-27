@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(41);
+SELECT plan(43);
 
 UPDATE public.phase2_component_runtime SET mode='synthetic',
  synthetic_user_ids=ARRAY[
@@ -21,6 +21,8 @@ SELECT ok(NOT has_function_privilege('authenticated','public.phase2_record_expen
 SELECT is(public.phase2_calculate_beneficiary_estimate('synthetic_households','f2100000-0000-4000-8000-000000000001','f2300000-0000-4000-8000-000000000001','f27c0000-0000-4000-8000-000000000001')->>'schema','agape.beneficiary-estimate.v2','planning estimate uses the fixed aggregate contract');
 SELECT ok((public.phase2_calculate_beneficiary_estimate('synthetic_households','f2100000-0000-4000-8000-000000000001',NULL,'f27c0000-0000-4000-8000-000000000001')->>'suppressed')::boolean,'suppressed planning cell has no count');
 SELECT is(jsonb_array_length(public.phase2_get_proposal_catalog()->'sdgs'),17,'proposal catalog exposes the complete SDG set');
+SELECT is(jsonb_array_length(public.phase2_list_beneficiary_evidence_options('f2100000-0000-4000-8000-000000000001')),1,'proposal planning lists the compatible completed aggregate snapshot');
+SELECT ok(NOT (public.phase2_list_beneficiary_evidence_options('f2100000-0000-4000-8000-000000000001')->0 ? 'cells'),'evidence choices never expose aggregate cells or drill-through data');
 
 CREATE TEMP TABLE packet15_proposal AS
  SELECT public.phase2_save_proposal_graph_v2(NULL,0,jsonb_build_object(

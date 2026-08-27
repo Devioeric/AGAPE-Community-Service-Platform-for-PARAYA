@@ -80,7 +80,8 @@
         "20260818000900_phase2_executable_gate_corrections.sql",
         "20260818000910_phase2_solo_development_account_preservation.sql",
         "20260818000920_phase1_invitation_completion_boundary.sql",
-        "20260818000930_phase2_proposal_compatibility_correction.sql"
+        "20260818000930_phase2_proposal_compatibility_correction.sql",
+        "20260818000940_phase2_beneficiary_evidence_options.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

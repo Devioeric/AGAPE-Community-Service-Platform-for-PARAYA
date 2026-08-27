@@ -650,6 +650,29 @@ test("advisory provenance remains visible but cannot satisfy human community val
   assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000980_phase3_advisory_provenance_boundary.sql");
 });
 
+test("manual proposal evidence links are strict, state-bound, and same-barangay", () => {
+  const route = readFileSync("src/app/api/proposals/[id]/validation-links/route.ts", "utf8");
+  const picker = readFileSync("src/components/shared/ValidationLinkPicker.tsx", "utf8");
+
+  assert.match(route, /createLinkSchema = z\.object/);
+  assert.match(route, /\.strict\(\)/);
+  assert.match(route, /source_id: z\.string\(\)\.uuid\(\)/);
+  assert.match(route, /rationale: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(2_000\)/);
+  assert.doesNotMatch(route.slice(0, route.indexOf("type SourceType")), /survey_response/);
+  assert.match(route, /\.select\("id,barangay_id,status"\)/);
+  assert.match(route, /LINKABLE_PROPOSAL_STATUSES/);
+  assert.match(route, /need\.approval_status === "approved" && need\.barangay_id === proposal\.barangay_id/);
+  assert.match(route, /\["published", "closed"\]\.includes\(survey\.status\)/);
+  assert.match(route, /survey\.target_barangay_id === proposal\.barangay_id/);
+  assert.match(route, /observation\.barangay_id === proposal\.barangay_id/);
+  assert.match(route, /snapshot\.aggregate_schema_version === "agape\.profiling\.aggregate\.v2"/);
+  assert.match(route, /cycleResult\.data\.barangay_id === proposal\.barangay_id/);
+  assert.match(route, /provenance_kind: "validation"/);
+  assert.doesNotMatch(route, /\.select\("\*"\)|error\.message/);
+  assert.match(picker, /\/api\/community-needs\?status=approved/);
+  assert.match(picker, /sourceBarangayId === brgyId/);
+});
+
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {
   const migration = readFileSync("supabase/migrations/20260818000930_phase2_proposal_compatibility_correction.sql", "utf8");
   const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));

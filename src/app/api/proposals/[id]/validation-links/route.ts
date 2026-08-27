@@ -1,19 +1,30 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-const VALID_SOURCE_TYPES = [
-  "community_need", "survey", "survey_response", "field_observation", "profiling_evidence_snapshot",
+const LINKABLE_SOURCE_TYPES = [
+  "community_need", "survey", "field_observation", "profiling_evidence_snapshot",
 ] as const;
-type SourceType = (typeof VALID_SOURCE_TYPES)[number] | "household_profile";
+type SourceType = (typeof LINKABLE_SOURCE_TYPES)[number] | "survey_response" | "household_profile";
+
+const proposalIdSchema = z.string().uuid();
+const createLinkSchema = z.object({
+  source_type: z.enum(LINKABLE_SOURCE_TYPES),
+  source_id: z.string().uuid(),
+  rationale: z.string().trim().min(10).max(2_000),
+}).strict();
+
+const LINKABLE_PROPOSAL_STATUSES = ["draft", "submitted", "revisions_requested"] as const;
 
 // ── GET: list all links for a proposal, with the referenced records' details ─
 export async function GET(_req: Request, { params }: Ctx) {
   const { id }   = await params;
   const auth = await authorizeCapability("proposal.read");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: links, error } = await admin
@@ -21,7 +32,10 @@ export async function GET(_req: Request, { params }: Ctx) {
     .select("id, source_type, source_id, provenance_kind, rationale, linked_by, created_at, users:linked_by(full_name)")
     .eq("proposal_id", id)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Proposal validation links could not be loaded", { proposalId: id, code: error.code });
+    return NextResponse.json({ error: "Proposal validation links could not be loaded" }, { status: 500 });
+  }
   if (!links || links.length === 0) return NextResponse.json({ data: [] });
 
   // Bucket source IDs by type so we can hydrate each set with one query.
@@ -110,38 +124,73 @@ export async function POST(request: Request, { params }: Ctx) {
   const { id }   = await params;
   const auth = await authorizeCapability("proposal.review");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
-  const body = await request.json() as {
-    source_type?: string;
-    source_id?:   string;
-    rationale?:   string;
-  };
-
-  if (!body.source_type || !(VALID_SOURCE_TYPES as readonly string[]).includes(body.source_type)) {
-    return NextResponse.json({ error: "Invalid source_type." }, { status: 400 });
-  }
-  if (!body.source_id) {
-    return NextResponse.json({ error: "source_id is required." }, { status: 400 });
-  }
-  if (!body.rationale || body.rationale.trim().length < 10) {
-    return NextResponse.json(
-      { error: "Rationale must explain how this record informed the proposal (min 10 characters)." },
-      { status: 400 }
-    );
-  }
+  const parsed = createLinkSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid validation-link request" }, { status: 400 });
+  const body = parsed.data;
 
   const admin = createAdminClient();
-  if (body.source_type === "profiling_evidence_snapshot") {
-    const { data: snapshot } = await admin.from("profiling_evidence_snapshots").select("id, aggregate_schema_version, profiling_cycles!inner(status)").eq("id", body.source_id).eq("aggregate_schema_version", "agape.profiling.aggregate.v2").in("profiling_cycles.status", ["completed", "archived"]).maybeSingle();
-    if (!snapshot) return NextResponse.json({ error: "Only immutable evidence from a completed profiling cycle may be linked" }, { status: 422 });
+  const { data: proposal, error: proposalError } = await admin.from("project_proposals")
+    .select("id,barangay_id,status")
+    .eq("id", id)
+    .maybeSingle();
+  if (proposalError) return NextResponse.json({ error: "Proposal validation context could not be loaded" }, { status: 500 });
+  if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
+  if (!proposal.barangay_id || !(LINKABLE_PROPOSAL_STATUSES as readonly string[]).includes(proposal.status)) {
+    return NextResponse.json({ error: "Evidence can only be linked to an editable barangay proposal" }, { status: 409 });
   }
+
+  let sourceIsValid = false;
+  if (body.source_type === "community_need") {
+    const { data: need, error } = await admin.from("community_needs")
+      .select("id,barangay_id,approval_status")
+      .eq("id", body.source_id)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: "Validation source could not be verified" }, { status: 500 });
+    sourceIsValid = Boolean(need && need.approval_status === "approved" && need.barangay_id === proposal.barangay_id);
+  } else if (body.source_type === "survey") {
+    const { data: survey, error } = await admin.from("surveys")
+      .select("id,target_barangay_id,status")
+      .eq("id", body.source_id)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: "Validation source could not be verified" }, { status: 500 });
+    sourceIsValid = Boolean(survey && ["published", "closed"].includes(survey.status) && survey.target_barangay_id === proposal.barangay_id);
+  } else if (body.source_type === "field_observation") {
+    const { data: observation, error } = await admin.from("field_observations")
+      .select("id,barangay_id")
+      .eq("id", body.source_id)
+      .maybeSingle();
+    if (error) return NextResponse.json({ error: "Validation source could not be verified" }, { status: 500 });
+    sourceIsValid = Boolean(observation && observation.barangay_id === proposal.barangay_id);
+  } else {
+    const { data: snapshot, error: snapshotError } = await admin.from("profiling_evidence_snapshots")
+      .select("id,cycle_id,aggregate_schema_version")
+      .eq("id", body.source_id)
+      .maybeSingle();
+    if (snapshotError) return NextResponse.json({ error: "Validation source could not be verified" }, { status: 500 });
+    const cycleResult = snapshot
+      ? await admin.from("profiling_cycles").select("id,barangay_id,status").eq("id", snapshot.cycle_id).maybeSingle()
+      : { data: null, error: null };
+    if (cycleResult.error) return NextResponse.json({ error: "Validation source could not be verified" }, { status: 500 });
+    sourceIsValid = Boolean(
+      snapshot
+      && snapshot.aggregate_schema_version === "agape.profiling.aggregate.v2"
+      && cycleResult.data
+      && ["completed", "archived"].includes(cycleResult.data.status)
+      && cycleResult.data.barangay_id === proposal.barangay_id
+    );
+  }
+  if (!sourceIsValid) return NextResponse.json({ error: "Only an eligible source from the proposal barangay may be linked" }, { status: 422 });
+
   const { data, error } = await admin
     .from("proposal_validation_links")
     .insert({
       proposal_id: id,
       source_type: body.source_type,
       source_id:   body.source_id,
-      rationale:   body.rationale.trim(),
+      provenance_kind: "validation",
+      rationale:   body.rationale,
       linked_by:   auth.actor.id,
     })
     .select("id")
@@ -154,7 +203,8 @@ export async function POST(request: Request, { params }: Ctx) {
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal validation link creation failed", { proposalId: id, code: error.code });
+    return NextResponse.json({ error: "The validation link could not be created" }, { status: 500 });
   }
   return NextResponse.json({ data: { id: data.id } }, { status: 201 });
 }

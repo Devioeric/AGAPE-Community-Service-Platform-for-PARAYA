@@ -20,6 +20,7 @@ type SourceType = "community_need" | "survey" | "field_observation" | "profiling
 
 interface CommunityNeed {
   id:              string;
+  barangay_id:     string;
   title:           string;
   category:        string;
   sitio:           string | null;
@@ -29,6 +30,7 @@ interface CommunityNeed {
 
 interface Survey {
   id:        string;
+  target_barangay_id: string | null;
   title:     string;
   status:    string;
   barangays: { name: string } | null;
@@ -103,7 +105,7 @@ export function ValidationLinkPicker({
       let url = "";
       switch (sourceType) {
         case "community_need":
-          url = "/api/community-needs?status=all"; // get all; we'll badge approved ones
+          url = "/api/community-needs?status=approved";
           break;
         case "survey":
           url = "/api/surveys";
@@ -167,14 +169,17 @@ export function ValidationLinkPicker({
         }
       });
 
-      // Best-effort filter by the proposal's barangay for community_need and
-      // survey (those APIs don't take a barangay_id filter on the GET).
+      // Keep the picker aligned with the server's same-barangay boundary.
       let filtered = mapped;
       if (proposalBarangayId && (sourceType === "community_need" || sourceType === "survey")) {
         const brgyId = proposalBarangayId;
         filtered = mapped.filter((c, i) => {
-          const orig = data[i] as { barangay_id?: string };
-          return !orig.barangay_id || orig.barangay_id === brgyId;
+          void c;
+          const orig = data[i] as CommunityNeed | Survey;
+          const sourceBarangayId = sourceType === "community_need"
+            ? (orig as CommunityNeed).barangay_id
+            : (orig as Survey).target_barangay_id;
+          return sourceBarangayId === brgyId;
         });
       }
       setCandidates(filtered);

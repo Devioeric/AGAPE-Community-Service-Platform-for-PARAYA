@@ -1176,3 +1176,34 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: validate and scope every manually linked validation source
   against its proposal parent before allowing the link, rather than trusting a
   caller-supplied polymorphic UUID.
+
+## Phase 3 manual validation-link trust boundary
+
+- Status: `locally_complete`. Manual evidence links now bind the selected
+  source to the editable proposal before any governed link is inserted.
+- Request boundary: proposal and source identifiers must be UUIDs; request
+  bodies reject unknown keys; rationales are trimmed and bounded; and new
+  links can use only community needs, surveys, field observations, or completed
+  aggregate profiling evidence. Legacy survey-response and household-profile
+  lineage remains readable but cannot be newly created through this route.
+- Parent/source verification: the server loads an explicit proposal context,
+  permits links only while the proposal is editable, and verifies approved or
+  published source state plus exact barangay ownership. Profiling evidence must
+  use `agape.profiling.aggregate.v2` from a completed or archived same-barangay
+  cycle.
+- Provenance and privacy: the server assigns `validation` provenance rather
+  than trusting the caller. Database failures return generic messages and log
+  only proposal identifiers and database error codes; no source payload or
+  database message is exposed.
+- Interface: the evidence picker requests only approved community needs and
+  filters both needs and surveys to the proposal barangay before showing them.
+- Commands/results: focused advisory/proposal tests pass 27/27; complete Node
+  tests pass 234/234 with zero failures/skips; typecheck and lint pass; and the
+  168-page/route production build passes.
+- Migration/security impact: no migration, shared/remote database operation,
+  feature-state change, workflow transition, or external AI call occurred.
+- Rollback: revert this application checkpoint. Existing governed evidence
+  links and provenance classifications remain unchanged.
+- Next exact action: make validation-link hydration strict and fail closed so
+  unsupported source types or source-query failures cannot silently produce an
+  incomplete evidence review DTO.

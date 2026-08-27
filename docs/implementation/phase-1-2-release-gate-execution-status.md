@@ -1340,3 +1340,25 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect the linked-record picker so candidate-source
   failures cannot be presented as a valid empty catalog or leave a stale source
   selection available for submission.
+
+## Phase 3 validation-source picker reliability
+
+- Status: `locally_complete`. Candidate-source failures are now distinguishable
+  from a legitimate empty catalog and cannot leave a stale selection ready to
+  submit.
+- Loading behavior: opening or switching a source clears the prior candidate,
+  rationale, selection, and error state. Non-success responses, malformed DTOs,
+  mapping failures, and network failures show an inline Retry state and retain
+  no prior candidate data.
+- Mutation behavior: Link remains disabled during loading or after catalog
+  failure. Network errors during save are handled visibly, and the saving state
+  is always released through `finally` so the dialog cannot remain stuck.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow transition, worker action, or external AI call occurred.
+- Rollback: revert this picker checkpoint. Server-side source and parent binding
+  remains authoritative.
+- Next exact action: replace the picker's unchecked source-specific row casts
+  with explicit allowlisted candidate DTO validation so malformed or excessive
+  endpoint fields cannot enter the proposal evidence interface.

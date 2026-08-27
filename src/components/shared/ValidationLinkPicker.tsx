@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Search, ClipboardList, BarChart3, Eye, Home, CheckCircle, Link as LinkIcon } from "lucide-react";
+import { Loader2, Search, ClipboardList, BarChart3, Eye, Home, CheckCircle, AlertCircle, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +82,7 @@ export function ValidationLinkPicker({
   const [sourceType, setSourceType] = useState<SourceType>("community_need");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading]       = useState(false);
+  const [loadError, setLoadError]   = useState<string | null>(null);
   const [search, setSearch]         = useState("");
   const [picked, setPicked]         = useState<Candidate | null>(null);
   const [rationale, setRationale]   = useState("");
@@ -94,12 +95,15 @@ export function ValidationLinkPicker({
       setSearch("");
       setPicked(null);
       setRationale("");
+      setLoadError(null);
     }
   }, [open]);
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     setPicked(null);
+    setRationale("");
     setCandidates([]);
     try {
       let url = "";
@@ -121,12 +125,13 @@ export function ValidationLinkPicker({
       }
       const res = await fetch(url);
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        toast.error(j.error ?? "Failed to load candidates.");
-        setLoading(false);
-        return;
+        throw new Error("candidate request failed");
       }
-      const data = ((await res.json()).data ?? []) as unknown[];
+      const body = await res.json().catch(() => null);
+      if (!Array.isArray(body?.data)) {
+        throw new Error("candidate response was malformed");
+      }
+      const data = body.data as unknown[];
       const mapped: Candidate[] = data.map((row) => {
         switch (sourceType) {
           case "community_need": {
@@ -183,6 +188,11 @@ export function ValidationLinkPicker({
         });
       }
       setCandidates(filtered);
+    } catch {
+      setCandidates([]);
+      setPicked(null);
+      setRationale("");
+      setLoadError("Available validation records could not be loaded. Retry before selecting evidence.");
     } finally {
       setLoading(false);
     }
@@ -209,24 +219,29 @@ export function ValidationLinkPicker({
       return;
     }
     setSaving(true);
-    const res = await fetch(`/api/proposals/${proposalId}/validation-links`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        source_type: sourceType,
-        source_id:   picked.id,
-        rationale:   rationale.trim(),
-      }),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to link.");
-      return;
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/validation-links`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          source_type: sourceType,
+          source_id:   picked.id,
+          rationale:   rationale.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error ?? "Failed to link.");
+        return;
+      }
+      toast.success("Record linked.");
+      onOpenChange(false);
+      await onLinked();
+    } catch {
+      toast.error("The record could not be linked. Check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
-    toast.success("Record linked.");
-    onOpenChange(false);
-    await onLinked();
   }
 
   const meta = SOURCE_META[sourceType];
@@ -285,6 +300,14 @@ export function ValidationLinkPicker({
               <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…
               </div>
+            ) : loadError ? (
+              <div role="alert" className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+                <AlertCircle className="w-4 h-4 text-danger" />
+                <p className="text-xs text-muted-foreground">{loadError}</p>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => void fetchCandidates()}>
+                  Retry
+                </Button>
+              </div>
             ) : visible.length === 0 ? (
               <p className="text-xs text-muted-foreground italic text-center py-6">
                 No {meta.label.toLowerCase()} found
@@ -336,7 +359,7 @@ export function ValidationLinkPicker({
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={handleSave}
-            disabled={!picked || saving}
+            disabled={!picked || saving || loading || Boolean(loadError)}
             className="bg-primary hover:bg-primary-dark text-white"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (

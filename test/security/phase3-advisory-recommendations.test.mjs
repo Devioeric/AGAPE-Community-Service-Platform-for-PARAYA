@@ -679,6 +679,10 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.match(route, /Proposal validation link references a missing source/);
   assert.match(picker, /\/api\/community-needs\?status=approved/);
   assert.match(picker, /sourceBarangayId === brgyId/);
+  assert.match(picker, /setLoadError\("Available validation records could not be loaded/);
+  assert.match(picker, /setCandidates\(\[\]\);\s*setPicked\(null\);\s*setRationale\(""\)/);
+  assert.match(picker, /disabled=\{!picked \|\| saving \|\| loading \|\| Boolean\(loadError\)\}/);
+  assert.match(picker, /finally \{\s*setSaving\(false\);/);
 
   const validationPanel = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
   assert.doesNotMatch(validationPanel, /field observations, or household profiles/);

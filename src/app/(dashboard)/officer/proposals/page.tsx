@@ -61,6 +61,7 @@ type ProposalEvidenceLink = {
   id: string;
   source_type: string;
   source_id: string;
+  provenance_kind: "validation" | "advisory_planning";
   rationale: string;
   created_at: string;
   details: {
@@ -917,7 +918,7 @@ export default function ProposalsPage() {
                   ) : (
                     <ul className="space-y-2">
                       {proposalEvidenceLinks.map((link) => {
-                        const isRecommendation = link.rationale.startsWith("Preserved from advisory recommendation ");
+                        const isRecommendation = link.provenance_kind === "advisory_planning";
                         const cycleName = link.details?.profiling_cycles?.name;
                         const label = link.source_type === "community_need"
                           ? `Approved need: ${link.details?.title ?? "linked community need"}`
@@ -928,7 +929,7 @@ export default function ProposalsPage() {
                           <li key={link.id} className="rounded-lg border border-border bg-background px-3 py-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs font-medium text-foreground">{label}</span>
-                              {isRecommendation && <Badge className="bg-info/10 text-info border-info/20 border text-[10px]">Recommendation provenance</Badge>}
+                              {isRecommendation && <Badge className="bg-info/10 text-info border-info/20 border text-[10px]">Recommendation provenance · planning only</Badge>}
                             </div>
                             <p className="mt-1 text-[11px] text-muted-foreground">
                               Verified source · linked {fmt(link.created_at)}
@@ -1395,7 +1396,9 @@ export default function ProposalsPage() {
                 {/* Community Validation (Phase II) — evidence-backed.
                     The DB trigger flips detail.community_validated to TRUE
                     when either path is satisfied:
-                      * Primary: ≥ 2 linked records, ≥ 1 approved community_need
+                      * Primary: ≥ 2 human-validation links, including one
+                        approved same-barangay community_need. Recommendation
+                        planning provenance is visible but excluded.
                       * Supplementary: validation event with ≥ 1 file + ≥ 3 stakeholders
                     Pre-screening reads that derived flag. */}
                 <>

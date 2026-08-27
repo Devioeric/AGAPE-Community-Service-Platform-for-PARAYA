@@ -1142,3 +1142,37 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: replace the legacy linked-record threshold wording and
   automatic validation interpretation with source-quality-aware guidance so an
   AI-preserved pair is not mistaken for completed human community validation.
+
+## Phase 3 advisory provenance versus human-validation boundary
+
+- Status: `locally_complete`. Recommendation-derived planning sources remain
+  traceable but cannot satisfy the human community-validation gate.
+- Database boundary: forward migration
+  `20260818000980_phase3_advisory_provenance_boundary.sql` adds the controlled
+  `validation | advisory_planning` provenance classification and replaces the
+  legacy recomputation rule. The structural validation path now requires two
+  human-validation links, including an approved community need from the
+  proposal's barangay. Recommendation links are excluded.
+- Correction behavior: when qualifying validation evidence is removed, stale
+  validation actor/time metadata is cleared with the derived flag. Direct
+  authenticated execution of the recomputation helper is revoked.
+- Application behavior: explicit recommendation draft creation writes
+  `advisory_planning`; ordinary officer-created evidence links retain the
+  server-owned `validation` default. Editor/detail cards visibly label planning
+  provenance and state that it does not complete human validation.
+- Prescreening: guidance now describes the actual database rule and explicitly
+  excludes recommendation planning provenance. AI still cannot move a proposal
+  through any workflow state.
+- Commands/results: complete Node tests pass 233/233; typecheck and lint pass;
+  the 168-page/route production build passes. Two clean Phase 2 replays match at
+  SHA-256 `67b0648f08c589ed01408852342f54bc08d803623df7e4b7fb25ef1cc0a1b88c`;
+  catalog/runtime/Storage pgTAP passes 32/32, seeded pgTAP passes 178/178,
+  behavioral security passes 83/83, and legacy-seed compatibility passes.
+- Final local state: all disposable stacks were removed. No shared/remote
+  database, feature flag, runtime mode, worker, or mutation authority changed.
+- Rollback: keep the migration and provenance history after application; use a
+  later forward correction if needed. At application level, revert the UI/API
+  checkpoint without reclassifying existing governed links.
+- Next exact action: validate and scope every manually linked validation source
+  against its proposal parent before allowing the link, rather than trusting a
+  caller-supplied polymorphic UUID.

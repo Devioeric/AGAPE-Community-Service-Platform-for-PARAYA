@@ -102,8 +102,8 @@ export function runPrescreening(p: ProposalForScreening): ScreeningResult {
   // Framework: objectives are validated with community stakeholders before
   // they advance. The DB-side trigger sets `community_validated = TRUE` when
   // EITHER path is satisfied:
-  //   * ≥ 2 linked community-engagement records (needs / surveys /
-  //     observations / household profiles), OR
+  //   * ≥ 2 separately recorded human-validation links, including one
+  //     Captain-approved same-barangay need, OR
   //   * A validation event with ≥ 1 evidence file and ≥ 3 stakeholders.
   // So this flag is evidence-backed (structural lineage or uploaded artifacts),
   // not a self-attestation.
@@ -112,7 +112,7 @@ export function runPrescreening(p: ProposalForScreening): ScreeningResult {
     passed:  p.community_validated,
     message: p.community_validated
       ? "Evidence-backed community consultation on record."
-      : "Phase II requires evidence: either link ≥ 2 community records (needs / surveys / observations / household profiles), or record a consultation event with ≥ 3 stakeholders and ≥ 1 evidence file.",
+      : "Phase II requires human-reviewed evidence: either link ≥ 2 qualifying community records including one Captain-approved same-barangay need, or record a consultation event with ≥ 3 stakeholders and ≥ 1 evidence file. Recommendation planning provenance does not count toward this gate.",
   });
 
   return {

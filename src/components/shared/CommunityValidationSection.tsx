@@ -113,10 +113,16 @@ export function CommunityValidationSection({
 
   useEffect(() => { load(); }, [load]);
 
-  // Threshold check for the primary (linked-records) validation path.
-  // Any 2 linked records of any type satisfy this path.
+  // Recommendation-derived planning sources stay visible, but only links
+  // explicitly recorded as human validation can satisfy this gate.
+  const validationLinks = links.filter((link) => link.provenance_kind === "validation");
+  const planningLinks = links.filter((link) => link.provenance_kind === "advisory_planning");
+  const hasApprovedNeed = validationLinks.some((link) =>
+    link.source_type === "community_need"
+    && link.details?.approval_status === "approved"
+  );
   const totalLinks  = links.length;
-  const linkPathMet = totalLinks >= 2;
+  const linkPathMet = validationLinks.length >= 2 && hasApprovedNeed;
 
   const showAddButton = canRecord ?? ["draft", "submitted", "revisions_requested"].includes(proposalStatus);
 
@@ -148,9 +154,9 @@ export function CommunityValidationSection({
           <ul className="text-xs text-muted-foreground space-y-1 pl-7">
             <li>
               <strong className="text-foreground">Link records</strong> (preferred):
-              {" "}≥ 2 records from the system (community needs, surveys, field observations,
-              or household profiles).
-              <span className="ml-1 text-[11px]">({totalLinks}/2 linked)</span>
+              {" "}≥ 2 human-reviewed records from the system, including one
+              Captain-approved need for this barangay.
+              <span className="ml-1 text-[11px]">({validationLinks.length}/2 qualifying)</span>
             </li>
             <li>
               <strong className="text-foreground">Or upload evidence</strong>:
@@ -199,6 +205,11 @@ export function CommunityValidationSection({
               />
             ))}
           </div>
+        )}
+        {planningLinks.length > 0 && (
+          <p className="text-[11px] text-info">
+            {planningLinks.length} recommendation-derived source{planningLinks.length === 1 ? " is" : "s are"} retained as planning provenance and excluded from the human-validation threshold.
+          </p>
         )}
       </div>
 

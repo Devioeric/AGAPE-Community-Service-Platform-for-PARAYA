@@ -348,6 +348,7 @@ export interface LinkedRecord {
   id:          string;
   source_type: SourceType | "survey_response";
   source_id:   string;
+  provenance_kind: "validation" | "advisory_planning";
   rationale:   string;
   linker_name: string | null;
   created_at:  string;
@@ -370,6 +371,7 @@ export function LinkedRecordCard({
             ?? { label: "Linked Record", icon: LinkIcon, hint: "" };
   const Icon = meta.icon;
   const details = record.details ?? {};
+  const planningProvenance = record.provenance_kind === "advisory_planning";
 
   let title = "Linked record";
   let secondaryLine = "";
@@ -424,6 +426,11 @@ export function LinkedRecordCard({
             <div className="flex items-center gap-1.5 flex-wrap">
               <p className="text-sm font-medium text-foreground line-clamp-1">{title}</p>
               {approvedBadge}
+              {planningProvenance && (
+                <Badge className="bg-info/10 text-info border-info/20 border text-[10px] font-normal">
+                  Planning provenance
+                </Badge>
+              )}
             </div>
             {secondaryLine && (
               <p className="text-[11px] text-muted-foreground truncate">{secondaryLine}</p>
@@ -432,6 +439,11 @@ export function LinkedRecordCard({
         </div>
       </div>
       <p className="text-xs text-foreground/80 italic pl-7">→ {record.rationale}</p>
+      {planningProvenance && (
+        <p className="text-[10px] text-info pl-7">
+          Preserved for traceability; this source does not by itself complete human community validation.
+        </p>
+      )}
       {record.linker_name && (
         <p className="text-[10px] text-muted-foreground pl-7">Linked by {record.linker_name}</p>
       )}

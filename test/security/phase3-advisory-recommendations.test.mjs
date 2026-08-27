@@ -381,7 +381,7 @@ test("recommendation thresholds are Director-only, versioned, audited, and canno
   assert.match(page, /Director alert threshold/);
   assert.match(page, /does not enable the weekly worker/);
   assert.doesNotMatch(route, /AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED|proposal|submit|approve|reject/i);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000970_phase3_recommendation_settings.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000970_phase3_recommendation_settings.sql"), true);
 });
 
 test("recommendation interface clearly remains advisory and is reachable from Analytics", () => {
@@ -623,6 +623,31 @@ test("proposal editing visibly reloads preserved recommendation evidence", () =>
   assert.match(proposalPage, /Approved need:/);
   assert.match(proposalPage, /Completed profiling evidence:/);
   assert.match(proposalPage, /Reload before relying on the alignment check/);
+});
+
+test("advisory provenance remains visible but cannot satisfy human community validation", () => {
+  const migration = readFileSync("supabase/migrations/20260818000980_phase3_advisory_provenance_boundary.sql", "utf8");
+  const proposalRoute = readFileSync("src/app/api/proposals/route.ts", "utf8");
+  const linkRoute = readFileSync("src/app/api/proposals/[id]/validation-links/route.ts", "utf8");
+  const section = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
+  const prescreening = readFileSync("src/lib/proposals/prescreening.ts", "utf8");
+  const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));
+
+  assert.match(migration, /^--[\s\S]*\bBEGIN;/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS provenance_kind/);
+  assert.match(migration, /'validation', 'advisory_planning'/);
+  assert.match(migration, /l\.provenance_kind = 'validation'/);
+  assert.match(migration, /n\.approval_status = 'approved'/);
+  assert.match(migration, /n\.barangay_id = proposal_barangay_id/);
+  assert.match(migration, /ELSE NULL/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.recompute_community_validated\(uuid\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /COMMIT;\s*$/);
+  assert.match(proposalRoute, /provenance_kind:\s*"advisory_planning"/);
+  assert.match(linkRoute, /source_id, provenance_kind, rationale/);
+  assert.match(section, /link\.provenance_kind === "validation"/);
+  assert.match(section, /excluded from the human-validation threshold/);
+  assert.match(prescreening, /Recommendation planning provenance does not count/);
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000980_phase3_advisory_provenance_boundary.sql");
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

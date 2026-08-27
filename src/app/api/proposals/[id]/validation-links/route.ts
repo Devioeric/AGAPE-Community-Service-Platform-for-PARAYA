@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   const admin = createAdminClient();
   const { data: links, error } = await admin
     .from("proposal_validation_links")
-    .select("id, source_type, source_id, rationale, linked_by, created_at, users:linked_by(full_name)")
+    .select("id, source_type, source_id, provenance_kind, rationale, linked_by, created_at, users:linked_by(full_name)")
     .eq("proposal_id", id)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -92,6 +92,7 @@ export async function GET(_req: Request, { params }: Ctx) {
       id:          l.id,
       source_type: l.source_type,
       source_id:   l.source_id,
+      provenance_kind: l.provenance_kind,
       rationale:   l.rationale,
       linked_by:   l.linked_by,
       linker_name: (l.users as unknown as { full_name?: string | null } | null)?.full_name ?? null,

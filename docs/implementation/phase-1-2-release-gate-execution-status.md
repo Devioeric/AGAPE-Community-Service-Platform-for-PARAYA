@@ -1318,3 +1318,25 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: make the validation workspace surface list and evidence
   fetch failures explicitly instead of presenting failed reads as empty review
   history.
+
+## Phase 3 validation-review failure state
+
+- Status: `locally_complete`. The validation workspace no longer treats failed
+  event or linked-record reads as trustworthy empty history.
+- Interface behavior: both review requests must succeed and return array DTOs.
+  A failed request or malformed response clears stale local data, closes the
+  picker, displays one explicit error with a Retry action, and disables link,
+  event, and evidence mutations until a complete reload succeeds.
+- Review accuracy: loading linked records now has its own progress state, and
+  neither validation path can show an empty-state message while its source data
+  is loading or unavailable.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass; and the
+  168-page/route production build passes.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow transition, worker action, or external AI call occurred.
+- Rollback: revert this UI checkpoint. API and database evidence protections
+  remain in force.
+- Next exact action: inspect the linked-record picker so candidate-source
+  failures cannot be presented as a valid empty catalog or leave a stale source
+  selection available for submission.

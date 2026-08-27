@@ -91,6 +91,7 @@ export function CommunityValidationSection({
   const [list, setList]       = useState<Validation[]>([]);
   const [links, setLinks]     = useState<LinkedRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [adding, setAdding]   = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -101,13 +102,34 @@ export function CommunityValidationSection({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [vRes, lRes] = await Promise.all([
-      fetch(`/api/proposals/${proposalId}/validations`),
-      fetch(`/api/proposals/${proposalId}/validation-links`),
-    ]);
-    if (vRes.ok) setList(((await vRes.json()).data ?? []) as Validation[]);
-    if (lRes.ok) setLinks(((await lRes.json()).data ?? []) as LinkedRecord[]);
-    setLoading(false);
+    setLoadError(null);
+    try {
+      const [vRes, lRes] = await Promise.all([
+        fetch(`/api/proposals/${proposalId}/validations`),
+        fetch(`/api/proposals/${proposalId}/validation-links`),
+      ]);
+      if (!vRes.ok || !lRes.ok) {
+        throw new Error("validation review request failed");
+      }
+
+      const [validationBody, linkBody] = await Promise.all([
+        vRes.json().catch(() => null),
+        lRes.json().catch(() => null),
+      ]);
+      if (!Array.isArray(validationBody?.data) || !Array.isArray(linkBody?.data)) {
+        throw new Error("validation review response was malformed");
+      }
+
+      setList(validationBody.data as Validation[]);
+      setLinks(linkBody.data as LinkedRecord[]);
+    } catch {
+      setList([]);
+      setLinks([]);
+      setPickerOpen(false);
+      setLoadError("Community validation history could not be loaded. Reload it before reviewing or changing evidence.");
+    } finally {
+      setLoading(false);
+    }
   }, [proposalId]);
 
   useEffect(() => { load(); }, [load]);
@@ -165,6 +187,18 @@ export function CommunityValidationSection({
         </div>
       )}
 
+      {loadError && (
+        <div role="alert" className="p-3 rounded-xl border border-danger/20 bg-danger/5 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">{loadError}</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => void load()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* ── Linked Records (primary path) ───────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -176,7 +210,7 @@ export function CommunityValidationSection({
               </Badge>
             )}
           </p>
-          {(canRecord ?? ["draft", "submitted", "revisions_requested"].includes(proposalStatus)) && (
+          {!loading && !loadError && showAddButton && (
             <Button
               type="button"
               variant="outline"
@@ -188,7 +222,13 @@ export function CommunityValidationSection({
             </Button>
           )}
         </div>
-        {links.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center py-2 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> Loading linked records…
+          </div>
+        ) : loadError ? (
+          <p className="text-xs text-muted-foreground italic">Linked records are unavailable until reload succeeds.</p>
+        ) : links.length === 0 ? (
           <p className="text-xs text-muted-foreground italic">
             No records linked. Cite at least 2 human-reviewed records — approved
             community needs, published surveys, field observations, or completed
@@ -213,13 +253,15 @@ export function CommunityValidationSection({
         )}
       </div>
 
-      <ValidationLinkPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        proposalId={proposalId}
-        proposalBarangayId={proposalBarangayId ?? null}
-        onLinked={async () => { await load(); onChangeRef.current?.(); }}
-      />
+      {!loading && !loadError && (
+        <ValidationLinkPicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          proposalId={proposalId}
+          proposalBarangayId={proposalBarangayId ?? null}
+          onLinked={async () => { await load(); onChangeRef.current?.(); }}
+        />
+      )}
 
       {/* ── Supplementary: uploaded-evidence events ─────────────────────── */}
       <div className="pt-1">
@@ -232,6 +274,10 @@ export function CommunityValidationSection({
         <div className="flex items-center justify-center py-6 text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading validations…
         </div>
+      ) : loadError ? (
+        <p className="text-xs text-muted-foreground italic py-2">
+          Validation events are unavailable until reload succeeds.
+        </p>
       ) : list.length === 0 ? (
         <p className="text-xs text-muted-foreground italic py-2">
           No validation events recorded yet.
@@ -251,7 +297,7 @@ export function CommunityValidationSection({
       )}
 
       {/* ── Add new event ──────────────────────────────────────────────── */}
-      {showAddButton && !adding && (
+      {!loading && !loadError && showAddButton && !adding && (
         <Button
           type="button"
           variant="outline"
@@ -262,7 +308,7 @@ export function CommunityValidationSection({
           <Plus className="w-3.5 h-3.5" /> Record new validation
         </Button>
       )}
-      {adding && (
+      {!loading && !loadError && adding && (
         <NewValidationForm
           proposalId={proposalId}
           onCancel={() => setAdding(false)}

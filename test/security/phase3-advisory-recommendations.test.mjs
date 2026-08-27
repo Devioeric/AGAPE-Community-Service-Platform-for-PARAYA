@@ -715,6 +715,7 @@ test("proposal validation events are created atomically through an authenticated
 test("proposal validation evidence reads and uploads use a bounded private DTO", () => {
   const validationRoute = readFileSync("src/app/api/proposals/[id]/validations/route.ts", "utf8");
   const evidenceRoute = readFileSync("src/app/api/proposals/[id]/validations/[vid]/evidence/route.ts", "utf8");
+  const validationPanel = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
 
   assert.match(validationRoute, /stakeholderResult\.error \|\| evidenceResult\.error/);
   assert.match(validationRoute, /createSignedUrl\(e\.storage_path as string, 300\)/);
@@ -726,6 +727,11 @@ test("proposal validation evidence reads and uploads use a bounded private DTO",
   assert.match(evidenceRoute, /proposalValidationEvidencePath\(vid, verifiedFile\.extension, verifiedFile\.sha256\)/);
   assert.match(evidenceRoute, /\.select\("id, file_name, mime_type, file_size, created_at"\)/);
   assert.doesNotMatch(evidenceRoute, /createSignedUrl|file\.name\.split|upErr\.message|dbErr\.message/);
+  assert.match(validationPanel, /if \(!vRes\.ok \|\| !lRes\.ok\)/);
+  assert.match(validationPanel, /setLoadError\("Community validation history could not be loaded/);
+  assert.match(validationPanel, /setList\(\[\]\);\s*setLinks\(\[\]\)/);
+  assert.match(validationPanel, /Linked records are unavailable until reload succeeds/);
+  assert.match(validationPanel, />\s*Retry\s*</);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

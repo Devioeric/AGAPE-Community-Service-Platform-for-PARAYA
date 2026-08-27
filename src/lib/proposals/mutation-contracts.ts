@@ -22,6 +22,8 @@ export const PROPOSAL_CONTENT_FIELDS = [
   "sdg_alignments",
 ] as const;
 
+export const PROPOSAL_CREATE_ONLY_FIELDS = ["recommendation_context"] as const;
+
 export const PROPOSAL_PROTECTED_FIELDS = [
   "id",
   "status",
@@ -49,6 +51,12 @@ export interface ProposalSdgAlignmentInput {
   indicator: string | null;
 }
 
+export interface ProposalRecommendationContextInput {
+  need_id: string;
+  evidence_snapshot_id: string | null;
+  recommendation_fingerprint: string;
+}
+
 export interface ProposalContentInput {
   title?: string;
   rationale?: string;
@@ -63,6 +71,7 @@ export interface ProposalContentInput {
   is_income_generating?: boolean;
   informed_by_proposals?: string[];
   sdg_alignments?: ProposalSdgAlignmentInput[];
+  recommendation_context?: ProposalRecommendationContextInput;
 }
 
 export type MutationContractResult<T> =
@@ -70,6 +79,7 @@ export type MutationContractResult<T> =
   | { ok: false; error: string };
 
 const CONTENT_FIELD_SET = new Set<string>(PROPOSAL_CONTENT_FIELDS);
+const CREATE_ONLY_FIELD_SET = new Set<string>(PROPOSAL_CREATE_ONLY_FIELDS);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -179,6 +189,32 @@ function sdgAlignments(value: unknown): MutationContractResult<ProposalSdgAlignm
   return { ok: true, data: output };
 }
 
+function recommendationContext(value: unknown): MutationContractResult<ProposalRecommendationContextInput> {
+  if (!isRecord(value)) return { ok: false, error: "recommendation_context must be an object." };
+  const allowed = ["need_id", "evidence_snapshot_id", "recommendation_fingerprint"];
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (unknown.length > 0) {
+    return { ok: false, error: `Unexpected recommendation_context field(s): ${unknown.join(", ")}.` };
+  }
+  const needId = optionalUuid(value.need_id, "recommendation_context.need_id");
+  if (!needId.ok || needId.data === null) {
+    return { ok: false, error: "recommendation_context.need_id must be a UUID." };
+  }
+  const evidenceSnapshotId = optionalUuid(value.evidence_snapshot_id ?? null, "recommendation_context.evidence_snapshot_id");
+  if (!evidenceSnapshotId.ok) return evidenceSnapshotId;
+  if (typeof value.recommendation_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(value.recommendation_fingerprint)) {
+    return { ok: false, error: "recommendation_context.recommendation_fingerprint must be a SHA-256 value." };
+  }
+  return {
+    ok: true,
+    data: {
+      need_id: needId.data,
+      evidence_snapshot_id: evidenceSnapshotId.data,
+      recommendation_fingerprint: value.recommendation_fingerprint,
+    },
+  };
+}
+
 function parseProposalContent(
   input: unknown,
   mode: "create" | "update",
@@ -187,7 +223,9 @@ function parseProposalContent(
     return { ok: false, error: "Request body must be a JSON object." };
   }
 
-  const unknownFields = Object.keys(input).filter((field) => !CONTENT_FIELD_SET.has(field));
+  const unknownFields = Object.keys(input).filter((field) =>
+    !CONTENT_FIELD_SET.has(field) && !(mode === "create" && CREATE_ONLY_FIELD_SET.has(field))
+  );
   if (unknownFields.length > 0) {
     return { ok: false, error: `Unexpected or protected field(s): ${unknownFields.join(", ")}.` };
   }
@@ -267,6 +305,12 @@ function parseProposalContent(
     const alignments = sdgAlignments(input.sdg_alignments);
     if (!alignments.ok) return alignments;
     output.sdg_alignments = alignments.data;
+  }
+
+  if (mode === "create" && Object.hasOwn(input, "recommendation_context")) {
+    const context = recommendationContext(input.recommendation_context);
+    if (!context.ok) return context;
+    output.recommendation_context = context.data;
   }
 
   if (mode === "update" && Object.keys(output).length === 0) {

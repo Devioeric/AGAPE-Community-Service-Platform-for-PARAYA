@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  PROPOSAL_CREATE_ONLY_FIELDS,
   PROPOSAL_PROTECTED_FIELDS,
   parseProposalCreateInput,
   parseProposalUpdateInput,
@@ -43,6 +44,50 @@ test("proposal content contracts accept normalized draft content and zero-budget
     assert.equal(parsed.data.budget, 0);
     assert.equal(parsed.data.sdg_alignments?.[0].sdg_number, 4);
   }
+});
+
+test("proposal create accepts strict recommendation provenance and update cannot replace it", () => {
+  const recommendationContext = {
+    need_id: uuid,
+    evidence_snapshot_id: "22222222-2222-4222-8222-222222222222",
+    recommendation_fingerprint: "a".repeat(64),
+  };
+  const parsed = parseProposalCreateInput({
+    ...proposalDraft,
+    recommendation_context: recommendationContext,
+  });
+
+  assert.equal(PROPOSAL_CREATE_ONLY_FIELDS.includes("recommendation_context"), true);
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) assert.deepEqual(parsed.data.recommendation_context, recommendationContext);
+  assert.equal(parseProposalUpdateInput({
+    title: "Revised recommendation draft",
+    recommendation_context: recommendationContext,
+  }).ok, false);
+});
+
+test("proposal recommendation provenance rejects malformed or extended client input", () => {
+  const valid = {
+    need_id: uuid,
+    evidence_snapshot_id: null,
+    recommendation_fingerprint: "b".repeat(64),
+  };
+  assert.equal(parseProposalCreateInput({
+    ...proposalDraft,
+    recommendation_context: { ...valid, raw_recommendation: "Do not retain this prose." },
+  }).ok, false);
+  assert.equal(parseProposalCreateInput({
+    ...proposalDraft,
+    recommendation_context: { ...valid, need_id: "not-a-uuid" },
+  }).ok, false);
+  assert.equal(parseProposalCreateInput({
+    ...proposalDraft,
+    recommendation_context: { ...valid, evidence_snapshot_id: "not-a-uuid" },
+  }).ok, false);
+  assert.equal(parseProposalCreateInput({
+    ...proposalDraft,
+    recommendation_context: { ...valid, recommendation_fingerprint: "ABC" },
+  }).ok, false);
 });
 
 test("proposal create and update reject every workflow-controlled field", () => {

@@ -586,6 +586,31 @@ test("proposal alignment is server-validated, metadata-only audited, and cannot 
   assert.match(page, /This result describes an earlier version of the draft/);
 });
 
+test("explicit draft creation preserves verified recommendation provenance without advancing workflow", () => {
+  const proposalRoute = readFileSync("src/app/api/proposals/route.ts", "utf8");
+  const proposalCreateRoute = proposalRoute.slice(proposalRoute.indexOf("export async function POST"));
+  const proposalPage = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
+
+  assert.match(proposalPage, /recommendation_context:\s*!editProposal && recommendationDraftContext/);
+  assert.match(proposalPage, /recommendation_fingerprint:\s*recommendationDraftContext\.recommendationFingerprint/);
+  assert.match(proposalPage, /preserved recommendation evidence link/);
+  assert.match(proposalRoute, /recommendation_context:\s*recommendationContext/);
+  assert.match(proposalRoute, /\.select\("id,barangay_id,approval_status"\)/);
+  assert.match(proposalRoute, /need\.approval_status !== "approved"/);
+  assert.match(proposalRoute, /need\.barangay_id !== meta\.barangay_id/);
+  assert.match(proposalRoute, /\.select\("id,cycle_id,aggregate_schema_version"\)/);
+  assert.match(proposalRoute, /\["completed", "archived"\]\.includes/);
+  assert.match(proposalRoute, /\.from\("proposal_validation_links"\)\.insert\(links\)/);
+  assert.match(proposalRoute, /source_type:\s*"community_need"/);
+  assert.match(proposalRoute, /source_type:\s*"profiling_evidence_snapshot"/);
+  assert.match(proposalRoute, /recommendation_fingerprint/);
+  assert.match(proposalRoute, /recommendationProvenance/);
+  assert.match(proposalRoute, /proposal_sdg_alignment"\)\.delete\(\)\.eq\("proposal_id", proposal\.id\)/);
+  assert.match(proposalRoute, /project_proposals"\)\.delete\(\)\.eq\("id", proposal\.id\)\.eq\("status", "draft"\)/);
+  assert.doesNotMatch(proposalCreateRoute, /\/advance|phase2_\w*workflow|director_approve|finance_clear|status:\s*"(?:submitted|approved|rejected)"/i);
+  assert.doesNotMatch(proposalRoute, /recommendation\.rationale|recommendation\.intervention|raw_recommendation/i);
+});
+
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {
   const migration = readFileSync("supabase/migrations/20260818000930_phase2_proposal_compatibility_correction.sql", "utf8");
   const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));

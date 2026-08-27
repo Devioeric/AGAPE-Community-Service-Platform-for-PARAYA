@@ -1084,3 +1084,37 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: make the proposal draft starter preserve its approved need
   provenance when the officer explicitly saves the draft, without automatic
   submission or workflow advancement.
+
+## Phase 3 recommendation provenance on explicit draft creation
+
+- Status: `locally_complete`. Provenance is attached only after an authorized
+  officer explicitly chooses Create Proposal; the recommendation itself still
+  cannot save, submit, advance, approve, return, clear, or reject anything.
+- Contract: proposal creation accepts one strict create-only
+  `recommendation_context` containing an approved-need UUID, an optional
+  aggregate-evidence UUID, and a lowercase SHA-256 recommendation fingerprint.
+  Unknown nested fields, malformed identifiers, invalid fingerprints, and all
+  attempts to replace provenance through the generic update route are rejected.
+- Server verification: before inserting the draft, the API rechecks that the
+  need is approved for the selected barangay and that any profiling evidence is
+  an `agape.profiling.aggregate.v2` snapshot from a completed or archived cycle
+  in that same barangay. It uses explicit read/write field allowlists.
+- Persistence: successful human draft creation writes traceable community-need
+  and optional profiling-evidence links with the one-way recommendation
+  fingerprint. It does not retain recommendation prose. If link insertion
+  fails, the API removes the newly created draft and SDG children and reports a
+  failure instead of leaving a provenance-free partial draft.
+- Interface: recommendation-originated draft starters send the strict context
+  only on creation and show how many evidence links were preserved. Ordinary
+  proposals and edits keep their existing behavior.
+- Commands/results: focused proposal/advisory contracts pass 36/36; complete
+  Node tests pass 231/231 with zero failures/skips; typecheck and lint pass; and
+  the 168-page/route production build passes.
+- Migration/security impact: no migration, runtime-state change, external AI
+  request, or shared/remote database operation occurred. The existing V1 draft
+  route remains authoritative and all feature flags remain false.
+- Rollback: revert this checkpoint to remove create-only provenance transfer.
+  Existing evidence links remain governed records and must not be hard-deleted
+  as a rollback shortcut.
+- Next exact action: surface preserved recommendation provenance on proposal
+  detail/edit views so officers can verify the source before submission.

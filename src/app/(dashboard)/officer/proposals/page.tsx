@@ -465,6 +465,11 @@ export default function ProposalsPage() {
       is_income_generating:  !!data.is_income_generating,
       sdg_alignments:        sdgSelected.map((n) => ({ sdg_number: n, indicator: sdgIndicators[n] ?? null })),
       informed_by_proposals: informedBy,
+      recommendation_context: !editProposal && recommendationDraftContext ? {
+        need_id: recommendationDraftContext.needId,
+        evidence_snapshot_id: recommendationDraftContext.evidenceSnapshotId,
+        recommendation_fingerprint: recommendationDraftContext.recommendationFingerprint,
+      } : undefined,
     };
 
     const res = editProposal
@@ -472,12 +477,18 @@ export default function ProposalsPage() {
       : await fetch("/api/proposals",                    { method: "POST",  headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 
     if (res.ok) {
-      toast.success(editProposal ? "Proposal updated." : "Proposal created.");
+      const responseBody = await res.json().catch(() => null) as { recommendationProvenance?: { linked?: boolean; linkCount?: number } | null } | null;
+      toast.success(editProposal
+        ? "Proposal updated."
+        : responseBody?.recommendationProvenance?.linked
+          ? `Proposal draft created with ${responseBody.recommendationProvenance.linkCount ?? 1} preserved recommendation evidence link(s).`
+          : "Proposal created.");
       await fetchProposals();
       setFormOpen(false);
       setRecommendationDraftContext(null);
     } else {
-      toast.error("Failed to save proposal.");
+      const responseBody = await res.json().catch(() => null) as { error?: string } | null;
+      toast.error(responseBody?.error ?? "Failed to save proposal.");
     }
     setSaving(false);
   }

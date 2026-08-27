@@ -1453,3 +1453,30 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   validation remain authoritative.
 - Next exact action: inspect the proposal pre-screen and workflow controls for
   stale or contradictory validation state after a successful event/link refresh.
+
+## Phase 3 proposal workflow refresh reliability
+
+- Status: `locally_complete`. Proposal detail, create/edit, workflow, and Finance
+  controls now recover from network failures and reload authoritative state after
+  a successful transition.
+- Detail behavior: the sheet tracks the requested proposal independently,
+  displays an explicit Retry state instead of a blank body, rejects missing or
+  malformed detail responses, and always clears its loading state.
+- Workflow accuracy: every successful submit, advance, return, resubmit, reject,
+  and Finance-clear action reloads the complete proposal detail. This refreshes
+  derived community-validation state, pre-screening checks, Finance metadata,
+  and append-only review history instead of patching only a local status.
+- Control recovery: proposal-list loading, proposal create/edit, workflow, and
+  Finance actions use guarded request handling and `finally` cleanup so buttons
+  and spinners do not remain stuck after a network exception.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass; and the
+  168-page/route production build passes.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow action, worker action, or external AI call occurred during
+  verification.
+- Rollback: revert this UI checkpoint. Server-side workflow authority remains
+  unchanged.
+- Next exact action: inspect the server proposal-detail compatibility DTO and
+  workflow response contracts for fields that can be removed or validated
+  before the UI trusts them.

@@ -623,6 +623,13 @@ test("proposal editing visibly reloads preserved recommendation evidence", () =>
   assert.match(proposalPage, /Approved need:/);
   assert.match(proposalPage, /Completed profiling evidence:/);
   assert.match(proposalPage, /Reload before relying on the alignment check/);
+  assert.match(proposalPage, /setDetailError\("Proposal details could not be loaded/);
+  assert.match(proposalPage, /await openDetail\(proposalId\)/);
+  assert.match(proposalPage, /finally \{\s*setAdvancing\(false\);/);
+  assert.match(proposalPage, /if \(detailRequestId\) void openDetail\(detailRequestId\)/);
+  assert.match(proposalPage, /finally \{\s*setSaving\(false\);/);
+  assert.match(proposalPage, /finally \{\s*setLoading\(false\);/);
+  assert.match(proposalPage, /Finance clearance could not be recorded\. Check your connection and try again/);
 });
 
 test("advisory provenance remains visible but cannot satisfy human community validation", () => {

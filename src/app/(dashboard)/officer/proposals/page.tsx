@@ -301,8 +301,10 @@ export default function ProposalsPage() {
 
   // Detail sheet state
   const [detailOpen, setDetailOpen]     = useState(false);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [detail, setDetail]             = useState<ProposalDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError]   = useState<string | null>(null);
   const [reviewNotes, setReviewNotes]   = useState("");
 
   // Filter state
@@ -327,10 +329,18 @@ export default function ProposalsPage() {
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/proposals");
-    if (res.ok) { const j = await res.json(); setProposals(j.data ?? []); }
-    else toast.error("Failed to load proposals.");
-    setLoading(false);
+    try {
+      const res = await fetch("/api/proposals");
+      const body = await res.json().catch(() => null) as { data?: Proposal[]; error?: string } | null;
+      if (!res.ok || !Array.isArray(body?.data)) {
+        throw new Error(body?.error ?? "Failed to load proposals.");
+      }
+      setProposals(body.data);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load proposals.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -508,37 +518,52 @@ export default function ProposalsPage() {
       } : undefined,
     };
 
-    const res = editProposal
-      ? await fetch(`/api/proposals/${editProposal.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      : await fetch("/api/proposals",                    { method: "POST",  headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    try {
+      const res = editProposal
+        ? await fetch(`/api/proposals/${editProposal.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        : await fetch("/api/proposals",                    { method: "POST",  headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 
-    if (res.ok) {
-      const responseBody = await res.json().catch(() => null) as { recommendationProvenance?: { linked?: boolean; linkCount?: number } | null } | null;
-      toast.success(editProposal
-        ? "Proposal updated."
-        : responseBody?.recommendationProvenance?.linked
-          ? `Proposal draft created with ${responseBody.recommendationProvenance.linkCount ?? 1} preserved recommendation evidence link(s).`
-          : "Proposal created.");
-      await fetchProposals();
-      setFormOpen(false);
-      setRecommendationDraftContext(null);
-    } else {
-      const responseBody = await res.json().catch(() => null) as { error?: string } | null;
-      toast.error(responseBody?.error ?? "Failed to save proposal.");
+      if (res.ok) {
+        const responseBody = await res.json().catch(() => null) as { recommendationProvenance?: { linked?: boolean; linkCount?: number } | null } | null;
+        toast.success(editProposal
+          ? "Proposal updated."
+          : responseBody?.recommendationProvenance?.linked
+            ? `Proposal draft created with ${responseBody.recommendationProvenance.linkCount ?? 1} preserved recommendation evidence link(s).`
+            : "Proposal created.");
+        await fetchProposals();
+        setFormOpen(false);
+        setRecommendationDraftContext(null);
+      } else {
+        const responseBody = await res.json().catch(() => null) as { error?: string } | null;
+        toast.error(responseBody?.error ?? "Failed to save proposal.");
+      }
+    } catch {
+      toast.error("The proposal could not be saved. Check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   // ── Detail sheet ─────────────────────────────────────────────────────────────
 
   async function openDetail(id: string) {
+    setDetailRequestId(id);
     setDetail(null);
+    setDetailError(null);
     setReviewNotes(""); setShowRejectForm(false);
     setDetailOpen(true);
     setDetailLoading(true);
-    const res = await fetch(`/api/proposals/${id}`);
-    if (res.ok) { const j = await res.json(); setDetail(j.data); }
-    setDetailLoading(false);
+    try {
+      const res = await fetch(`/api/proposals/${id}`);
+      if (!res.ok) throw new Error("proposal detail request failed");
+      const body = await res.json().catch(() => null) as { data?: ProposalDetail } | null;
+      if (!body?.data) throw new Error("proposal detail response was malformed");
+      setDetail(body.data);
+    } catch {
+      setDetailError("Proposal details could not be loaded. Check your connection and try again.");
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   async function advance(action: "advance" | "reject" | "request_revisions" | "resubmit") {
@@ -546,68 +571,73 @@ export default function ProposalsPage() {
     if (action === "reject" && !reviewNotes.trim())            { toast.error("Rejection notes are required."); return; }
     if (action === "request_revisions" && !reviewNotes.trim()) { toast.error("Revision notes are required so the proponent knows what to change."); return; }
     setAdvancing(true);
-    const res = await fetch(`/api/proposals/${detail.id}/advance`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ action, notes: reviewNotes.trim() || null }),
-    });
-    if (res.ok) {
-      const j = await res.json();
-      const newStatus = j.status as ProposalStatus;
-      setDetail((prev) => prev ? { ...prev, status: newStatus } : prev);
-      setProposals((prev) => prev.map((p) => p.id === detail.id ? { ...p, status: newStatus } : p));
-      const successMsg =
-        action === "advance"           ? "Proposal advanced."
-        : action === "reject"          ? "Proposal rejected."
-        : action === "request_revisions" ? "Revisions requested — the proponent has been notified."
-        : "Proposal resubmitted for review.";
-      toast.success(successMsg);
-      setReviewNotes(""); setShowRejectForm(false); setShowReviseForm(false);
-      // Reload detail so the new proposal_reviews row shows up in the history timeline.
-      if (action === "request_revisions" || action === "resubmit") {
-        const r = await fetch(`/api/proposals/${detail.id}`);
-        if (r.ok) { const j2 = await r.json(); setDetail(j2.data); }
-      }
-    } else if (res.status === 422) {
-      const j = await res.json().catch(() => ({}));
-      if (Array.isArray(j.checks)) {
-        // Pre-screening failure — update detail with the latest checks so the UI
-        // can show which gates failed.
-        setDetail((prev) => prev
-          ? { ...prev, prescreening_checks: j.checks, prescreening_passed: false }
-          : prev
-        );
-        toast.error(`${j.failedCount ?? 0} pre-screening check${j.failedCount === 1 ? "" : "s"} failed.`);
+    const proposalId = detail.id;
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/advance`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ action, notes: reviewNotes.trim() || null }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        const newStatus = j.status as ProposalStatus;
+        setProposals((prev) => prev.map((p) => p.id === proposalId ? { ...p, status: newStatus } : p));
+        const successMsg =
+          action === "advance"           ? "Proposal advanced."
+          : action === "reject"          ? "Proposal rejected."
+          : action === "request_revisions" ? "Revisions requested — the proponent has been notified."
+          : "Proposal resubmitted for review.";
+        toast.success(successMsg);
+        setReviewNotes(""); setShowRejectForm(false); setShowReviseForm(false);
+        await openDetail(proposalId);
+      } else if (res.status === 422) {
+        const j = await res.json().catch(() => ({}));
+        if (Array.isArray(j.checks)) {
+          // Pre-screening failure — update detail with the latest checks so the UI
+          // can show which gates failed.
+          setDetail((prev) => prev
+            ? { ...prev, prescreening_checks: j.checks, prescreening_passed: false }
+            : prev
+          );
+          toast.error(`${j.failedCount ?? 0} pre-screening check${j.failedCount === 1 ? "" : "s"} failed.`);
+        } else {
+          toast.error(j.error ?? "Action not allowed at this stage.");
+        }
       } else {
-        toast.error(j.error ?? "Action not allowed at this stage.");
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error ?? "Action failed.");
       }
-    } else {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Action failed.");
+    } catch {
+      toast.error("The proposal action could not be completed. Check your connection and try again.");
+    } finally {
+      setAdvancing(false);
     }
-    setAdvancing(false);
   }
 
   async function markFinanceCleared() {
     if (!detail) return;
     setAdvancing(true);
-    const res = await fetch(`/api/proposals/${detail.id}/advance`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ action: "mark_finance_cleared", finance_notes: reviewNotes.trim() || null }),
-    });
-    if (res.ok) {
-      setDetail((prev) => prev
-        ? { ...prev, finance_clearance: true, finance_cleared_at: new Date().toISOString(), finance_notes: reviewNotes.trim() || null }
-        : prev
-      );
-      toast.success("Finance clearance recorded.");
-      setReviewNotes("");
-    } else {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to record finance clearance.");
+    const proposalId = detail.id;
+    const financeNotes = reviewNotes.trim() || null;
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/advance`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ action: "mark_finance_cleared", finance_notes: financeNotes }),
+      });
+      if (res.ok) {
+        toast.success("Finance clearance recorded.");
+        setReviewNotes("");
+        await openDetail(proposalId);
+      } else {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error ?? "Failed to record finance clearance.");
+      }
+    } catch {
+      toast.error("Finance clearance could not be recorded. Check your connection and try again.");
+    } finally {
+      setAdvancing(false);
     }
-    setAdvancing(false);
   }
 
   // ── Counts ───────────────────────────────────────────────────────────────────
@@ -1227,6 +1257,16 @@ export default function ProposalsPage() {
             {detailLoading ? (
               <div className="py-20 text-center text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+              </div>
+            ) : detailError ? (
+              <div role="alert" className="py-20 text-center space-y-3">
+                <CircleAlert className="w-5 h-5 text-danger mx-auto" />
+                <p className="text-sm text-muted-foreground">{detailError}</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  if (detailRequestId) void openDetail(detailRequestId);
+                }} disabled={!detailRequestId}>
+                  Retry
+                </Button>
               </div>
             ) : detail ? (
               <>

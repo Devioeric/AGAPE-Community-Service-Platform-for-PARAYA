@@ -36,6 +36,18 @@ type ProposalStatus =
   | "sdg_review" | "finance_review" | "approved" | "rejected"
   | "revisions_requested";
 
+type RecommendationDraftContext = {
+  needId: string;
+  recommendationFingerprint: string;
+  category: string;
+  barangayName: string;
+  cycleName: string | null;
+  evidenceSnapshotId: string | null;
+  suggestedCount: number | null;
+  asOfDate: string;
+  limitation: string;
+};
+
 interface SdgAlignment { sdg_number: number; indicator?: string | null; }
 
 interface PrescreeningCheck { name: string; passed: boolean; message: string; }
@@ -219,6 +231,7 @@ export default function ProposalsPage() {
   const [informedBy, setInformedBy]       = useState<string[]>([]);
   const [saving, setSaving]             = useState(false);
   const [alignment, setAlignment]       = useState<ProposalAlignmentResult | null>(null);
+  const [recommendationDraftContext, setRecommendationDraftContext] = useState<RecommendationDraftContext | null>(null);
 
   // Detail sheet state
   const [detailOpen, setDetailOpen]     = useState(false);
@@ -259,6 +272,7 @@ export default function ProposalsPage() {
     setSdgSelected([]); setSdgIndicators({});
     setInformedBy([]);
     setAlignment(null);
+    setRecommendationDraftContext(null);
     reset({});
     setFormOpen(true);
   }
@@ -274,6 +288,9 @@ export default function ProposalsPage() {
         if (!response.ok || !body?.data) throw new Error(body?.error ?? "Recommendation could not be loaded");
         const recommendation = body.data.recommendations.find((item) => item.needId === needId);
         if (!recommendation) throw new Error("This recommendation is no longer available");
+        if (recommendation.action !== "develop_response") {
+          throw new Error("This need already has a planned or active response. Review its coverage instead of preparing a duplicate draft.");
+        }
 
         setEditProposal(null);
         setInformedBy([]);
@@ -281,10 +298,25 @@ export default function ProposalsPage() {
         const supportedSdgs = new Set<number>(SDG_META.map((item) => item.n));
         setSdgSelected(recommendation.suggestedSdgs.filter((sdg) => supportedSdgs.has(sdg)));
         setSdgIndicators({});
+        setRecommendationDraftContext({
+          needId: recommendation.needId,
+          recommendationFingerprint: recommendation.recommendationFingerprint,
+          category: recommendation.category,
+          barangayName: recommendation.barangay.name,
+          cycleName: recommendation.evidence.profiling?.cycleName ?? null,
+          evidenceSnapshotId: recommendation.evidence.profiling?.evidenceSnapshotId ?? null,
+          suggestedCount: recommendation.beneficiaryGuidance.suggestedCount,
+          asOfDate: recommendation.beneficiaryGuidance.asOfDate,
+          limitation: recommendation.beneficiaryGuidance.limitation,
+        });
         reset({
           title: recommendation.intervention.title,
           rationale: `${recommendation.rationale} Validate this advisory suggestion with the barangay and available evidence before submission.`,
           barangay_id: recommendation.barangay.id,
+          target_beneficiaries: recommendation.beneficiaryGuidance.segmentLabel,
+          expected_beneficiary_count: recommendation.beneficiaryGuidance.suggestedCount === null
+            ? ""
+            : String(recommendation.beneficiaryGuidance.suggestedCount),
         });
         setFormOpen(true);
         toast.info("A proposal draft was prefilled. Review and edit every field before saving.");
@@ -302,6 +334,7 @@ export default function ProposalsPage() {
     setSdgIndicators(ind);
     setInformedBy(((p as Proposal & { informed_by_proposals?: string[] | null }).informed_by_proposals) ?? []);
     setAlignment(null);
+    setRecommendationDraftContext(null);
     reset({
       title:                p.title,
       rationale:            p.rationale,
@@ -364,6 +397,7 @@ export default function ProposalsPage() {
       toast.success(editProposal ? "Proposal updated." : "Proposal created.");
       await fetchProposals();
       setFormOpen(false);
+      setRecommendationDraftContext(null);
     } else {
       toast.error("Failed to save proposal.");
     }
@@ -715,6 +749,27 @@ export default function ProposalsPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+              {recommendationDraftContext && (
+                <div className="rounded-xl border border-info/30 bg-info/5 p-4 text-sm" data-testid="recommendation-draft-prefill">
+                  <p className="font-medium text-foreground">Advisory draft starter — not saved</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {recommendationDraftContext.category} need · {recommendationDraftContext.barangayName} · evidence as of {recommendationDraftContext.asOfDate}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {recommendationDraftContext.suggestedCount === null
+                      ? "No beneficiary count was prefilled because no unsuppressed approved aggregate count is available."
+                      : `Suggested starting count: ${recommendationDraftContext.suggestedCount.toLocaleString("en-PH")} from ${recommendationDraftContext.cycleName ?? "an approved profiling aggregate"}.`}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{recommendationDraftContext.limitation}</p>
+                  <p className="mt-2 text-xs font-medium text-foreground">
+                    Review and edit every field. No proposal exists until you choose Save Draft; this advisory never submits or advances it.
+                  </p>
+                  <p className="sr-only">
+                    Recommendation {recommendationDraftContext.recommendationFingerprint}; need {recommendationDraftContext.needId}; evidence {recommendationDraftContext.evidenceSnapshotId ?? "unavailable"}.
+                  </p>
+                </div>
+              )}
 
               {/* Basic info */}
               <div className="space-y-4">

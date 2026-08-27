@@ -348,6 +348,15 @@ export default function AdvisoryRecommendationsPage() {
                       )}
                       <p className="mt-1 text-muted-foreground">{recommendation.coverage.estimate.limitation}</p>
                     </div>
+                    <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80">
+                      <p className="font-medium text-foreground">Beneficiary planning guidance</p>
+                      <p className="mt-1">{recommendation.beneficiaryGuidance.segmentLabel}</p>
+                      <p className="mt-1">
+                        Suggested starting count: {recommendation.beneficiaryGuidance.suggestedCount?.toLocaleString("en-PH") ?? "unavailable"}
+                        {" · "}{recommendation.beneficiaryGuidance.confidence} confidence
+                      </p>
+                      <p className="mt-1 text-muted-foreground">{recommendation.beneficiaryGuidance.limitation}</p>
+                    </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />

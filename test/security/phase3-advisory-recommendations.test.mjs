@@ -173,6 +173,15 @@ test("coverage estimates use the largest linked plan and always show underlying 
     confidence: "moderate",
     limitation: "This sample-based estimate compares the largest linked plan with the approved affected count. Linked plans are not summed because their beneficiaries may overlap; validate reach before deciding.",
   });
+  assert.deepEqual(result.recommendations[0].beneficiaryGuidance, {
+    categoryCode: "education",
+    segmentLabel: "Learners or residents represented in the approved education-need aggregate",
+    suggestedCount: 40,
+    source: "approved_profile_aggregate",
+    asOfDate: "2026-07-31",
+    confidence: "moderate",
+    limitation: "This count is an editable planning starting point from the approved profiled sample, not a census or promised project reach. Confirm the final target and document any override.",
+  });
 });
 
 test("coverage estimates remain unavailable when a safe denominator or linked plan is missing", () => {
@@ -182,6 +191,8 @@ test("coverage estimates remain unavailable when a safe denominator or linked pl
   assert.equal(result.recommendations[0].coverage.estimate.status, "unavailable");
   assert.equal(result.recommendations[0].coverage.estimate.estimatedPercent, null);
   assert.match(result.recommendations[0].coverage.estimate.limitation, /No compatible unsuppressed/);
+  assert.equal(result.recommendations[0].beneficiaryGuidance.suggestedCount, null);
+  assert.equal(result.recommendations[0].beneficiaryGuidance.source, "approved_need_only");
 });
 
 test("verified history produces bounded budget and volunteer ranges without inventing sparse estimates", () => {
@@ -314,6 +325,7 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Conservative planning coverage/);
   assert.match(page, /Largest linked plan/);
   assert.match(page, /Percentage suppressed for privacy/);
+  assert.match(page, /Beneficiary planning guidance/);
   assert.match(page, /Small cells remain suppressed and have no drill-through/);
   assert.match(page, /Ranked alternatives/);
   assert.match(page, /Indicative resources/);
@@ -348,6 +360,11 @@ test("legacy proposal reads use the canonical allowlisted fields needed by the w
   const proposalsPage = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
   assert.match(proposalsPage, /expected_beneficiary_count/);
   assert.match(proposalsPage, /Use a completed profiling aggregate when available/);
+  assert.match(proposalsPage, /recommendation\.action !== "develop_response"/);
+  assert.match(proposalsPage, /recommendation\.beneficiaryGuidance\.segmentLabel/);
+  assert.match(proposalsPage, /recommendation\.beneficiaryGuidance\.suggestedCount/);
+  assert.match(proposalsPage, /Advisory draft starter — not saved/);
+  assert.match(proposalsPage, /No proposal exists until you choose Save Draft/);
 });
 
 test("proposal alignment remains advisory and reports actionable draft gaps", () => {

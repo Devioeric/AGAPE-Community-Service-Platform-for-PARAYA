@@ -862,3 +862,34 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   smallest locally executable gap, with preference for transparent proposal
   prefill provenance or recommendation-to-draft handoff that remains an
   explicit human save action.
+
+## Phase 3 beneficiary guidance and explicit draft handoff
+
+- Status: `locally_complete`. No proposal is created, saved, submitted, or
+  advanced by the recommendation engine.
+- Implemented: each recommendation now includes a strict controlled beneficiary
+  segment, a suppression-safe suggested starting count when approved aggregate
+  evidence supports one, its as-of date, confidence, source classification, and
+  limitation. Missing or suppressed evidence produces no invented count.
+- Draft handoff: choosing `Prepare a proposal draft` opens the existing proposal
+  form with an editable title, barangay, SDGs, beneficiary segment, and safe
+  count. A visible provenance panel identifies the recommendation and evidence,
+  explains the sample limitation, and states that no proposal exists until the
+  officer explicitly chooses Save Draft.
+- Duplicate guard: a caller-crafted `from_need` URL cannot prefill a duplicate
+  proposal when the current recommendation action is to review an existing plan
+  or active coverage. Only `develop_response` recommendations may enter the
+  draft-starter path.
+- Review staleness: the beneficiary guidance is part of recommendation
+  fingerprint rule version 2, so material guidance changes invalidate an older
+  human review rather than silently retaining it.
+- Commands/results: focused advisory contracts pass 19/19; the complete Node
+  suite passes 224/224; typecheck and lint pass; and the 166-page/route
+  production build passes. No SQL migration or remote/shared operation was
+  performed.
+- Rollback: revert this development checkpoint. Do not replace the explicit Save
+  Draft action with automatic creation or allow a recommendation to submit or
+  advance workflow.
+- Next exact action: inspect the recommendation recency rule and implement the
+  approved 24-month prior-program relevance window so completed programs inform
+  recommendations without permanently masking recurring needs.

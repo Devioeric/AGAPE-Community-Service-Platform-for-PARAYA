@@ -95,6 +95,16 @@ const recommendationReviewSchema = z.object({
   }).strict().nullable(),
 }).strict();
 
+const beneficiaryGuidanceSchema = z.object({
+  categoryCode: needCategorySchema,
+  segmentLabel: z.string().trim().min(1).max(200),
+  suggestedCount: z.number().int().positive().nullable(),
+  source: z.enum(["approved_profile_aggregate", "approved_need_only"]),
+  asOfDate: z.string().date(),
+  confidence: z.enum(["moderate", "limited", "unavailable"]),
+  limitation: z.string().trim().min(1).max(500),
+}).strict();
+
 export const advisoryRecommendationSchema = z.object({
   needId: z.string().uuid(),
   recommendationFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
@@ -123,6 +133,7 @@ export const advisoryRecommendationSchema = z.object({
       limitation: z.string().trim().min(1).max(500),
     }).strict(),
   }).strict(),
+  beneficiaryGuidance: beneficiaryGuidanceSchema,
   action: z.enum(["develop_response", "review_planned_response", "review_active_gap"]),
   intervention: z.object({
     code: z.string().regex(/^[a-z][a-z0-9_]{2,79}$/),
@@ -284,6 +295,12 @@ function recommendationFingerprint(value: {
   category: string;
   priority: { score: number; label: string };
   coverage: Record<string, unknown>;
+  beneficiaryGuidance: {
+    categoryCode: string;
+    suggestedCount: number | null;
+    source: string;
+    asOfDate: string;
+  };
   intervention: { code: string };
   alternatives: Array<{ code: string }>;
   indicativeResources: Array<{ category: string; item: string; indicativeQuantity: string }>;
@@ -300,11 +317,12 @@ function recommendationFingerprint(value: {
 }): string {
   const materialState = {
     schema: "agape.ai.need-recommendations.v2",
-    ruleVersion: 1,
+    ruleVersion: 2,
     needId: value.needId,
     category: value.category,
     priority: value.priority,
     coverage: value.coverage,
+    beneficiaryGuidance: value.beneficiaryGuidance,
     interventionCode: value.intervention.code,
     alternativeCodes: value.alternatives.map((item) => item.code),
     indicativeResources: value.indicativeResources.map((item) => ({
@@ -374,6 +392,40 @@ function buildCoverageEstimate(need: AdvisoryNeedInput) {
   };
 }
 
+const BENEFICIARY_SEGMENT_LABEL: Record<z.infer<typeof needCategorySchema>, string> = {
+  health: "Residents represented in the approved health-need aggregate",
+  livelihood: "Residents represented in the approved livelihood-need aggregate",
+  education: "Learners or residents represented in the approved education-need aggregate",
+  infrastructure: "Households or residents represented in the approved infrastructure-need aggregate",
+  environment: "Households or residents represented in the approved environment-need aggregate",
+};
+
+function buildBeneficiaryGuidance(need: AdvisoryNeedInput) {
+  const affectedCount = need.profilingEvidence?.needCount ?? null;
+  const hasSafeCount = Boolean(affectedCount && !affectedCount.suppressed && affectedCount.value > 0);
+  const quality = need.profilingEvidence?.dataQuality;
+  const moderateConfidence = hasSafeCount
+    && quality
+    && quality.pendingPackages === 0
+    && quality.returnedPackages === 0
+    && quality.unresolvedDuplicates === 0
+    && (need.profilingEvidence?.responseRatePercent ?? 0) >= 80;
+
+  return {
+    categoryCode: need.category,
+    segmentLabel: BENEFICIARY_SEGMENT_LABEL[need.category],
+    suggestedCount: hasSafeCount && affectedCount && !affectedCount.suppressed ? affectedCount.value : null,
+    source: hasSafeCount ? "approved_profile_aggregate" as const : "approved_need_only" as const,
+    asOfDate: need.profilingEvidence?.reportingDate ?? need.identifiedDate,
+    confidence: hasSafeCount ? moderateConfidence ? "moderate" as const : "limited" as const : "unavailable" as const,
+    limitation: hasSafeCount
+      ? "This count is an editable planning starting point from the approved profiled sample, not a census or promised project reach. Confirm the final target and document any override."
+      : affectedCount?.suppressed
+        ? "The matching profile count is suppressed for privacy. Enter a human-validated aggregate target and source; no resident drill-through is available."
+        : "No compatible approved profile count is available. Enter a human-validated aggregate target and source before submission.",
+  };
+}
+
 export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
@@ -402,6 +454,7 @@ export function buildAdvisoryRecommendations(input: {
         ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
         : "";
       const coverageEstimate = buildCoverageEstimate(need);
+      const beneficiaryGuidance = buildBeneficiaryGuidance(need);
 
       const recommendation = {
         needId: need.id,
@@ -417,6 +470,7 @@ export function buildAdvisoryRecommendations(input: {
           completedPrograms: need.completedProgramCount,
           estimate: coverageEstimate,
         },
+        beneficiaryGuidance,
         action: hasPartialActiveCoverage ? "review_active_gap" as const : hasPlan ? "review_planned_response" as const : "develop_response" as const,
         intervention: {
           code: intervention.code,

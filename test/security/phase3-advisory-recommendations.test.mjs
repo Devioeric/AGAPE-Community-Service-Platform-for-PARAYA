@@ -683,6 +683,9 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   const validationPanel = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
   assert.doesNotMatch(validationPanel, /field observations, or household profiles/);
   assert.match(validationPanel, /completed\s+aggregate profiling evidence/);
+  assert.doesNotMatch(validationPanel, /method: "DELETE"|handleDelete|deleteEvidence/);
+  assert.match(validationPanel, /Validation history is retained for traceability/);
+  assert.match(validationPanel, /canAddEvidence=\{showAddButton\}/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

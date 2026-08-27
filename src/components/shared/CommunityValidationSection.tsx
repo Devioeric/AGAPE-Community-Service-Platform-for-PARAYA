@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle, AlertCircle, Loader2, Plus, Trash2, Paperclip,
-  Users, Calendar, FileText, Download, X, Link as LinkIcon,
+  Users, Calendar, FileText, Download, X, LockKeyhole, Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -244,7 +244,7 @@ export function CommunityValidationSection({
               key={v.id}
               proposalId={proposalId}
               validation={v}
-              onDeleted={async () => { await load(); onChangeRef.current?.(); }}
+              canAddEvidence={showAddButton}
               onEvidenceChanged={async () => { await load(); onChangeRef.current?.(); }}
             />
           ))}
@@ -282,14 +282,13 @@ export function CommunityValidationSection({
 // ─── Existing validation event card ────────────────────────────────────────
 
 function ValidationEventCard({
-  proposalId, validation, onDeleted, onEvidenceChanged,
+  proposalId, validation, canAddEvidence, onEvidenceChanged,
 }: {
   proposalId:        string;
   validation:        Validation;
-  onDeleted:         () => Promise<void>;
+  canAddEvidence:    boolean;
   onEvidenceChanged: () => Promise<void>;
 }) {
-  const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -297,20 +296,6 @@ function ValidationEventCard({
   const hasMinStakeholders = v.stakeholders.length >= MIN_STAKEHOLDERS;
   const hasMinEvidence     = v.evidence.length     >= MIN_EVIDENCE;
   const meetsThreshold     = hasMinStakeholders && hasMinEvidence;
-
-  async function handleDelete() {
-    if (!confirm("Delete this validation event? This cannot be undone.")) return;
-    setDeleting(true);
-    const res = await fetch(`/api/proposals/${proposalId}/validations/${v.id}`, { method: "DELETE" });
-    setDeleting(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to delete.");
-      return;
-    }
-    toast.success("Validation event deleted.");
-    await onDeleted();
-  }
 
   async function handleUpload(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -337,21 +322,6 @@ function ValidationEventCard({
     }
   }
 
-  async function deleteEvidence(eid: string) {
-    if (!confirm("Remove this evidence file?")) return;
-    const res = await fetch(
-      `/api/proposals/${proposalId}/validations/${v.id}/evidence?eid=${eid}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to remove file.");
-      return;
-    }
-    toast.success("Evidence removed.");
-    await onEvidenceChanged();
-  }
-
   return (
     <div className={`rounded-xl border p-3 space-y-2.5 ${meetsThreshold ? "border-success/30 bg-success/5" : "border-border bg-surface"}`}>
       {/* Header */}
@@ -367,15 +337,9 @@ function ValidationEventCard({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          className="text-xs text-muted-foreground hover:text-danger p-1 rounded"
-          title="Delete this validation event"
-        >
-          {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        </button>
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title="Validation history is retained for traceability">
+          <LockKeyhole className="h-3 w-3" /> Retained
+        </span>
       </div>
 
       {/* Summary */}
@@ -434,38 +398,34 @@ function ValidationEventCard({
                       <Download className="w-3.5 h-3.5" />
                     </a>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => deleteEvidence(e.id)}
-                    className="text-muted-foreground hover:text-danger p-0.5 rounded"
-                    title="Remove"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
                 </span>
               </li>
             ))}
           </ul>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="h-7 text-xs gap-1.5"
-        >
-          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-          Add evidence
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          accept="image/*,application/pdf,audio/*"
-          className="hidden"
-          onChange={(e) => handleUpload(e.target.files)}
-        />
+        {canAddEvidence && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="h-7 text-xs gap-1.5"
+            >
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Add evidence
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf,audio/*"
+              className="hidden"
+              onChange={(e) => handleUpload(e.target.files)}
+            />
+          </>
+        )}
       </div>
 
       {!meetsThreshold && (

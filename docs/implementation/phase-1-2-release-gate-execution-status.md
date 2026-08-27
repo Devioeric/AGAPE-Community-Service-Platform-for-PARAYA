@@ -1231,3 +1231,21 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect the proposal validation-event controls and API for
   controls that claim destructive behavior despite the append-only evidence
   boundary, then replace any broken control with a working lifecycle action.
+
+## Phase 3 retained validation-evidence interface
+
+- Status: `locally_complete`. The proposal validation interface no longer
+  offers destructive actions that the append-only API correctly refuses.
+- Interface: validation events display a retained-history marker. The event
+  delete control and evidence-file remove control were removed, so officers no
+  longer receive a guaranteed `405` after confirming a destructive action.
+- Editability: evidence upload is available only while the proposal is in an
+  editable state and the parent has granted recording authority. Read-only
+  review continues to show existing evidence and signed downloads.
+- Commands/results: focused advisory/proposal tests pass 27/27; typecheck and
+  lint pass with zero errors.
+- Migration/security impact: no migration, database mutation, feature-state
+  change, remote/shared operation, or external AI call occurred.
+- Rollback: revert this UI checkpoint. The append-only API remains unchanged.
+- Next exact action: replace the validation-event two-step service-role insert
+  and best-effort hard-delete cleanup with one atomic authenticated RPC.

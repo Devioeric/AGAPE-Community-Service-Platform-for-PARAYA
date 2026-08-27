@@ -16,7 +16,9 @@ const NEED = {
   identifiedDate: "2026-08-20",
   plannedProposalCount: 0,
   activeProgramCount: 0,
+  activeFullProgramCount: 0,
   completedProgramCount: 0,
+  profilingEvidence: null,
 };
 
 test("advisory engine ranks uncovered approved needs and excludes active coverage", () => {
@@ -25,17 +27,19 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
     needs: [
       { ...NEED, category: "education", priorityScore: 4, plannedProposalCount: 1 },
       { ...NEED, id: "10000000-0000-4000-8000-000000000002", category: "health", priorityScore: 5 },
-      { ...NEED, id: "10000000-0000-4000-8000-000000000003", category: "livelihood", priorityScore: 5, activeProgramCount: 1 },
+      { ...NEED, id: "10000000-0000-4000-8000-000000000003", category: "livelihood", priorityScore: 5, activeProgramCount: 1, activeFullProgramCount: 1 },
     ],
   });
 
-  assert.equal(result.schema, "agape.ai.need-recommendations.v1");
+  assert.equal(result.schema, "agape.ai.need-recommendations.v2");
   assert.equal(result.advisoryOnly, true);
   assert.deepEqual(result.summary, {
     approvedOpenNeeds: 3,
     unaddressedNeeds: 1,
     needsWithPlannedResponses: 1,
     needsWithActivePrograms: 1,
+    needsWithPartialActiveCoverage: 0,
+    needsWithFullActiveCoverage: 1,
     recommendationCount: 2,
   });
   assert.equal(result.recommendations[0].category, "health");
@@ -46,6 +50,22 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
   assert.equal(advisoryRecommendationResponseSchema.safeParse(result).success, true);
 });
 
+test("partial active coverage remains visible while full active coverage suppresses duplicate work", () => {
+  const result = buildAdvisoryRecommendations({
+    needs: [
+      { ...NEED, category: "health", priorityScore: 5, activeProgramCount: 1, activeFullProgramCount: 0 },
+      { ...NEED, id: "10000000-0000-4000-8000-000000000004", category: "education", priorityScore: 5, activeProgramCount: 1, activeFullProgramCount: 1 },
+    ],
+  });
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.recommendations[0].coverage.state, "partial_active");
+  assert.equal(result.recommendations[0].coverage.activePartialPrograms, 1);
+  assert.equal(result.recommendations[0].action, "review_active_gap");
+  assert.match(result.recommendations[0].rationale, /recorded coverage is partial/);
+  assert.equal(result.summary.needsWithPartialActiveCoverage, 1);
+  assert.equal(result.summary.needsWithFullActiveCoverage, 1);
+});
+
 test("advisory engine uses a conservative default when priority evidence is missing", () => {
   const result = buildAdvisoryRecommendations({
     needs: [{ ...NEED, category: "environment", priorityScore: null, completedProgramCount: 2 }],
@@ -54,6 +74,29 @@ test("advisory engine uses a conservative default when priority evidence is miss
   assert.equal(result.recommendations[0].confidence, "medium");
   assert.match(result.recommendations[0].rationale, /2 completed related programs are recorded/);
   assert.deepEqual(result.recommendations[0].suggestedSdgs, [6, 11, 13]);
+});
+
+test("recommendations cite only de-identified profiling provenance and suppression-safe counts", () => {
+  const profilingEvidence = {
+    evidenceSnapshotId: "30000000-0000-4000-8000-000000000001",
+    cycleId: "30000000-0000-4000-8000-000000000002",
+    cycleName: "Synthetic Completed Cycle",
+    reportingDate: "2026-07-31",
+    sampleMethod: "systematic",
+    approvedHouseholds: 20,
+    approvedResidents: 75,
+    coveragePercent: 80,
+    responseRatePercent: 90,
+    needCount: { suppressed: true, value: null, label: "<5" },
+    dataQuality: { pendingPackages: 0, returnedPackages: 0, excludedPackages: 1, unresolvedDuplicates: 0 },
+  };
+  const result = buildAdvisoryRecommendations({
+    needs: [{ ...NEED, category: "environment", priorityScore: 4, profilingEvidence }],
+  });
+  assert.deepEqual(result.recommendations[0].evidence.profiling, profilingEvidence);
+  assert.equal(result.recommendations[0].evidence.profiling.needCount.value, null);
+  assert.equal(result.recommendations[0].evidence.profiling.needCount.label, "<5");
+  assert.equal("cells" in result.recommendations[0].evidence.profiling, false);
 });
 
 test("advisory response rejects extra or resident-identifying fields", () => {
@@ -73,8 +116,13 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /\.neq\("status", "addressed"\)/);
   assert.match(route, /ai\.advisory_recommendations\.read/);
   assert.match(route, /isMissingOptionalPhase2Relation/);
+  assert.match(route, /intended_coverage/);
+  assert.match(route, /activeFullProgramCount/);
+  assert.match(route, /validateProfilingAggregateDTO/);
+  assert.match(route, /aggregate_schema_version", "agape\.profiling\.aggregate\.v2/);
+  assert.match(route, /cell\.dimension === "needs"/);
   assert.doesNotMatch(route, /select\(["'`]\*["'`]\)/);
-  assert.doesNotMatch(route, /need_description|resident|contact|receipt|storage_path/);
+  assert.doesNotMatch(route, /need_description|resident_name|contact|receipt|storage_path|profiling_resident_versions|profiling_household_versions/);
   assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
   assert.doesNotMatch(route, /anthropic|generativelanguage|openai|googleapis/i);
 });
@@ -88,6 +136,10 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Prepare a proposal draft/);
   assert.match(page, /recommendation\.action === "develop_response"/);
   assert.match(page, /Review proposal pipeline/);
+  assert.match(page, /Review active coverage/);
+  assert.match(page, /Partial active coverage/);
+  assert.match(page, /Approved profiling context/);
+  assert.match(page, /Small cells remain suppressed and have no drill-through/);
   assert.match(page, /Showing \{visibleRecommendations\.length\} of \{data\.recommendations\.length\} recommendations/);
   assert.match(page, /No recommendations match these filters/);
   assert.match(sidebar, /\/officer\/analytics\/recommendations/);

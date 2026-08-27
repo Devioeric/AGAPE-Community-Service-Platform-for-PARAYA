@@ -147,6 +147,7 @@ export default function AdvisoryRecommendationsPage() {
                   <option value="all">All response states</option>
                   <option value="unaddressed">No plan</option>
                   <option value="planned">Plan exists</option>
+                  <option value="partial_active">Partial active coverage</option>
                 </select>
               </label>
               <label className="space-y-1 text-xs font-medium text-muted-foreground">
@@ -168,7 +169,7 @@ export default function AdvisoryRecommendationsPage() {
                 <CheckCircle2 className="h-9 w-9 text-success" />
                 <p className="font-medium text-foreground">No uncovered approved needs found</p>
                 <p className="max-w-lg text-sm text-muted-foreground">
-                  Every approved open need currently has an active linked program, or no approved open needs are available.
+                  Every approved open need currently has a fully covering active linked program, or no approved open needs are available.
                 </p>
               </CardContent>
             </Card>
@@ -193,7 +194,9 @@ export default function AdvisoryRecommendationsPage() {
                       </Badge>
                       <Badge variant="secondary">{CATEGORY_LABEL[recommendation.category]}</Badge>
                       <Badge variant="outline">
-                        {recommendation.coverage.state === "planned" ? "Plan exists" : "No plan"}
+                        {recommendation.coverage.state === "partial_active"
+                          ? "Partial active coverage"
+                          : recommendation.coverage.state === "planned" ? "Plan exists" : "No plan"}
                       </Badge>
                     </div>
                     <div>
@@ -207,10 +210,28 @@ export default function AdvisoryRecommendationsPage() {
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why it appears</p>
                       <p className="mt-1 text-sm leading-relaxed text-foreground/80">{recommendation.rationale}</p>
                     </div>
+                    {recommendation.evidence.profiling ? (
+                      <div className="rounded-md border border-info/20 bg-info/5 p-3 text-xs text-foreground/80">
+                        <p className="font-medium text-foreground">Approved profiling context</p>
+                        <p className="mt-1">
+                          {recommendation.evidence.profiling.cycleName} · as of {recommendation.evidence.profiling.reportingDate}
+                        </p>
+                        <p className="mt-1">
+                          {recommendation.evidence.profiling.approvedHouseholds.toLocaleString("en-PH")} approved households · {recommendation.evidence.profiling.approvedResidents.toLocaleString("en-PH")} approved residents · {recommendation.evidence.profiling.coveragePercent ?? "not stated"}% coverage
+                        </p>
+                        <p className="mt-1">
+                          Category cell: {recommendation.evidence.profiling.needCount?.label ?? "not available in this aggregate"}. Small cells remain suppressed and have no drill-through.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                        No compatible completed profiling snapshot is available for this barangay. Validate the need through its approved source before acting.
+                      </p>
+                    )}
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
-                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.completedPrograms} completed · {recommendation.confidence} confidence
+                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.activePartialPrograms} partial active · {recommendation.coverage.completedPrograms} completed · {recommendation.confidence} confidence
                       </div>
                       <div className="flex flex-wrap gap-1.5" aria-label="Suggested Sustainable Development Goals">
                         {recommendation.suggestedSdgs.map((sdg) => <Badge key={sdg} variant="outline">SDG {sdg}</Badge>)}
@@ -226,6 +247,11 @@ export default function AdvisoryRecommendationsPage() {
                           href={`/officer/proposals?from_need=${encodeURIComponent(recommendation.needId)}`}
                         >
                           Prepare a proposal draft
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      ) : recommendation.action === "review_active_gap" ? (
+                        <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/officer/programs">
+                          Review active coverage
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                       ) : (

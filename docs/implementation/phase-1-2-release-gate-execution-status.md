@@ -414,7 +414,7 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Starting checkpoint: `797559eab6aec7db0839321712e37e848108e0e5` on
   `release/phase1-phase2-gate-closure`.
 - Implemented: a deterministic approved-need recommendation engine, strict
-  `agape.ai.need-recommendations.v1` response contract, capability-gated and
+  `agape.ai.need-recommendations.v2` response contract, capability-gated and
   audited read API, Analytics recommendation screen, and human-controlled
   prefill into the existing proposal builder. The engine uses controlled need
   categories, priority, and explicit proposal/program links. It does not call
@@ -506,6 +506,37 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: audit the combined recommendation, alignment, beneficiary,
   and unmet-need behavior against the Phase 3 advisory boundary, then implement
   only a demonstrated remaining local gap.
+
+## Phase 3 coverage and evidence correction (owner-authorized local development)
+
+- Status: `locally_complete`. This remains read-only advisory development and
+  does not authorize production activation or automated proposal decisions.
+- Coverage correction: active programs no longer hide an approved need merely
+  because a link exists. A `full` active need link suppresses duplicate work;
+  a `partial` active link produces a remaining-gap review with a direct link to
+  the human-operated program workspace. Legacy links without structured
+  coverage are treated conservatively as partial.
+- Evidence correction: the recommendation route selects the newest valid
+  completed/archived profiling evidence per barangay and validates the entire
+  snapshot through the strict `ProfilingAggregateDTO` contract. Each
+  recommendation receives only cycle/date, sample size, coverage/response,
+  data-quality metadata, and the matching `needs` category count or suppression
+  marker. Raw cells, resident rows, household versions, and drill-through are
+  not returned.
+- Contract: `agape.ai.need-recommendations.v2` distinguishes unaddressed,
+  planned, and partial-active states; reports full versus partial active program
+  counts; and remains strict, deterministic, audited, and advisory-only.
+- Verification: focused advisory tests pass 11/11; the complete Node suite
+  passes 216/216; typecheck and lint pass; and the 165-page production build
+  passes. No SQL migration or shared/remote operation was performed for this
+  checkpoint.
+- Rollback: revert this development checkpoint. Do not restore the former
+  behavior that treated any active link as complete coverage or bypass strict
+  aggregate validation.
+- Next exact action: assess the remaining documented Phase 3 gaps—ranked
+  alternatives, indicative resources, verified-history benchmarks, and human
+  recommendation review state—and implement the smallest complete vertical
+  slice without external AI or automated workflow transitions.
 
 ## Migration, security, and rollback notes
 

@@ -8,6 +8,30 @@ export const needCategorySchema = z.enum([
   "environment",
 ]);
 
+const evidenceCountSchema = z.discriminatedUnion("suppressed", [
+  z.object({ suppressed: z.literal(false), value: z.number().int().nonnegative(), label: z.string().regex(/^\d+$/) }).strict(),
+  z.object({ suppressed: z.literal(true), value: z.null(), label: z.string().regex(/^(suppressed|<([5-9]|[1-9][0-9]|100))$/) }).strict(),
+]);
+
+export const advisoryProfilingEvidenceSchema = z.object({
+  evidenceSnapshotId: z.string().uuid(),
+  cycleId: z.string().uuid(),
+  cycleName: z.string().trim().min(2).max(160),
+  reportingDate: z.string().date(),
+  sampleMethod: z.string().trim().min(2).max(160),
+  approvedHouseholds: z.number().int().nonnegative(),
+  approvedResidents: z.number().int().nonnegative(),
+  coveragePercent: z.number().min(0).max(100).nullable(),
+  responseRatePercent: z.number().min(0).max(100).nullable(),
+  needCount: evidenceCountSchema.nullable(),
+  dataQuality: z.object({
+    pendingPackages: z.number().int().nonnegative(),
+    returnedPackages: z.number().int().nonnegative(),
+    excludedPackages: z.number().int().nonnegative(),
+    unresolvedDuplicates: z.number().int().nonnegative(),
+  }).strict(),
+}).strict();
+
 export const advisoryNeedInputSchema = z.object({
   id: z.string().uuid(),
   barangayId: z.string().uuid(),
@@ -18,8 +42,14 @@ export const advisoryNeedInputSchema = z.object({
   identifiedDate: z.string().date(),
   plannedProposalCount: z.number().int().nonnegative(),
   activeProgramCount: z.number().int().nonnegative(),
+  activeFullProgramCount: z.number().int().nonnegative(),
   completedProgramCount: z.number().int().nonnegative(),
-}).strict();
+  profilingEvidence: advisoryProfilingEvidenceSchema.nullable(),
+}).strict().superRefine((value, ctx) => {
+  if (value.activeFullProgramCount > value.activeProgramCount) {
+    ctx.addIssue({ code: "custom", message: "Full active coverage cannot exceed all active coverage" });
+  }
+});
 
 export const advisoryRecommendationSchema = z.object({
   needId: z.string().uuid(),
@@ -33,12 +63,14 @@ export const advisoryRecommendationSchema = z.object({
     label: z.enum(["critical", "high", "medium", "low"]),
   }).strict(),
   coverage: z.object({
-    state: z.enum(["unaddressed", "planned", "active"]),
+    state: z.enum(["unaddressed", "planned", "partial_active"]),
     plannedProposals: z.number().int().nonnegative(),
     activePrograms: z.number().int().nonnegative(),
+    activeFullPrograms: z.number().int().nonnegative(),
+    activePartialPrograms: z.number().int().nonnegative(),
     completedPrograms: z.number().int().nonnegative(),
   }).strict(),
-  action: z.enum(["develop_response", "review_planned_response"]),
+  action: z.enum(["develop_response", "review_planned_response", "review_active_gap"]),
   intervention: z.object({
     code: z.string().regex(/^[a-z][a-z0-9_]{2,79}$/),
     title: z.string().trim().min(1).max(160),
@@ -51,11 +83,12 @@ export const advisoryRecommendationSchema = z.object({
     source: z.literal("approved_community_need"),
     identifiedDate: z.string().date(),
     quality: z.literal("approved"),
+    profiling: advisoryProfilingEvidenceSchema.nullable(),
   }).strict(),
 }).strict();
 
 export const advisoryRecommendationResponseSchema = z.object({
-  schema: z.literal("agape.ai.need-recommendations.v1"),
+  schema: z.literal("agape.ai.need-recommendations.v2"),
   generatedAt: z.string().datetime(),
   advisoryOnly: z.literal(true),
   scope: z.object({
@@ -68,6 +101,8 @@ export const advisoryRecommendationResponseSchema = z.object({
     unaddressedNeeds: z.number().int().nonnegative(),
     needsWithPlannedResponses: z.number().int().nonnegative(),
     needsWithActivePrograms: z.number().int().nonnegative(),
+    needsWithPartialActiveCoverage: z.number().int().nonnegative(),
+    needsWithFullActiveCoverage: z.number().int().nonnegative(),
     recommendationCount: z.number().int().nonnegative(),
   }).strict(),
   recommendations: z.array(advisoryRecommendationSchema).max(100),
@@ -134,11 +169,12 @@ export function buildAdvisoryRecommendations(input: {
   const asOfDate = generatedAt.slice(0, 10);
 
   const recommendations = needs
-    .filter((need) => need.activeProgramCount === 0)
+    .filter((need) => need.activeFullProgramCount === 0)
     .map((need) => {
       const score = need.priorityScore ?? 3;
       const intervention = INTERVENTIONS[need.category];
       const hasPlan = need.plannedProposalCount > 0;
+      const hasPartialActiveCoverage = need.activeProgramCount > 0;
       const priorProgramNote = need.completedProgramCount > 0
         ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
         : "";
@@ -149,19 +185,23 @@ export function buildAdvisoryRecommendations(input: {
         category: need.category,
         priority: { score, label: priorityLabel(score) },
         coverage: {
-          state: hasPlan ? "planned" as const : "unaddressed" as const,
+          state: hasPartialActiveCoverage ? "partial_active" as const : hasPlan ? "planned" as const : "unaddressed" as const,
           plannedProposals: need.plannedProposalCount,
           activePrograms: need.activeProgramCount,
+          activeFullPrograms: need.activeFullProgramCount,
+          activePartialPrograms: need.activeProgramCount - need.activeFullProgramCount,
           completedPrograms: need.completedProgramCount,
         },
-        action: hasPlan ? "review_planned_response" as const : "develop_response" as const,
+        action: hasPartialActiveCoverage ? "review_active_gap" as const : hasPlan ? "review_planned_response" as const : "develop_response" as const,
         intervention: {
           code: intervention.code,
           title: intervention.title,
           description: intervention.description,
         },
         suggestedSdgs: intervention.sdgs,
-        rationale: hasPlan
+        rationale: hasPartialActiveCoverage
+          ? `This approved ${need.category} need has an active linked program, but its recorded coverage is partial. Review the remaining affected group and current outcomes before deciding whether another response is appropriate.${priorProgramNote}`
+          : hasPlan
           ? `This approved ${need.category} need has a planned proposal but no active linked program. Review the plan, its evidence, and implementation readiness.${priorProgramNote}`
           : `This approved ${need.category} need has no planned proposal or active linked program. Consider developing a human-reviewed response.${priorProgramNote}`,
         confidence: need.priorityScore === null ? "medium" as const : "high" as const,
@@ -169,6 +209,7 @@ export function buildAdvisoryRecommendations(input: {
           source: "approved_community_need" as const,
           identifiedDate: need.identifiedDate,
           quality: "approved" as const,
+          profiling: need.profilingEvidence,
         },
       };
     })
@@ -181,7 +222,7 @@ export function buildAdvisoryRecommendations(input: {
     .slice(0, 100);
 
   return advisoryRecommendationResponseSchema.parse({
-    schema: "agape.ai.need-recommendations.v1",
+    schema: "agape.ai.need-recommendations.v2",
     generatedAt,
     advisoryOnly: true,
     scope: {
@@ -194,6 +235,8 @@ export function buildAdvisoryRecommendations(input: {
       unaddressedNeeds: needs.filter((need) => need.activeProgramCount === 0 && need.plannedProposalCount === 0).length,
       needsWithPlannedResponses: needs.filter((need) => need.activeProgramCount === 0 && need.plannedProposalCount > 0).length,
       needsWithActivePrograms: needs.filter((need) => need.activeProgramCount > 0).length,
+      needsWithPartialActiveCoverage: needs.filter((need) => need.activeProgramCount > 0 && need.activeFullProgramCount === 0).length,
+      needsWithFullActiveCoverage: needs.filter((need) => need.activeFullProgramCount > 0).length,
       recommendationCount: recommendations.length,
     },
     recommendations,

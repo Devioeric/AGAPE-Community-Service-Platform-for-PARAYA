@@ -1207,3 +1207,27 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: make validation-link hydration strict and fail closed so
   unsupported source types or source-query failures cannot silently produce an
   incomplete evidence review DTO.
+
+## Phase 3 strict proposal-evidence reads
+
+- Status: `locally_complete`. Proposal evidence review now returns either a
+  complete allowlisted result or an explicit error; it no longer presents
+  partially hydrated evidence as trustworthy.
+- Stored-data checks: readable source and provenance values are checked against
+  closed allowlists, and every stored source identifier must be a UUID. An
+  unsupported stored row fails closed with metadata-only logging.
+- Hydration behavior: all six legacy/current source lookups report database
+  failures, and every governed link must resolve to an existing selected source
+  before the response is returned. Missing sources produce a conflict instead
+  of a card whose details are silently null.
+- Interface correction: empty-state guidance lists only sources officers may
+  actually link now. Legacy household lineage remains readable for historical
+  compatibility but is no longer advertised as a new validation source.
+- Commands/results: focused advisory/proposal tests pass 27/27; complete Node
+  tests pass 234/234 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, remote/shared database operation,
+  workflow mutation, runtime-state change, or external AI call occurred.
+- Rollback: revert this application checkpoint. Existing links remain intact.
+- Next exact action: inspect the proposal validation-event controls and API for
+  controls that claim destructive behavior despite the append-only evidence
+  boundary, then replace any broken control with a working lifecycle action.

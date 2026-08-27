@@ -658,7 +658,11 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.match(route, /\.strict\(\)/);
   assert.match(route, /source_id: z\.string\(\)\.uuid\(\)/);
   assert.match(route, /rationale: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(2_000\)/);
-  assert.doesNotMatch(route.slice(0, route.indexOf("type SourceType")), /survey_response/);
+  const linkableSourceBlock = route.slice(
+    route.indexOf("const LINKABLE_SOURCE_TYPES"),
+    route.indexOf("const READABLE_SOURCE_TYPES"),
+  );
+  assert.doesNotMatch(linkableSourceBlock, /survey_response/);
   assert.match(route, /\.select\("id,barangay_id,status"\)/);
   assert.match(route, /LINKABLE_PROPOSAL_STATUSES/);
   assert.match(route, /need\.approval_status === "approved" && need\.barangay_id === proposal\.barangay_id/);
@@ -669,8 +673,16 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.match(route, /cycleResult\.data\.barangay_id === proposal\.barangay_id/);
   assert.match(route, /provenance_kind: "validation"/);
   assert.doesNotMatch(route, /\.select\("\*"\)|error\.message/);
+  assert.match(route, /isSourceType\(l\.source_type\)/);
+  assert.match(route, /isProvenanceKind\(l\.provenance_kind\)/);
+  assert.match(route, /Proposal validation source hydration failed/);
+  assert.match(route, /Proposal validation link references a missing source/);
   assert.match(picker, /\/api\/community-needs\?status=approved/);
   assert.match(picker, /sourceBarangayId === brgyId/);
+
+  const validationPanel = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
+  assert.doesNotMatch(validationPanel, /field observations, or household profiles/);
+  assert.match(validationPanel, /completed\s+aggregate profiling evidence/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

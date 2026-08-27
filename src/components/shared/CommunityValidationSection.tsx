@@ -191,8 +191,9 @@ export function CommunityValidationSection({
         </div>
         {links.length === 0 ? (
           <p className="text-xs text-muted-foreground italic">
-            No records linked. Cite at least 2 records — community needs, surveys,
-            field observations, or household profiles — to satisfy Phase II.
+            No records linked. Cite at least 2 human-reviewed records — approved
+            community needs, published surveys, field observations, or completed
+            aggregate profiling evidence — to satisfy this validation path.
           </p>
         ) : (
           <div className="space-y-2">

@@ -8,7 +8,19 @@ type Ctx = { params: Promise<{ id: string }> };
 const LINKABLE_SOURCE_TYPES = [
   "community_need", "survey", "field_observation", "profiling_evidence_snapshot",
 ] as const;
-type SourceType = (typeof LINKABLE_SOURCE_TYPES)[number] | "survey_response" | "household_profile";
+const READABLE_SOURCE_TYPES = [
+  ...LINKABLE_SOURCE_TYPES, "survey_response", "household_profile",
+] as const;
+type SourceType = (typeof READABLE_SOURCE_TYPES)[number];
+type ProvenanceKind = "validation" | "advisory_planning";
+
+function isSourceType(value: unknown): value is SourceType {
+  return typeof value === "string" && (READABLE_SOURCE_TYPES as readonly string[]).includes(value);
+}
+
+function isProvenanceKind(value: unknown): value is ProvenanceKind {
+  return value === "validation" || value === "advisory_planning";
+}
 
 const proposalIdSchema = z.string().uuid();
 const createLinkSchema = z.object({
@@ -48,36 +60,47 @@ export async function GET(_req: Request, { params }: Ctx) {
     profiling_evidence_snapshot: [],
   };
   for (const l of links) {
-    byType[l.source_type as SourceType].push(l.source_id as string);
+    if (!isSourceType(l.source_type) || !proposalIdSchema.safeParse(l.source_id).success || !isProvenanceKind(l.provenance_kind)) {
+      console.error("Proposal validation link has an unsupported stored shape", { proposalId: id, linkId: l.id });
+      return NextResponse.json({ error: "Proposal evidence contains an unsupported record" }, { status: 500 });
+    }
+    byType[l.source_type].push(l.source_id);
   }
 
   // Parallel hydrate
   const [needs, surveys, responses, observations, households, evidence] = await Promise.all([
-    byType.community_need.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.community_need.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("community_needs")
         .select("id, title, category, approval_status, sitio, barangays(name)")
         .in("id", byType.community_need),
-    byType.survey.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.survey.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("surveys")
         .select("id, title, status, barangays(name)")
         .in("id", byType.survey),
-    byType.survey_response.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.survey_response.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("survey_responses")
         .select("id, survey_id, surveys(title)")
         .in("id", byType.survey_response),
-    byType.field_observation.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.field_observation.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("field_observations")
         .select("id, observation, sitio, observation_date, category, barangays(name)")
         .in("id", byType.field_observation),
-    byType.household_profile.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.household_profile.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("household_profiles")
         .select("id, household_number, sitio, barangays(name)")
         .in("id", byType.household_profile),
-    byType.profiling_evidence_snapshot.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[] }) :
+    byType.profiling_evidence_snapshot.length === 0 ? Promise.resolve({ data: [] as Record<string, unknown>[], error: null }) :
       admin.from("profiling_evidence_snapshots")
         .select("id, cycle_id, aggregate_schema_version, generated_at, content_hash, profiling_cycles(name, barangays(name))")
         .in("id", byType.profiling_evidence_snapshot),
   ]);
+
+  const hydrationFailure = [needs, surveys, responses, observations, households, evidence]
+    .find((result) => result.error);
+  if (hydrationFailure?.error) {
+    console.error("Proposal validation source hydration failed", { proposalId: id, code: hydrationFailure.error.code });
+    return NextResponse.json({ error: "Proposal evidence details could not be loaded" }, { status: 500 });
+  }
 
   const indexer = <T extends { id?: unknown }>(rows: T[] | null | undefined) => {
     const m = new Map<string, T>();
@@ -91,22 +114,33 @@ export async function GET(_req: Request, { params }: Ctx) {
   const hpMap      = indexer(households.data   as { id?: unknown }[]);
   const evidenceMap = indexer(evidence.data as { id?: unknown }[]);
 
+  const sourceMaps: Record<SourceType, Map<string, { id?: unknown }>> = {
+    community_need: needsMap,
+    survey: surveysMap,
+    survey_response: respMap,
+    field_observation: obsMap,
+    household_profile: hpMap,
+    profiling_evidence_snapshot: evidenceMap,
+  };
+  const missingSource = links.find((link) =>
+    isSourceType(link.source_type)
+    && !sourceMaps[link.source_type].has(link.source_id)
+  );
+  if (missingSource) {
+    console.error("Proposal validation link references a missing source", { proposalId: id, linkId: missingSource.id });
+    return NextResponse.json({ error: "A linked proposal evidence source is unavailable" }, { status: 409 });
+  }
+
   const enriched = links.map((l) => {
-    const sid = l.source_id as string;
-    let details: Record<string, unknown> | null = null;
-    switch (l.source_type) {
-      case "community_need":    details = needsMap.get(sid)   ?? null; break;
-      case "survey":            details = surveysMap.get(sid) ?? null; break;
-      case "survey_response":   details = respMap.get(sid)    ?? null; break;
-      case "field_observation": details = obsMap.get(sid)     ?? null; break;
-      case "household_profile": details = hpMap.get(sid)      ?? null; break;
-      case "profiling_evidence_snapshot": details = evidenceMap.get(sid) ?? null; break;
-    }
+    // Stored shape and source existence were checked above, so the response is
+    // a complete, allowlisted DTO rather than a partially hydrated best effort.
+    const sourceType = l.source_type as SourceType;
+    const details = sourceMaps[sourceType].get(l.source_id) as Record<string, unknown>;
     return {
       id:          l.id,
-      source_type: l.source_type,
+      source_type: sourceType,
       source_id:   l.source_id,
-      provenance_kind: l.provenance_kind,
+      provenance_kind: l.provenance_kind as ProvenanceKind,
       rationale:   l.rationale,
       linked_by:   l.linked_by,
       linker_name: (l.users as unknown as { full_name?: string | null } | null)?.full_name ?? null,

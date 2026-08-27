@@ -126,6 +126,16 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await expect(page.getByTestId("recommendation-threshold-settings").getByLabel("Sufficient planned coverage percentage")).toHaveValue("85");
   });
 
+  if (component === "proposal_alignment") test("PARAYA can run a server-audited advisory alignment check without saving a proposal", async ({ page }) => {
+    await signIn(page, "associate", /\/officer(?:\/)?$/);
+    await page.goto("/officer/proposals");
+    await page.getByRole("button", { name: "New Proposal" }).click();
+    await page.getByRole("button", { name: "Check this draft" }).click();
+    await expect(page.getByText("Not Recommended", { exact: true })).toBeVisible();
+    await expect(page.getByText(/never rejects or changes the proposal workflow automatically/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Proposal" })).toBeVisible();
+  });
+
   if (component === "recommendation_automation") test("weekly advisory refresh creates only deduplicated synthetic in-app notices", async ({ page }) => {
     await signIn(page, "researcher", /\/officer(?:\/)?$/);
     const run = async () => page.request.get("/api/ai/recommendations?scheduled=true", {

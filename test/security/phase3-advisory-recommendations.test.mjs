@@ -6,7 +6,7 @@ import {
   advisoryRecommendationResponseSchema,
   buildAdvisoryRecommendations,
 } from "../../src/lib/ai/advisory-recommendations.ts";
-import { assessProposalAlignment } from "../../src/lib/ai/proposal-alignment.ts";
+import { assessProposalAlignment, proposalAlignmentRequestSchema } from "../../src/lib/ai/proposal-alignment.ts";
 
 const NEED = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -503,6 +503,41 @@ test("proposal alignment exposes all approved dimensions as textual evidence rat
   assert.match(source, /insufficient_evidence/);
   assert.match(page, /alignment\.dimensions\.map/);
   assert.doesNotMatch(page, /Score \{alignment\.score\}/);
+});
+
+test("proposal alignment is server-validated, metadata-only audited, and cannot change workflow", () => {
+  const route = readFileSync("src/app/api/ai/proposal-alignment/route.ts", "utf8");
+  const page = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
+  const validDraft = {
+    title: "Synthetic learning support",
+    rationale: "Approved aggregate evidence indicates a bounded education support need.",
+    objectives: "Provide guided learning activities.",
+    targetBeneficiaries: "Selected learners",
+    expectedBeneficiaryCount: 40,
+    expectedOutput: "Structured learning sessions",
+    timelineStart: "2026-09-01",
+    timelineEnd: "2026-09-30",
+    budget: "0",
+    barangayId: "20000000-0000-4000-8000-000000000001",
+    isIncomeGenerating: false,
+    sdgs: [4],
+    priorInitiativeCount: 1,
+  };
+
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: validDraft }).success, false, "money must remain a number in this bounded advisory request");
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 } }).success, true);
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 }, workflowAction: "approve" }).success, false);
+  assert.match(route, /authorizeCapability\("proposal\.create"\)/);
+  assert.match(route, /hasCapability\(auth\.actor\.role, auth\.actor\.permissions, "ai\.assist"\)/);
+  assert.match(route, /proposalAlignmentRequestSchema\.safeParse/);
+  assert.match(route, /assessProposalAlignment\(parsed\.data\.draft\)/);
+  assert.match(route, /createHash\("sha256"\)/);
+  assert.match(route, /ai\.proposal_alignment\.assessed/);
+  assert.match(route, /dimension_ratings/);
+  assert.doesNotMatch(route, /rationale:\s*parsed|objectives:\s*parsed|targetBeneficiaries:\s*parsed/);
+  assert.doesNotMatch(route, /advance|submit|approve|reject|project_proposals.*(?:insert|update)/i);
+  assert.match(page, /fetch\("\/api\/ai\/proposal-alignment"/);
+  assert.doesNotMatch(page, /setAlignment\(assessProposalAlignment/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

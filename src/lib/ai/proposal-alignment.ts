@@ -16,6 +16,10 @@ export const proposalAlignmentInputSchema = z.object({
   priorInitiativeCount: z.number().int().nonnegative().default(0),
 }).strict();
 
+export const proposalAlignmentRequestSchema = z.object({
+  draft: proposalAlignmentInputSchema,
+}).strict();
+
 const dimensionCodeSchema = z.enum([
   "community_need",
   "beneficiary_fit",

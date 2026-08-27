@@ -988,3 +988,35 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: continue the user-visible advisory workflow by adding a
   bounded planning-alignment assessment to the draft handoff, preserving human
   editing and prohibiting automatic proposal transitions.
+
+## Phase 3 server-audited proposal alignment
+
+- Status: `locally_complete`. Alignment remains deterministic and advisory; it
+  cannot save, submit, advance, approve, return, or reject a proposal.
+- Implemented: moved the existing eight-dimension alignment assessment behind
+  `/api/ai/proposal-alignment`. The endpoint requires both proposal preparation
+  authority and AI assistance, rejects unknown fields and invalid types, runs
+  the existing strict result schema on the server, and returns a private
+  no-store DTO.
+- Audit/privacy behavior: every successful assessment writes a fail-closed audit
+  entry containing only a SHA-256 draft fingerprint, overall result, controlled
+  dimension ratings, and bounded counts/flags. Proposal rationale, objectives,
+  beneficiary text, and other draft prose are not copied into the audit entry or
+  sent to an external AI provider.
+- Interface: the proposal editor now shows progress and fetches the server
+  result. A failed or malformed result is not displayed as valid guidance. The
+  user must still choose Create Proposal or Save Changes separately.
+- Commands/results: focused advisory/browser contracts pass 28/28; typecheck
+  and lint pass; seeded Phase 2 SQL remains 168/168; and the authenticated
+  browser/AI privacy gate passes 10/10. The browser opens a blank proposal,
+  receives `Not Recommended`, keeps the Create Proposal action separate, and
+  finishes with an unchanged proposal/program workflow fingerprint.
+- Migration/security impact: no migration, feature-state change, external AI
+  call, or shared/remote database operation occurred. The local browser harness
+  removed its disposable stack after execution.
+- Rollback: revert this checkpoint to restore the prior client-only check. Do
+  not persist raw proposal prose in generic audit metadata or couple alignment
+  output to a workflow transition.
+- Next exact action: add a human-visible alignment assessment timestamp and
+  stale-after-edit indicator so officers cannot mistake an older advisory result
+  for an assessment of the current draft.

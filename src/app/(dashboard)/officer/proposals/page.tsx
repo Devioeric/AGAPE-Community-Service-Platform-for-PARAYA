@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
-import { assessProposalAlignment, type ProposalAlignmentResult } from "@/lib/ai/proposal-alignment";
+import { proposalAlignmentResultSchema, type ProposalAlignmentResult } from "@/lib/ai/proposal-alignment";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -231,6 +231,7 @@ export default function ProposalsPage() {
   const [informedBy, setInformedBy]       = useState<string[]>([]);
   const [saving, setSaving]             = useState(false);
   const [alignment, setAlignment]       = useState<ProposalAlignmentResult | null>(null);
+  const [alignmentLoading, setAlignmentLoading] = useState(false);
   const [recommendationDraftContext, setRecommendationDraftContext] = useState<RecommendationDraftContext | null>(null);
 
   // Detail sheet state
@@ -355,26 +356,45 @@ export default function ProposalsPage() {
     setSdgSelected((prev) => prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]);
   }
 
-  function runAlignmentCheck() {
+  async function runAlignmentCheck() {
     const values = getValues();
     const parsedBudget = values.budget?.trim() ? Number(values.budget) : null;
-    setAlignment(assessProposalAlignment({
-      title: values.title ?? "",
-      rationale: values.rationale ?? "",
-      objectives: values.objectives ?? "",
-      targetBeneficiaries: values.target_beneficiaries ?? "",
-      expectedBeneficiaryCount: values.expected_beneficiary_count?.trim()
-        ? Number(values.expected_beneficiary_count)
-        : null,
-      expectedOutput: values.expected_output ?? "",
-      timelineStart: values.timeline_start ?? "",
-      timelineEnd: values.timeline_end ?? "",
-      budget: parsedBudget !== null && Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null,
-      barangayId: values.barangay_id || null,
-      isIncomeGenerating: Boolean(values.is_income_generating),
-      sdgs: sdgSelected,
-      priorInitiativeCount: informedBy.length,
-    }));
+    setAlignmentLoading(true);
+    try {
+      const response = await fetch("/api/ai/proposal-alignment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draft: {
+            title: values.title ?? "",
+            rationale: values.rationale ?? "",
+            objectives: values.objectives ?? "",
+            targetBeneficiaries: values.target_beneficiaries ?? "",
+            expectedBeneficiaryCount: values.expected_beneficiary_count?.trim()
+              ? Number(values.expected_beneficiary_count)
+              : null,
+            expectedOutput: values.expected_output ?? "",
+            timelineStart: values.timeline_start ?? "",
+            timelineEnd: values.timeline_end ?? "",
+            budget: parsedBudget !== null && Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null,
+            barangayId: values.barangay_id || null,
+            isIncomeGenerating: Boolean(values.is_income_generating),
+            sdgs: sdgSelected,
+            priorInitiativeCount: informedBy.length,
+          },
+        }),
+      });
+      const body = await response.json().catch(() => null) as { data?: unknown; error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Unable to assess this draft");
+      const parsed = proposalAlignmentResultSchema.safeParse(body?.data);
+      if (!parsed.success) throw new Error("The alignment response was invalid");
+      setAlignment(parsed.data);
+    } catch (error) {
+      setAlignment(null);
+      toast.error(error instanceof Error ? error.message : "Unable to assess this draft");
+    } finally {
+      setAlignmentLoading(false);
+    }
   }
 
   async function onSubmit(data: FormData) {
@@ -915,7 +935,8 @@ export default function ProposalsPage() {
                         Shows separate evidence-based planning dimensions without saving or advancing this proposal.
                       </p>
                     </div>
-                    <Button type="button" size="sm" variant="outline" onClick={runAlignmentCheck}>
+                    <Button type="button" size="sm" variant="outline" onClick={() => void runAlignmentCheck()} disabled={alignmentLoading}>
+                      {alignmentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Check this draft
                     </Button>
                   </div>

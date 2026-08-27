@@ -826,3 +826,39 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: audit the remaining approved Phase 3 advisory scope for a
   demonstrated local gap, prioritizing user-visible unmet-need coverage and
   review transparency over external AI or workflow automation.
+
+## Phase 3 conservative unmet-need coverage estimate
+
+- Status: `locally_complete`. This remains a de-identified advisory read path;
+  it does not activate Phase 3, change a proposal, or apply DDL to a shared
+  database.
+- Implemented: recommendation coverage now reports an explicit `available`,
+  `suppressed`, or `unavailable` estimate. An available estimate displays the
+  approved aggregate affected count, the largest positive beneficiary count
+  from an eligible linked proposal or active program, the resulting bounded
+  percentage, confidence, and a plain-language limitation.
+- Conservative rule: linked plans are never summed because their beneficiary
+  groups may overlap. The largest linked plan is used as a planning comparison,
+  and the interface states that it is sample-based and requires human
+  validation. Suppressed cells produce no percentage or drill-through; missing
+  counts remain unavailable instead of being inferred.
+- Trust boundary: the API selects only explicit proposal/program linkage and
+  planned-count fields, reuses the strict approved profiling aggregate, and
+  returns the strict `agape.ai.need-recommendations.v2` DTO. The material
+  coverage estimate is included in the existing recommendation fingerprint, so
+  a changed estimate makes an earlier review stale.
+- Commands/results: focused advisory contracts pass 19/19; the complete Node
+  suite passes 224/224; typecheck and lint pass; the 166-page/route production
+  build passes; the disposable Phase 2 seeded suite passes 154/154; and the
+  authenticated browser/AI privacy gate passes 8/8 with the coverage panel
+  exercised through the real local route.
+- Final state: the disposable stack was removed, recommendation automation is
+  still disabled/off, Phase 2 modes are off, and V1 mutation authority remains
+  the default. No remote database or real personal/financial record changed.
+- Rollback: revert this development checkpoint. Do not replace suppressed or
+  unavailable states with zero, sum potentially overlapping linked plans, or
+  add resident drill-through.
+- Next exact action: audit the remaining approved advisory workflow for the
+  smallest locally executable gap, with preference for transparent proposal
+  prefill provenance or recommendation-to-draft handoff that remains an
+  explicit human save action.

@@ -68,6 +68,19 @@ function addToSetMap(map: Map<string, Set<string>>, key: string, value: string) 
 
 type CoverageLevel = "partial" | "full";
 
+type ProposalPlanningLink = {
+  id: string;
+  needId: string;
+  proposalId: string;
+  plannedBeneficiaryCount: number | null;
+};
+
+function positiveIntegerOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 function addCoverage(
   map: Map<string, Map<string, CoverageLevel>>,
   needId: string,
@@ -216,12 +229,15 @@ export async function GET(request: Request) {
   const programIdsByNeed = new Map<string, Set<string>>();
   const proposalCoverageByNeed = new Map<string, Map<string, CoverageLevel>>();
   const programCoverageByNeed = new Map<string, Map<string, CoverageLevel>>();
+  const proposalPlanningLinksByNeed = new Map<string, ProposalPlanningLink[]>();
+  const proposalPlanningLinksById = new Map<string, ProposalPlanningLink>();
+  const sourceProposalLinkByNeedAndProgram = new Map<string, string>();
 
   if (needIds.length > 0) {
     const [v2ProposalLinks, legacyProposalLinks, v2ProgramLinks] = await Promise.all([
-      admin.from("proposal_need_links_v2").select("need_id,proposal_id,intended_coverage").in("need_id", needIds),
+      admin.from("proposal_need_links_v2").select("id,need_id,proposal_id,intended_coverage,planned_beneficiary_count,planned_beneficiary_percentage").in("need_id", needIds),
       admin.from("proposal_validation_links").select("source_id,proposal_id").eq("source_type", "community_need").in("source_id", needIds),
-      admin.from("program_need_links_v2").select("need_id,program_id,intended_coverage").in("need_id", needIds),
+      admin.from("program_need_links_v2").select("need_id,program_id,intended_coverage,source_proposal_need_link_id").in("need_id", needIds),
     ]);
     const linkError = legacyProposalLinks.error
       ?? (v2ProposalLinks.error && !isMissingOptionalPhase2Relation(v2ProposalLinks.error) ? v2ProposalLinks.error : null)
@@ -234,11 +250,25 @@ export async function GET(request: Request) {
     for (const link of v2ProposalLinks.data ?? []) {
       addToSetMap(proposalIdsByNeed, link.need_id, link.proposal_id);
       addCoverage(proposalCoverageByNeed, link.need_id, link.proposal_id, link.intended_coverage === "full" ? "full" : "partial");
+      const planningLink: ProposalPlanningLink = {
+        id: link.id,
+        needId: link.need_id,
+        proposalId: link.proposal_id,
+        plannedBeneficiaryCount: positiveIntegerOrNull(link.planned_beneficiary_count),
+      };
+      proposalPlanningLinksById.set(planningLink.id, planningLink);
+      proposalPlanningLinksByNeed.set(
+        planningLink.needId,
+        [...(proposalPlanningLinksByNeed.get(planningLink.needId) ?? []), planningLink],
+      );
     }
     for (const link of legacyProposalLinks.data ?? []) addToSetMap(proposalIdsByNeed, link.source_id, link.proposal_id);
     for (const link of v2ProgramLinks.data ?? []) {
       addToSetMap(programIdsByNeed, link.need_id, link.program_id);
       addCoverage(programCoverageByNeed, link.need_id, link.program_id, link.intended_coverage === "full" ? "full" : "partial");
+      if (link.source_proposal_need_link_id) {
+        sourceProposalLinkByNeedAndProgram.set(`${link.need_id}:${link.program_id}`, link.source_proposal_need_link_id);
+      }
     }
   }
 
@@ -296,6 +326,15 @@ export async function GET(request: Request) {
       const profiling = profilingByBarangay.get(need.barangay_id);
       const needCell = profiling?.aggregate.cells.find((cell) => cell.dimension === "needs" && cell.key === need.category) ?? null;
       const historicalBenchmark = historyByCategory.get(need.category);
+      const plannedBeneficiaryCounts = (proposalPlanningLinksByNeed.get(need.id) ?? [])
+        .filter((link) => PLANNED_PROPOSAL_STATUSES.has(proposalStatuses.get(link.proposalId) ?? ""))
+        .map((link) => link.plannedBeneficiaryCount)
+        .filter((count): count is number => count !== null);
+      for (const programId of activeProgramIds) {
+        const sourceLinkId = sourceProposalLinkByNeedAndProgram.get(`${need.id}:${programId}`);
+        const sourceLink = sourceLinkId ? proposalPlanningLinksById.get(sourceLinkId) : null;
+        if (sourceLink?.plannedBeneficiaryCount) plannedBeneficiaryCounts.push(sourceLink.plannedBeneficiaryCount);
+      }
       return {
         id: need.id,
         barangayId: need.barangay_id,
@@ -308,6 +347,9 @@ export async function GET(request: Request) {
         activeProgramCount: activeProgramIds.length,
         activeFullProgramCount: activeProgramIds.filter((id) => programCoverageByNeed.get(need.id)?.get(id) === "full").length,
         completedProgramCount: Array.from(relatedProgramIds).filter((id) => programStatuses.get(id) === "completed").length,
+        largestLinkedPlannedBeneficiaryCount: plannedBeneficiaryCounts.length > 0
+          ? Math.max(...plannedBeneficiaryCounts)
+          : null,
         profilingEvidence: profiling ? {
           evidenceSnapshotId: profiling.snapshotId,
           cycleId: profiling.aggregate.cycle.id,

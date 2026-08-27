@@ -53,6 +53,7 @@ export const advisoryNeedInputSchema = z.object({
   activeProgramCount: z.number().int().nonnegative(),
   activeFullProgramCount: z.number().int().nonnegative(),
   completedProgramCount: z.number().int().nonnegative(),
+  largestLinkedPlannedBeneficiaryCount: z.number().int().positive().nullable(),
   profilingEvidence: advisoryProfilingEvidenceSchema.nullable(),
   historicalBenchmark: advisoryHistoricalBenchmarkInputSchema.nullable(),
 }).strict().superRefine((value, ctx) => {
@@ -113,6 +114,14 @@ export const advisoryRecommendationSchema = z.object({
     activeFullPrograms: z.number().int().nonnegative(),
     activePartialPrograms: z.number().int().nonnegative(),
     completedPrograms: z.number().int().nonnegative(),
+    estimate: z.object({
+      status: z.enum(["available", "suppressed", "unavailable"]),
+      affectedCount: evidenceCountSchema.nullable(),
+      plannedCount: z.number().int().positive().nullable(),
+      estimatedPercent: z.number().min(0).max(100).nullable(),
+      confidence: z.enum(["moderate", "limited", "unavailable"]),
+      limitation: z.string().trim().min(1).max(500),
+    }).strict(),
   }).strict(),
   action: z.enum(["develop_response", "review_planned_response", "review_active_gap"]),
   intervention: z.object({
@@ -318,6 +327,53 @@ function recommendationFingerprint(value: {
   return createHash("sha256").update(stableJson(materialState)).digest("hex");
 }
 
+function buildCoverageEstimate(need: AdvisoryNeedInput) {
+  const affectedCount = need.profilingEvidence?.needCount ?? null;
+  const plannedCount = need.largestLinkedPlannedBeneficiaryCount;
+
+  if (affectedCount?.suppressed) {
+    return {
+      status: "suppressed" as const,
+      affectedCount,
+      plannedCount,
+      estimatedPercent: null,
+      confidence: "unavailable" as const,
+      limitation: "The affected-count cell is suppressed for privacy. No percentage is calculated and no drill-through is available.",
+    };
+  }
+
+  if (!affectedCount || affectedCount.value === 0 || plannedCount === null) {
+    return {
+      status: "unavailable" as const,
+      affectedCount,
+      plannedCount,
+      estimatedPercent: null,
+      confidence: "unavailable" as const,
+      limitation: affectedCount?.value === 0
+        ? "The approved aggregate reports no affected records for this category, so a coverage percentage would be misleading."
+        : plannedCount === null
+          ? "No positive planned beneficiary count is recorded on a linked proposal or active program. No percentage was inferred."
+          : "No compatible unsuppressed affected-count cell is available. No percentage was inferred.",
+    };
+  }
+
+  const quality = need.profilingEvidence?.dataQuality;
+  const moderateConfidence = quality
+    && quality.pendingPackages === 0
+    && quality.returnedPackages === 0
+    && quality.unresolvedDuplicates === 0
+    && (need.profilingEvidence?.responseRatePercent ?? 0) >= 80;
+
+  return {
+    status: "available" as const,
+    affectedCount,
+    plannedCount,
+    estimatedPercent: Math.min(100, Math.round((plannedCount / affectedCount.value) * 1_000) / 10),
+    confidence: moderateConfidence ? "moderate" as const : "limited" as const,
+    limitation: "This sample-based estimate compares the largest linked plan with the approved affected count. Linked plans are not summed because their beneficiaries may overlap; validate reach before deciding.",
+  };
+}
+
 export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
@@ -345,6 +401,7 @@ export function buildAdvisoryRecommendations(input: {
       const priorProgramNote = need.completedProgramCount > 0
         ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
         : "";
+      const coverageEstimate = buildCoverageEstimate(need);
 
       const recommendation = {
         needId: need.id,
@@ -358,6 +415,7 @@ export function buildAdvisoryRecommendations(input: {
           activeFullPrograms: need.activeFullProgramCount,
           activePartialPrograms: need.activeProgramCount - need.activeFullProgramCount,
           completedPrograms: need.completedProgramCount,
+          estimate: coverageEstimate,
         },
         action: hasPartialActiveCoverage ? "review_active_gap" as const : hasPlan ? "review_planned_response" as const : "develop_response" as const,
         intervention: {

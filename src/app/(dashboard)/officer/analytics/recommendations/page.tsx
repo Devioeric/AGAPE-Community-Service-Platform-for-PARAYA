@@ -332,6 +332,22 @@ export default function AdvisoryRecommendationsPage() {
                         No compatible completed profiling snapshot is available for this barangay. Validate the need through its approved source before acting.
                       </p>
                     )}
+                    <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80" data-testid="recommendation-coverage-estimate">
+                      <p className="font-medium text-foreground">Conservative planning coverage</p>
+                      {recommendation.coverage.estimate.status === "available" ? (
+                        <p className="mt-1">
+                          Approved affected count: {recommendation.coverage.estimate.affectedCount?.label}
+                          {" · "}Largest linked plan: {recommendation.coverage.estimate.plannedCount?.toLocaleString("en-PH")}
+                          {" · "}Estimated coverage: {recommendation.coverage.estimate.estimatedPercent}%
+                          {" · "}{recommendation.coverage.estimate.confidence} confidence
+                        </p>
+                      ) : recommendation.coverage.estimate.status === "suppressed" ? (
+                        <p className="mt-1">Affected count: {recommendation.coverage.estimate.affectedCount?.label}. Percentage suppressed for privacy.</p>
+                      ) : (
+                        <p className="mt-1">Coverage estimate unavailable.</p>
+                      )}
+                      <p className="mt-1 text-muted-foreground">{recommendation.coverage.estimate.limitation}</p>
+                    </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />

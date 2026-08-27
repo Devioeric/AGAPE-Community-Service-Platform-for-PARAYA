@@ -18,6 +18,7 @@ const NEED = {
   activeProgramCount: 0,
   activeFullProgramCount: 0,
   completedProgramCount: 0,
+  largestLinkedPlannedBeneficiaryCount: null,
   profilingEvidence: null,
   historicalBenchmark: null,
 };
@@ -135,7 +136,52 @@ test("recommendations cite only de-identified profiling provenance and suppressi
   assert.deepEqual(result.recommendations[0].evidence.profiling, profilingEvidence);
   assert.equal(result.recommendations[0].evidence.profiling.needCount.value, null);
   assert.equal(result.recommendations[0].evidence.profiling.needCount.label, "<5");
+  assert.equal(result.recommendations[0].coverage.estimate.status, "suppressed");
+  assert.equal(result.recommendations[0].coverage.estimate.estimatedPercent, null);
   assert.equal("cells" in result.recommendations[0].evidence.profiling, false);
+});
+
+test("coverage estimates use the largest linked plan and always show underlying counts", () => {
+  const profilingEvidence = {
+    evidenceSnapshotId: "30000000-0000-4000-8000-000000000001",
+    cycleId: "30000000-0000-4000-8000-000000000002",
+    cycleName: "Synthetic Completed Cycle",
+    reportingDate: "2026-07-31",
+    sampleMethod: "systematic",
+    approvedHouseholds: 20,
+    approvedResidents: 75,
+    coveragePercent: 80,
+    responseRatePercent: 90,
+    needCount: { suppressed: false, value: 40, label: "40" },
+    dataQuality: { pendingPackages: 0, returnedPackages: 0, excludedPackages: 1, unresolvedDuplicates: 0 },
+  };
+  const result = buildAdvisoryRecommendations({
+    needs: [{
+      ...NEED,
+      category: "education",
+      priorityScore: 4,
+      plannedProposalCount: 2,
+      largestLinkedPlannedBeneficiaryCount: 15,
+      profilingEvidence,
+    }],
+  });
+  assert.deepEqual(result.recommendations[0].coverage.estimate, {
+    status: "available",
+    affectedCount: { suppressed: false, value: 40, label: "40" },
+    plannedCount: 15,
+    estimatedPercent: 37.5,
+    confidence: "moderate",
+    limitation: "This sample-based estimate compares the largest linked plan with the approved affected count. Linked plans are not summed because their beneficiaries may overlap; validate reach before deciding.",
+  });
+});
+
+test("coverage estimates remain unavailable when a safe denominator or linked plan is missing", () => {
+  const result = buildAdvisoryRecommendations({
+    needs: [{ ...NEED, category: "health", priorityScore: 4, largestLinkedPlannedBeneficiaryCount: 10 }],
+  });
+  assert.equal(result.recommendations[0].coverage.estimate.status, "unavailable");
+  assert.equal(result.recommendations[0].coverage.estimate.estimatedPercent, null);
+  assert.match(result.recommendations[0].coverage.estimate.limitation, /No compatible unsuppressed/);
 });
 
 test("verified history produces bounded budget and volunteer ranges without inventing sparse estimates", () => {
@@ -184,6 +230,9 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /ai\.advisory_recommendations\.read/);
   assert.match(route, /isMissingOptionalPhase2Relation/);
   assert.match(route, /intended_coverage/);
+  assert.match(route, /planned_beneficiary_count/);
+  assert.match(route, /source_proposal_need_link_id/);
+  assert.match(route, /Math\.max\(\.\.\.plannedBeneficiaryCounts\)/);
   assert.match(route, /activeFullProgramCount/);
   assert.match(route, /validateProfilingAggregateDTO/);
   assert.match(route, /aggregate_schema_version", "agape\.profiling\.aggregate\.v2/);
@@ -262,6 +311,9 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Review active coverage/);
   assert.match(page, /Partial active coverage/);
   assert.match(page, /Approved profiling context/);
+  assert.match(page, /Conservative planning coverage/);
+  assert.match(page, /Largest linked plan/);
+  assert.match(page, /Percentage suppressed for privacy/);
   assert.match(page, /Small cells remain suppressed and have no drill-through/);
   assert.match(page, /Ranked alternatives/);
   assert.match(page, /Indicative resources/);

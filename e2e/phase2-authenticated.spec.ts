@@ -96,6 +96,8 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await page.goto("/officer/analytics/recommendations");
     const card = page.getByTestId("recommendation-card").first();
     await expect(card).toBeVisible();
+    await expect(card.getByTestId("recommendation-coverage-estimate")).toContainText("Coverage estimate unavailable");
+    await expect(card.getByTestId("recommendation-coverage-estimate")).toContainText("No compatible unsuppressed affected-count cell");
     await expect(card.getByTestId("recommendation-review-controls")).toBeVisible();
     await card.getByLabel(/Dismissal reason for/).selectOption("data_quality_concern");
     await card.getByRole("button", { name: "Dismiss" }).click();

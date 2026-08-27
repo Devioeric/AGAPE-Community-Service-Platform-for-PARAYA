@@ -754,3 +754,33 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   a normal development checkpoint, then automate the remaining Auth recovery
   and invitation cases against disposable local Supabase so the remote email
   rate limit is not a development blocker.
+
+## Phase 3 explainable proposal-alignment dimensions
+
+- Status: `locally_complete`. This is local advisory development only; it does
+  not activate an AI provider, alter a proposal, or authorize Phase 3 release.
+- Implemented: replaced the user-facing ten-item percentage score with eight
+  explicit dimensions covering community need, beneficiary appropriateness,
+  implementation feasibility, SDGs, budget/resources, institutional alignment,
+  previous-program evidence, and policy scope. Each dimension reports Strong,
+  Moderate, Weak, or Insufficient Evidence with evidence, a textual finding,
+  and a recommended next action.
+- Safety behavior: the strict `agape.ai.proposal-alignment.v2` contract contains
+  no numeric score. Missing approved evidence is reported as a limitation rather
+  than inferred from proposal prose. Not Recommended remains advisory and never
+  saves, rejects, submits, or advances the proposal.
+- Interface: the existing proposal editor passes its beneficiary count and
+  prior-initiative lineage into the deterministic check, presents each
+  dimension visibly, and continues to require the user to rerun the check after
+  edits.
+- Commands/results: focused advisory contracts pass 16/16; complete Node tests
+  pass 221/221 with zero failures/skips; typecheck and lint pass; and the
+  166-page/route production build passes.
+- Migration/security impact: no SQL migration, service-role read, external AI
+  request, shared database operation, or feature-state change occurred.
+- Rollback: revert this development checkpoint to restore the former local
+  completeness score. Do not couple alignment output to automated proposal
+  workflow decisions.
+- Next exact action: implement a bounded, disabled-by-default scheduled
+  recommendation refresh and in-app notification path that honors current and
+  stale fingerprints and cannot create or transition proposals.

@@ -330,6 +330,9 @@ export default function ProposalsPage() {
       rationale: values.rationale ?? "",
       objectives: values.objectives ?? "",
       targetBeneficiaries: values.target_beneficiaries ?? "",
+      expectedBeneficiaryCount: values.expected_beneficiary_count?.trim()
+        ? Number(values.expected_beneficiary_count)
+        : null,
       expectedOutput: values.expected_output ?? "",
       timelineStart: values.timeline_start ?? "",
       timelineEnd: values.timeline_end ?? "",
@@ -337,6 +340,7 @@ export default function ProposalsPage() {
       barangayId: values.barangay_id || null,
       isIncomeGenerating: Boolean(values.is_income_generating),
       sdgs: sdgSelected,
+      priorInitiativeCount: informedBy.length,
     }));
   }
 
@@ -853,7 +857,7 @@ export default function ProposalsPage() {
                         Advisory alignment check
                       </CardTitle>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Reviews completeness and basic planning alignment without saving or advancing this proposal.
+                        Shows separate evidence-based planning dimensions without saving or advancing this proposal.
                       </p>
                     </div>
                     <Button type="button" size="sm" variant="outline" onClick={runAlignmentCheck}>
@@ -864,23 +868,36 @@ export default function ProposalsPage() {
                 {alignment && (
                   <CardContent className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">Score {alignment.score}/100</Badge>
-                      <Badge variant="outline" className="capitalize">{alignment.level.replaceAll("_", " ")}</Badge>
+                      <Badge variant={alignment.overall === "recommended" ? "secondary" : "outline"}>
+                        {alignment.overallLabel}
+                      </Badge>
                       <span className="text-xs text-muted-foreground">Advisory only · run again after editing</span>
                     </div>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{alignment.summary}</p>
                     <div className="grid gap-2 md:grid-cols-2">
-                      {alignment.checks.map((check) => (
-                        <div key={check.code} className="flex items-start gap-2 rounded-md border border-border bg-background/70 p-2.5">
-                          {check.status === "ready"
+                      {alignment.dimensions.map((dimension) => (
+                        <div key={dimension.code} className="flex items-start gap-2 rounded-md border border-border bg-background/70 p-2.5">
+                          {dimension.rating === "strong" || dimension.rating === "moderate"
                             ? <CheckCircle className="mt-0.5 h-4 w-4 flex-none text-success" />
                             : <CircleAlert className="mt-0.5 h-4 w-4 flex-none text-warning" />}
-                          <div>
-                            <p className="text-xs font-medium text-foreground">{check.label}</p>
-                            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{check.message}</p>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-medium text-foreground">{dimension.label}</p>
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {dimension.rating.replaceAll("_", " ")}
+                              </Badge>
+                            </div>
+                            <p className="text-xs leading-relaxed text-muted-foreground">{dimension.finding}</p>
+                            {dimension.action && (
+                              <p className="text-xs leading-relaxed text-foreground"><span className="font-medium">Next:</span> {dimension.action}</p>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {alignment.limitations.join(" ")}
+                    </p>
                   </CardContent>
                 )}
               </Card>

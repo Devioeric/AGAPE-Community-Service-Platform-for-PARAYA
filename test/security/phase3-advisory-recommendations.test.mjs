@@ -274,6 +274,7 @@ test("proposal alignment remains advisory and reports actionable draft gaps", ()
     rationale: "Approved education evidence shows that targeted support should be considered.",
     objectives: "Improve access to guided learning activities.",
     targetBeneficiaries: "Selected learners",
+    expectedBeneficiaryCount: 40,
     expectedOutput: "Conduct structured learning sessions.",
     timelineStart: "2026-09-01",
     timelineEnd: "2026-09-30",
@@ -281,17 +282,22 @@ test("proposal alignment remains advisory and reports actionable draft gaps", ()
     barangayId: "20000000-0000-4000-8000-000000000001",
     isIncomeGenerating: false,
     sdgs: [4],
+    priorInitiativeCount: 1,
   });
   assert.equal(result.advisoryOnly, true);
-  assert.equal(result.score, 100);
-  assert.equal(result.level, "ready_for_human_review");
-  assert.equal(result.checks.every((check) => check.status === "ready"), true);
+  assert.equal(result.schema, "agape.ai.proposal-alignment.v2");
+  assert.equal(result.overall, "recommended");
+  assert.equal(result.dimensions.length, 8);
+  assert.equal(result.dimensions.find((item) => item.code === "beneficiary_fit")?.rating, "strong");
+  assert.equal(result.dimensions.find((item) => item.code === "institutional_alignment")?.rating, "insufficient_evidence");
+  assert.equal("score" in result, false);
 
   const incomplete = assessProposalAlignment({
     title: "",
     rationale: "",
     objectives: "",
     targetBeneficiaries: "",
+    expectedBeneficiaryCount: null,
     expectedOutput: "",
     timelineStart: "",
     timelineEnd: "",
@@ -299,10 +305,33 @@ test("proposal alignment remains advisory and reports actionable draft gaps", ()
     barangayId: null,
     isIncomeGenerating: true,
     sdgs: [],
+    priorInitiativeCount: 0,
   });
-  assert.equal(incomplete.score, 0);
-  assert.equal(incomplete.suggestions.length, 10);
-  assert.match(incomplete.suggestions.join(" "), /Confirm scope and policy with the Director instead of relying on automation/);
+  assert.equal(incomplete.overall, "not_recommended");
+  assert.equal(incomplete.priorityActions.length, 8);
+  assert.match(incomplete.priorityActions.join(" "), /Confirm scope and policy with the Director instead of relying on automation/);
+  assert.match(incomplete.limitations.join(" "), /never rejects or changes the proposal workflow automatically/);
+});
+
+test("proposal alignment exposes all approved dimensions as textual evidence rather than one score", () => {
+  const source = readFileSync("src/lib/ai/proposal-alignment.ts", "utf8");
+  const page = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
+  for (const dimension of [
+    "community_need",
+    "beneficiary_fit",
+    "implementation_feasibility",
+    "sdg_alignment",
+    "resource_feasibility",
+    "institutional_alignment",
+    "previous_program_evidence",
+    "policy_scope",
+  ]) assert.match(source, new RegExp(`"${dimension}"`));
+  assert.match(source, /strong/);
+  assert.match(source, /moderate/);
+  assert.match(source, /weak/);
+  assert.match(source, /insufficient_evidence/);
+  assert.match(page, /alignment\.dimensions\.map/);
+  assert.doesNotMatch(page, /Score \{alignment\.score\}/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

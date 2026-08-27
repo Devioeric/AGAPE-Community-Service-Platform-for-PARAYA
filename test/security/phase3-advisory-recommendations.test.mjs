@@ -458,6 +458,8 @@ test("proposal alignment remains advisory and reports actionable draft gaps", ()
     isIncomeGenerating: false,
     sdgs: [4],
     priorInitiativeCount: 1,
+    approvedNeedEvidence: true,
+    approvedAggregateEvidence: true,
   });
   assert.equal(result.advisoryOnly, true);
   assert.equal(result.schema, "agape.ai.proposal-alignment.v2");
@@ -486,6 +488,24 @@ test("proposal alignment remains advisory and reports actionable draft gaps", ()
   assert.equal(incomplete.priorityActions.length, 8);
   assert.match(incomplete.priorityActions.join(" "), /Confirm scope and policy with the Director instead of relying on automation/);
   assert.match(incomplete.limitations.join(" "), /never rejects or changes the proposal workflow automatically/);
+
+  const proseOnly = assessProposalAlignment({
+    title: "Learning support",
+    rationale: "A detailed narrative describes a possible local education concern for review.",
+    objectives: "Provide guided learning activities.",
+    targetBeneficiaries: "Selected learners",
+    expectedBeneficiaryCount: 40,
+    expectedOutput: "Structured learning sessions",
+    timelineStart: "2026-09-01",
+    timelineEnd: "2026-09-30",
+    budget: 0,
+    barangayId: "20000000-0000-4000-8000-000000000001",
+    isIncomeGenerating: false,
+    sdgs: [4],
+    priorInitiativeCount: 0,
+  });
+  assert.equal(proseOnly.dimensions.find((item) => item.code === "community_need")?.rating, "weak");
+  assert.match(proseOnly.dimensions.find((item) => item.code === "community_need")?.finding ?? "", /No approved community-need/);
 });
 
 test("proposal alignment exposes all approved dimensions as textual evidence rather than one score", () => {
@@ -528,9 +548,10 @@ test("proposal alignment is server-validated, metadata-only audited, and cannot 
     priorInitiativeCount: 1,
   };
 
-  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: validDraft }).success, false, "money must remain a number in this bounded advisory request");
-  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 } }).success, true);
-  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 }, workflowAction: "approve" }).success, false);
+  const emptyEvidence = { approvedNeedId: null, profilingEvidenceSnapshotId: null };
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: validDraft, evidence: emptyEvidence }).success, false, "money must remain a number in this bounded advisory request");
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 }, evidence: emptyEvidence }).success, true);
+  assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 }, evidence: emptyEvidence, workflowAction: "approve" }).success, false);
   const assessmentResult = assessProposalAlignment({ ...validDraft, budget: 0 });
   assert.equal(proposalAlignmentResponseSchema.safeParse({
     data: assessmentResult,
@@ -543,14 +564,21 @@ test("proposal alignment is server-validated, metadata-only audited, and cannot 
   assert.match(route, /authorizeCapability\("proposal\.create"\)/);
   assert.match(route, /hasCapability\(auth\.actor\.role, auth\.actor\.permissions, "ai\.assist"\)/);
   assert.match(route, /proposalAlignmentRequestSchema\.safeParse/);
-  assert.match(route, /assessProposalAlignment\(parsed\.data\.draft\)/);
+  assert.match(route, /\.select\("id,barangay_id,approval_status"\)/);
+  assert.match(route, /\.select\("id,cycle_id,aggregate_schema_version"\)/);
+  assert.match(route, /\.select\("id,barangay_id,status"\)/);
+  assert.match(route, /approval_status === "approved"/);
+  assert.match(route, /\["completed", "archived"\]\.includes/);
+  assert.match(route, /approvedNeedEvidence/);
+  assert.match(route, /approvedAggregateEvidence/);
+  assert.doesNotMatch(route, /\.select\("\*"\)/);
   assert.match(route, /createHash\("sha256"\)/);
   assert.match(route, /ai\.proposal_alignment\.assessed/);
   assert.match(route, /dimension_ratings/);
   assert.match(route, /assessedAt: new Date\(\)\.toISOString\(\)/);
   assert.match(route, /draftFingerprint/);
   assert.doesNotMatch(route, /rationale:\s*parsed|objectives:\s*parsed|targetBeneficiaries:\s*parsed/);
-  assert.doesNotMatch(route, /advance|submit|approve|reject|project_proposals.*(?:insert|update)/i);
+  assert.doesNotMatch(route, /\/advance|phase2_\w*workflow|director_approve|finance_clear|\.from\("project_proposals"\)\s*\.(?:insert|update)/i);
   assert.match(page, /fetch\("\/api\/ai\/proposal-alignment"/);
   assert.doesNotMatch(page, /setAlignment\(assessProposalAlignment/);
   assert.match(page, /Outdated after edits/);

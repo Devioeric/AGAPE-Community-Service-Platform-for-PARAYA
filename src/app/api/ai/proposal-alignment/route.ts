@@ -4,6 +4,7 @@ import { assessProposalAlignment, proposalAlignmentRequestSchema } from "@/lib/a
 import { recordAudit } from "@/lib/audit/log";
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { hasCapability } from "@/lib/auth/capabilities";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   const auth = await authorizeCapability("proposal.create");
@@ -18,9 +19,57 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid proposal alignment request" }, { status: 400 });
   }
 
-  const result = assessProposalAlignment(parsed.data.draft);
+  const admin = createAdminClient();
+  const [needResult, snapshotResult] = await Promise.all([
+    parsed.data.evidence.approvedNeedId
+      ? admin.from("community_needs")
+          .select("id,barangay_id,approval_status")
+          .eq("id", parsed.data.evidence.approvedNeedId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    parsed.data.evidence.profilingEvidenceSnapshotId
+      ? admin.from("profiling_evidence_snapshots")
+          .select("id,cycle_id,aggregate_schema_version")
+          .eq("id", parsed.data.evidence.profilingEvidenceSnapshotId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (needResult.error || snapshotResult.error) {
+    return NextResponse.json({ error: "Unable to verify proposal evidence" }, { status: 500 });
+  }
+
+  const approvedNeedEvidence = needResult.data !== null
+    && needResult.data.approval_status === "approved"
+    && (parsed.data.draft.barangayId === null || needResult.data.barangay_id === parsed.data.draft.barangayId);
+  if (parsed.data.evidence.approvedNeedId && !approvedNeedEvidence) {
+    return NextResponse.json({ error: "The community need is not approved for the selected barangay" }, { status: 422 });
+  }
+
+  let approvedAggregateEvidence = false;
+  if (snapshotResult.data) {
+    const cycleResult = await admin.from("profiling_cycles")
+      .select("id,barangay_id,status")
+      .eq("id", snapshotResult.data.cycle_id)
+      .maybeSingle();
+    if (cycleResult.error) {
+      return NextResponse.json({ error: "Unable to verify proposal evidence" }, { status: 500 });
+    }
+    approvedAggregateEvidence = snapshotResult.data.aggregate_schema_version === "agape.profiling.aggregate.v2"
+      && cycleResult.data !== null
+      && ["completed", "archived"].includes(cycleResult.data.status)
+      && (parsed.data.draft.barangayId === null || cycleResult.data.barangay_id === parsed.data.draft.barangayId);
+  }
+  if (parsed.data.evidence.profilingEvidenceSnapshotId && !approvedAggregateEvidence) {
+    return NextResponse.json({ error: "The profiling evidence is not a completed approved snapshot for the selected barangay" }, { status: 422 });
+  }
+
+  const result = assessProposalAlignment({
+    ...parsed.data.draft,
+    approvedNeedEvidence,
+    approvedAggregateEvidence,
+  });
   const draftFingerprint = createHash("sha256")
-    .update(JSON.stringify(parsed.data.draft))
+    .update(JSON.stringify(parsed.data))
     .digest("hex");
   const auditWritten = await recordAudit({
     user_id: auth.actor.id,
@@ -35,6 +84,8 @@ export async function POST(request: Request) {
       sdg_count: parsed.data.draft.sdgs.length,
       has_barangay: parsed.data.draft.barangayId !== null,
       prior_initiative_count: parsed.data.draft.priorInitiativeCount,
+      approved_need_evidence: approvedNeedEvidence,
+      approved_aggregate_evidence: approvedAggregateEvidence,
     },
   });
   if (!auditWritten) {

@@ -29,7 +29,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
 import {
   proposalAlignmentResponseSchema,
-  type ProposalAlignmentInput,
+  type ProposalAlignmentDraft,
   type ProposalAlignmentResult,
 } from "@/lib/ai/proposal-alignment";
 
@@ -50,6 +50,11 @@ type RecommendationDraftContext = {
   suggestedCount: number | null;
   asOfDate: string;
   limitation: string;
+};
+
+type AlignmentEvidenceReferences = {
+  approvedNeedId: string | null;
+  profilingEvidenceSnapshotId: string | null;
 };
 
 interface SdgAlignment { sdg_number: number; indicator?: string | null; }
@@ -173,7 +178,7 @@ function currency(n: number | null) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 }
 
-function alignmentDraft(values: Partial<FormData>, sdgs: number[], priorInitiativeCount: number): ProposalAlignmentInput {
+function alignmentDraft(values: Partial<FormData>, sdgs: number[], priorInitiativeCount: number): ProposalAlignmentDraft {
   const parsedBudget = values.budget?.trim() ? Number(values.budget) : null;
   const parsedBeneficiaryCount = values.expected_beneficiary_count?.trim()
     ? Number(values.expected_beneficiary_count)
@@ -265,6 +270,10 @@ export default function ProposalsPage() {
     draftFingerprint: string;
     inputSignature: string;
   } | null>(null);
+  const [alignmentEvidence, setAlignmentEvidence] = useState<AlignmentEvidenceReferences>({
+    approvedNeedId: null,
+    profilingEvidenceSnapshotId: null,
+  });
   const [recommendationDraftContext, setRecommendationDraftContext] = useState<RecommendationDraftContext | null>(null);
 
   // Detail sheet state
@@ -286,7 +295,10 @@ export default function ProposalsPage() {
     resolver: zodResolver(schema),
   });
   const watchedValues = watch();
-  const currentAlignmentSignature = JSON.stringify(alignmentDraft(watchedValues, sdgSelected, informedBy.length));
+  const currentAlignmentSignature = JSON.stringify({
+    draft: alignmentDraft(watchedValues, sdgSelected, informedBy.length),
+    evidence: alignmentEvidence,
+  });
   const alignmentIsStale = alignmentAssessment !== null
     && alignmentAssessment.inputSignature !== currentAlignmentSignature;
 
@@ -311,6 +323,7 @@ export default function ProposalsPage() {
     setInformedBy([]);
     setAlignment(null);
     setAlignmentAssessment(null);
+    setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null });
     setRecommendationDraftContext(null);
     reset({});
     setFormOpen(true);
@@ -349,6 +362,10 @@ export default function ProposalsPage() {
           asOfDate: recommendation.beneficiaryGuidance.asOfDate,
           limitation: recommendation.beneficiaryGuidance.limitation,
         });
+        setAlignmentEvidence({
+          approvedNeedId: recommendation.needId,
+          profilingEvidenceSnapshotId: recommendation.evidence.profiling?.evidenceSnapshotId ?? null,
+        });
         reset({
           title: recommendation.intervention.title,
           rationale: `${recommendation.rationale} Validate this advisory suggestion with the barangay and available evidence before submission.`,
@@ -375,6 +392,7 @@ export default function ProposalsPage() {
     setInformedBy(((p as Proposal & { informed_by_proposals?: string[] | null }).informed_by_proposals) ?? []);
     setAlignment(null);
     setAlignmentAssessment(null);
+    setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null });
     setRecommendationDraftContext(null);
     reset({
       title:                p.title,
@@ -389,6 +407,17 @@ export default function ProposalsPage() {
       barangay_id:          p.barangays ? Object.entries(barangays).find(([, b]) => b.name === p.barangays?.name)?.[1]?.id ?? "" : "",
       is_income_generating: p.is_income_generating ?? false,
     });
+    void fetch(`/api/proposals/${p.id}/validation-links`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return [];
+        const body = await response.json().catch(() => null) as { data?: Array<{ source_type?: string; source_id?: string }> } | null;
+        return body?.data ?? [];
+      })
+      .then((links) => setAlignmentEvidence({
+        approvedNeedId: links.find((link) => link.source_type === "community_need")?.source_id ?? null,
+        profilingEvidenceSnapshotId: links.find((link) => link.source_type === "profiling_evidence_snapshot")?.source_id ?? null,
+      }))
+      .catch(() => setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null }));
     setFormOpen(true);
   }
 
@@ -398,13 +427,13 @@ export default function ProposalsPage() {
 
   async function runAlignmentCheck() {
     const draft = alignmentDraft(getValues(), sdgSelected, informedBy.length);
-    const inputSignature = JSON.stringify(draft);
+    const inputSignature = JSON.stringify({ draft, evidence: alignmentEvidence });
     setAlignmentLoading(true);
     try {
       const response = await fetch("/api/ai/proposal-alignment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draft }),
+        body: JSON.stringify({ draft, evidence: alignmentEvidence }),
       });
       const body = await response.json().catch(() => null) as unknown;
       if (!response.ok) {
@@ -961,7 +990,7 @@ export default function ProposalsPage() {
                         Advisory alignment check
                       </CardTitle>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Shows separate evidence-based planning dimensions without saving or advancing this proposal.
+                        Shows separate evidence-based planning dimensions without saving or advancing this proposal. Approved evidence references are rechecked by the server.
                       </p>
                     </div>
                     <Button type="button" size="sm" variant="outline" onClick={() => void runAlignmentCheck()} disabled={alignmentLoading}>

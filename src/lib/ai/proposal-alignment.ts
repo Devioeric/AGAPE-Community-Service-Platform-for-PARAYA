@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const proposalAlignmentInputSchema = z.object({
+export const proposalAlignmentDraftSchema = z.object({
   title: z.string().max(200).default(""),
   rationale: z.string().max(5_000).default(""),
   objectives: z.string().max(5_000).default(""),
@@ -16,8 +16,17 @@ export const proposalAlignmentInputSchema = z.object({
   priorInitiativeCount: z.number().int().nonnegative().default(0),
 }).strict();
 
+export const proposalAlignmentInputSchema = proposalAlignmentDraftSchema.extend({
+  approvedNeedEvidence: z.boolean().default(false),
+  approvedAggregateEvidence: z.boolean().default(false),
+}).strict();
+
 export const proposalAlignmentRequestSchema = z.object({
-  draft: proposalAlignmentInputSchema,
+  draft: proposalAlignmentDraftSchema,
+  evidence: z.object({
+    approvedNeedId: z.string().uuid().nullable(),
+    profilingEvidenceSnapshotId: z.string().uuid().nullable(),
+  }).strict(),
 }).strict();
 
 const dimensionCodeSchema = z.enum([
@@ -62,6 +71,7 @@ export const proposalAlignmentResponseSchema = z.object({
 }).strict();
 
 export type ProposalAlignmentInput = z.input<typeof proposalAlignmentInputSchema>;
+export type ProposalAlignmentDraft = z.infer<typeof proposalAlignmentDraftSchema>;
 export type ProposalAlignmentResult = z.infer<typeof proposalAlignmentResultSchema>;
 export type ProposalAlignmentResponse = z.infer<typeof proposalAlignmentResponseSchema>;
 
@@ -98,22 +108,32 @@ export function assessProposalAlignment(raw: ProposalAlignmentInput): ProposalAl
   const implementationCount = implementationSignals.filter(Boolean).length;
 
   const dimensions: Dimension[] = [
-    hasRationale && input.barangayId
+    input.approvedNeedEvidence || input.approvedAggregateEvidence
       ? dimension(
           "community_need",
           "Community need",
-          "moderate",
-          ["A target barangay and explanatory rationale are present."],
-          "The draft describes a local need, but this quick check cannot verify an approved need or aggregate evidence link.",
-          "Link an approved community need or approved aggregate evidence before submission.",
+          input.approvedNeedEvidence && input.approvedAggregateEvidence ? "strong" : "moderate",
+          [
+            input.approvedNeedEvidence ? "A same-barangay approved community need is linked." : "No approved community need reference was verified.",
+            input.approvedAggregateEvidence ? "A same-barangay completed profiling evidence snapshot is linked." : "No completed profiling evidence snapshot was verified.",
+          ],
+          input.approvedNeedEvidence && input.approvedAggregateEvidence
+            ? "The need and its approved aggregate planning context are both verified for this advisory check."
+            : "One approved evidence source is verified; an authorized reviewer must confirm whether additional evidence is needed.",
+          input.approvedNeedEvidence
+            ? null
+            : "Link an approved community need before submission.",
         )
       : dimension(
           "community_need",
           "Community need",
-          hasRationale || input.barangayId ? "weak" : "insufficient_evidence",
-          [hasRationale ? "A rationale is present." : "No sufficiently detailed rationale is present.", input.barangayId ? "A target barangay is selected." : "No target barangay is selected."],
-          "The available draft does not yet establish both the location and rationale for the proposed response.",
-          "Select the target barangay, explain the approved need and local context, then attach approved evidence.",
+          hasRationale && input.barangayId ? "weak" : "insufficient_evidence",
+          [
+            hasRationale ? "A rationale is present, but prose is not treated as approved evidence." : "No sufficiently detailed rationale is present.",
+            input.barangayId ? "A target barangay is selected." : "No target barangay is selected.",
+          ],
+          "No approved community-need or completed aggregate-evidence reference was verified for this draft.",
+          "Select the target barangay, explain the local context, and link approved need or aggregate evidence.",
         ),
     hasBeneficiaryGroup && hasBeneficiaryCount
       ? dimension(

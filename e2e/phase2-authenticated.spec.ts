@@ -128,6 +128,32 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
 
   if (component === "proposal_alignment") test("PARAYA can run a server-audited advisory alignment check without saving a proposal", async ({ page }) => {
     await signIn(page, "associate", /\/officer(?:\/)?$/);
+    const verifiedEvidence = await page.request.post("/api/ai/proposal-alignment", {
+      data: {
+        draft: {
+          title: "Synthetic learning support",
+          rationale: "Approved aggregate evidence indicates a bounded education support need.",
+          objectives: "Provide guided learning activities.",
+          targetBeneficiaries: "Selected learners",
+          expectedBeneficiaryCount: 10,
+          expectedOutput: "Structured learning sessions",
+          timelineStart: "2026-09-01",
+          timelineEnd: "2026-09-30",
+          budget: 0,
+          barangayId: "f2100000-0000-4000-8000-000000000001",
+          isIncomeGenerating: false,
+          sdgs: [4],
+          priorInitiativeCount: 0,
+        },
+        evidence: {
+          approvedNeedId: "f3300000-0000-4000-8000-000000000001",
+          profilingEvidenceSnapshotId: "f27c0000-0000-4000-8000-000000000001",
+        },
+      },
+    });
+    expect(verifiedEvidence.status()).toBe(200);
+    const verifiedBody = await verifiedEvidence.json();
+    expect(verifiedBody.data.dimensions.find((item: { code?: string }) => item.code === "community_need")).toMatchObject({ rating: "strong" });
     await page.goto("/officer/proposals");
     await page.getByRole("button", { name: "New Proposal" }).click();
     await page.getByRole("button", { name: "Check this draft" }).click();

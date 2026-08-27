@@ -1048,3 +1048,39 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: improve alignment usefulness by linking the check to
   approved need/evidence presence instead of treating a written rationale as
   sufficient community-need evidence.
+
+## Phase 3 verified evidence-aware proposal alignment
+
+- Status: `locally_complete`. The alignment check remains advisory and does not
+  create evidence links or modify proposals.
+- Implemented: the strict request now carries only optional approved-need and
+  profiling-evidence UUID references alongside the draft. The server verifies
+  an approved same-barangay community need and/or an `agape.profiling.aggregate.v2`
+  snapshot from a completed/archived same-barangay cycle using explicit field
+  allowlists.
+- Alignment behavior: typed rationale alone is now weak context, not approved
+  evidence. One verified source produces moderate community-need alignment;
+  both an approved need and completed aggregate snapshot produce strong
+  alignment. Invalid, non-approved, incomplete-cycle, or cross-barangay
+  references fail with `422` rather than being silently credited.
+- Interface integration: recommendation-originated draft starters pass their
+  server-issued need/evidence references. Editing an existing proposal loads
+  its validation-link references; ordinary new drafts start with no evidence.
+  Evidence-reference changes also make an earlier alignment result stale.
+- Audit/privacy behavior: the audit stores only the verified-evidence booleans
+  and request fingerprint, never source content or draft prose. The response
+  does not expose community-need descriptions or aggregate payloads.
+- Commands/results: focused advisory contracts pass 23/23; typecheck and lint
+  pass; seeded Phase 2 SQL remains 168/168; and the authenticated browser/AI
+  privacy gate passes 10/10. The browser directly verifies the reserved
+  same-barangay synthetic need plus completed snapshot returns a strong
+  community-need dimension, then exercises the visible no-evidence editor. One
+  unrelated Partner-selector timing failure occurred on the first attempt; an
+  unchanged complete retry passed all scenarios.
+- Migration/security impact: no migration, shared/remote operation, external AI
+  call, or feature-state change occurred. The disposable stacks were removed.
+- Rollback: revert this checkpoint to remove evidence verification. Do not
+  restore prose-only evidence credit or trust client-supplied evidence flags.
+- Next exact action: make the proposal draft starter preserve its approved need
+  provenance when the officer explicitly saves the draft, without automatic
+  submission or workflow advancement.

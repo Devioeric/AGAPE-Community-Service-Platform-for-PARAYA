@@ -341,25 +341,36 @@ function ValidationEventCard({
     if (!files || files.length === 0) return;
     setUploading(true);
     let ok = 0;
-    for (const file of Array.from(files)) {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch(
-        `/api/proposals/${proposalId}/validations/${v.id}/evidence`,
-        { method: "POST", body: form },
-      );
-      if (res.ok) ok += 1;
-      else {
-        const j = await res.json().catch(() => ({}));
-        toast.error(j.error ?? `Failed to upload ${file.name}`);
+    let failed = 0;
+    try {
+      for (const file of Array.from(files)) {
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          const res = await fetch(
+            `/api/proposals/${proposalId}/validations/${v.id}/evidence`,
+            { method: "POST", body: form },
+          );
+          if (res.ok) ok += 1;
+          else {
+            failed += 1;
+            const j = await res.json().catch(() => ({}));
+            toast.error(j.error ?? "An evidence file could not be uploaded.");
+          }
+        } catch {
+          failed += 1;
+          toast.error("An evidence file could not be uploaded. Check your connection and try again.");
+        }
       }
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
-    setUploading(false);
-    if (fileRef.current) fileRef.current.value = "";
     if (ok > 0) {
       toast.success(`Uploaded ${ok} file${ok === 1 ? "" : "s"}.`);
       await onEvidenceChanged();
     }
+    if (failed > 0 && ok > 0) toast.warning(`${failed} file${failed === 1 ? "" : "s"} were not uploaded.`);
   }
 
   return (
@@ -460,7 +471,7 @@ function ValidationEventCard({
               ref={fileRef}
               type="file"
               multiple
-              accept="image/*,application/pdf,audio/*"
+              accept="application/pdf,image/jpeg,image/png,image/webp,image/gif,image/heic,audio/mpeg,audio/mp4,audio/wav,audio/webm"
               className="hidden"
               onChange={(e) => handleUpload(e.target.files)}
             />
@@ -519,26 +530,31 @@ function NewValidationForm({
       return;
     }
     setSaving(true);
-    const res = await fetch(`/api/proposals/${proposalId}/validations`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        method,
-        date_conducted: date,
-        summary:        summary.trim(),
-        stakeholders:   stakeholders
-          .map((s) => ({ name: s.stakeholder_name.trim(), role: s.role?.trim() || null, present: s.present }))
-          .filter((s) => s.name.length >= 2),
-      }),
-    });
-    setSaving(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to record validation.");
-      return;
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/validations`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          method,
+          date_conducted: date,
+          summary:        summary.trim(),
+          stakeholders:   stakeholders
+            .map((s) => ({ name: s.stakeholder_name.trim(), role: s.role?.trim() || null, present: s.present }))
+            .filter((s) => s.name.length >= 2),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error ?? "Failed to record validation.");
+        return;
+      }
+      toast.success("Validation event recorded. Upload evidence files next.");
+      await onSaved();
+    } catch {
+      toast.error("The validation event could not be recorded. Check your connection and try again.");
+    } finally {
+      setSaving(false);
     }
-    toast.success("Validation event recorded. Upload evidence files next.");
-    await onSaved();
   }
 
   return (

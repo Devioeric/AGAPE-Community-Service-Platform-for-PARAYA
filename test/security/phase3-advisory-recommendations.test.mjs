@@ -753,6 +753,9 @@ test("proposal validation evidence reads and uploads use a bounded private DTO",
   assert.match(validationPanel, /setList\(\[\]\);\s*setLinks\(\[\]\)/);
   assert.match(validationPanel, /Linked records are unavailable until reload succeeds/);
   assert.match(validationPanel, />\s*Retry\s*</);
+  assert.match(validationPanel, /finally \{\s*setUploading\(false\);/);
+  assert.match(validationPanel, /finally \{\s*setSaving\(false\);/);
+  assert.match(validationPanel, /accept="application\/pdf,image\/jpeg,image\/png,image\/webp,image\/gif,image\/heic,audio\/mpeg,audio\/mp4,audio\/wav,audio\/webm"/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

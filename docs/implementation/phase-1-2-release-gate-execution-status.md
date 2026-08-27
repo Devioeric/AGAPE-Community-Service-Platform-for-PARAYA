@@ -1432,3 +1432,24 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: make validation-event creation and evidence upload controls
   recover cleanly from network exceptions so users are not left in a permanent
   saving/uploading state.
+
+## Phase 3 resilient validation mutations
+
+- Status: `locally_complete`. Validation-event creation and multi-file evidence
+  upload recover from failed network requests without leaving controls stuck.
+- Upload behavior: each selected file is isolated so one failure does not stop
+  later files, successes still refresh the review, partial failure is reported,
+  and upload state plus the file input are always reset in `finally`. The picker
+  now advertises only the MIME families accepted by the server signature
+  validator.
+- Event behavior: create failures show a practical retry message, successful
+  saves retain the existing flow, and the Save control always exits its busy
+  state through `finally`.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow transition, worker action, or external AI call occurred.
+- Rollback: revert this UI checkpoint. Server-side transaction and file
+  validation remain authoritative.
+- Next exact action: inspect the proposal pre-screen and workflow controls for
+  stale or contradictory validation state after a successful event/link refresh.

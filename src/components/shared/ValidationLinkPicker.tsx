@@ -18,43 +18,6 @@ import {
 
 type SourceType = "community_need" | "survey" | "field_observation" | "profiling_evidence_snapshot";
 
-interface CommunityNeed {
-  id:              string;
-  barangay_id:     string;
-  title:           string;
-  category:        string;
-  sitio:           string | null;
-  approval_status: string;
-  barangays:       { name: string } | null;
-}
-
-interface Survey {
-  id:        string;
-  target_barangay_id: string | null;
-  title:     string;
-  status:    string;
-  barangays: { name: string } | null;
-}
-
-interface FieldObservation {
-  id:               string;
-  observation:      string;
-  observation_date: string;
-  category:         string | null;
-  sitio:            string | null;
-  barangays:        { name: string } | null;
-}
-
-interface ProfilingEvidenceSnapshot {
-  id: string;
-  generated_at: string;
-  profiling_cycles: { name?: string; barangays?: { name?: string } | null } | null;
-  household_number?: string;
-  head_of_household?: string | null;
-  sitio?: string | null;
-  barangays?: { name: string } | null;
-}
-
 type Candidate = {
   id:    string;
   label: string;
@@ -65,7 +28,6 @@ interface Props {
   open:                boolean;
   onOpenChange:        (open: boolean) => void;
   proposalId:          string;
-  proposalBarangayId:  string | null;
   onLinked:            () => Promise<void>;
 }
 
@@ -77,7 +39,7 @@ const SOURCE_META: Record<SourceType, { label: string; icon: React.ComponentType
 };
 
 export function ValidationLinkPicker({
-  open, onOpenChange, proposalId, proposalBarangayId, onLinked,
+  open, onOpenChange, proposalId, onLinked,
 }: Props) {
   const [sourceType, setSourceType] = useState<SourceType>("community_need");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -106,24 +68,7 @@ export function ValidationLinkPicker({
     setRationale("");
     setCandidates([]);
     try {
-      let url = "";
-      switch (sourceType) {
-        case "community_need":
-          url = "/api/community-needs?status=approved";
-          break;
-        case "survey":
-          url = "/api/surveys";
-          break;
-        case "field_observation":
-          url = proposalBarangayId
-            ? `/api/field-observations?barangay_id=${proposalBarangayId}`
-            : "/api/field-observations";
-          break;
-        case "profiling_evidence_snapshot":
-          url = proposalBarangayId ? `/api/profiling/evidence?barangay_id=${proposalBarangayId}` : "/api/profiling/evidence";
-          break;
-      }
-      const res = await fetch(url);
+      const res = await fetch(`/api/proposals/${proposalId}/validation-candidates?source_type=${sourceType}`);
       if (!res.ok) {
         throw new Error("candidate request failed");
       }
@@ -131,63 +76,15 @@ export function ValidationLinkPicker({
       if (!Array.isArray(body?.data)) {
         throw new Error("candidate response was malformed");
       }
-      const data = body.data as unknown[];
-      const mapped: Candidate[] = data.map((row) => {
-        switch (sourceType) {
-          case "community_need": {
-            const r = row as CommunityNeed;
-            const brgy   = r.barangays?.name ?? "—";
-            const sitio  = r.sitio ? ` · ${r.sitio}` : "";
-            const status = r.approval_status === "approved" ? " · ✓ approved" : ` · ${r.approval_status}`;
-            return {
-              id:    r.id,
-              label: r.title,
-              meta:  `${r.category} · ${brgy}${sitio}${status}`,
-            };
-          }
-          case "survey": {
-            const r = row as Survey;
-            return {
-              id:    r.id,
-              label: r.title,
-              meta:  `${r.status}${r.barangays?.name ? ` · ${r.barangays.name}` : ""}`,
-            };
-          }
-          case "field_observation": {
-            const r = row as FieldObservation;
-            const text = r.observation.length > 80 ? r.observation.slice(0, 80) + "…" : r.observation;
-            return {
-              id:    r.id,
-              label: text,
-              meta:  `${r.observation_date}${r.category ? ` · ${r.category}` : ""}${r.sitio ? ` · ${r.sitio}` : ""}`,
-            };
-          }
-          case "profiling_evidence_snapshot": {
-            const snapshot = row as ProfilingEvidenceSnapshot;
-            const r = { ...snapshot, household_number: snapshot.profiling_cycles?.name ?? "Completed profiling cycle", head_of_household: null, sitio: null, barangays: snapshot.profiling_cycles?.barangays ?? null };
-            return {
-              id:    r.id,
-              label: `${r.household_number}${r.head_of_household ? ` · ${r.head_of_household}` : ""}`,
-              meta:  `${r.barangays?.name ?? "—"}${r.sitio ? ` · ${r.sitio}` : ""}`,
-            };
-          }
-        }
-      });
-
-      // Keep the picker aligned with the server's same-barangay boundary.
-      let filtered = mapped;
-      if (proposalBarangayId && (sourceType === "community_need" || sourceType === "survey")) {
-        const brgyId = proposalBarangayId;
-        filtered = mapped.filter((c, i) => {
-          void c;
-          const orig = data[i] as CommunityNeed | Survey;
-          const sourceBarangayId = sourceType === "community_need"
-            ? (orig as CommunityNeed).barangay_id
-            : (orig as Survey).target_barangay_id;
-          return sourceBarangayId === brgyId;
-        });
-      }
-      setCandidates(filtered);
+      const data = body.data as Candidate[];
+      const valid = data.every((candidate) =>
+        candidate
+        && typeof candidate.id === "string"
+        && typeof candidate.label === "string"
+        && typeof candidate.meta === "string"
+      );
+      if (!valid) throw new Error("candidate DTO was malformed");
+      setCandidates(data);
     } catch {
       setCandidates([]);
       setPicked(null);
@@ -196,7 +93,7 @@ export function ValidationLinkPicker({
     } finally {
       setLoading(false);
     }
-  }, [sourceType, proposalBarangayId]);
+  }, [sourceType, proposalId]);
 
   useEffect(() => {
     if (open) fetchCandidates();
@@ -311,7 +208,7 @@ export function ValidationLinkPicker({
             ) : visible.length === 0 ? (
               <p className="text-xs text-muted-foreground italic text-center py-6">
                 No {meta.label.toLowerCase()} found
-                {proposalBarangayId ? " in this barangay" : ""}.
+                in this proposal&apos;s barangay.
               </p>
             ) : (
               visible.map((c) => {

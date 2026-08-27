@@ -653,6 +653,7 @@ test("advisory provenance remains visible but cannot satisfy human community val
 test("manual proposal evidence links are strict, state-bound, and same-barangay", () => {
   const route = readFileSync("src/app/api/proposals/[id]/validation-links/route.ts", "utf8");
   const picker = readFileSync("src/components/shared/ValidationLinkPicker.tsx", "utf8");
+  const candidateRoute = readFileSync("src/app/api/proposals/[id]/validation-candidates/route.ts", "utf8");
 
   assert.match(route, /createLinkSchema = z\.object/);
   assert.match(route, /\.strict\(\)/);
@@ -681,12 +682,21 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.match(route, /isProvenanceKind\(l\.provenance_kind\)/);
   assert.match(route, /Proposal validation source hydration failed/);
   assert.match(route, /Proposal validation link references a missing source/);
-  assert.match(picker, /\/api\/community-needs\?status=approved/);
-  assert.match(picker, /sourceBarangayId === brgyId/);
+  assert.match(picker, /\/api\/proposals\/\$\{proposalId\}\/validation-candidates\?source_type=\$\{sourceType\}/);
+  assert.doesNotMatch(picker, /\/api\/(?:community-needs|surveys|field-observations|profiling\/evidence)/);
   assert.match(picker, /setLoadError\("Available validation records could not be loaded/);
   assert.match(picker, /setCandidates\(\[\]\);\s*setPicked\(null\);\s*setRationale\(""\)/);
   assert.match(picker, /disabled=\{!picked \|\| saving \|\| loading \|\| Boolean\(loadError\)\}/);
   assert.match(picker, /finally \{\s*setSaving\(false\);/);
+  assert.match(candidateRoute, /authorizeCapability\("proposal\.validation\.record"\)/);
+  assert.match(candidateRoute, /sourceTypeSchema = z\.enum/);
+  assert.match(candidateRoute, /candidateSchema = z\.object/);
+  assert.match(candidateRoute, /proposal\.barangay_id !== auth\.actor\.barangayId/);
+  assert.match(candidateRoute, /\.eq\("barangay_id", proposal\.barangay_id\)/);
+  assert.match(candidateRoute, /\.eq\("target_barangay_id", proposal\.barangay_id\)/);
+  assert.match(candidateRoute, /\.eq\("profiling_cycles\.barangay_id", proposal\.barangay_id\)/);
+  assert.match(candidateRoute, /proposal\.validation_candidates\.read/);
+  assert.doesNotMatch(candidateRoute, /select\("\*"\)|error\.message|to_jsonb/);
 
   const validationPanel = readFileSync("src/components/shared/CommunityValidationSection.tsx", "utf8");
   assert.doesNotMatch(validationPanel, /field observations, or household profiles/);

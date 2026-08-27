@@ -1384,3 +1384,32 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: provide one narrow, proposal-scoped validation-candidate
   API so the browser no longer downloads broad community-needs, survey,
   observation, or profiling endpoint rows and filters them client-side.
+
+## Phase 3 proposal-scoped validation candidates
+
+- Status: `locally_complete`. The evidence picker now consumes one narrow,
+  proposal-owned candidate catalog rather than four broad operational APIs.
+- Server authority: the new candidate route requires validation-record
+  capability, validates proposal and source type, requires an editable proposal,
+  enforces the authenticated barangay assignment, and derives every source
+  query from the server-loaded proposal barangay.
+- Data minimization: each source query uses explicit fields, eligible states,
+  completed aggregate profiling evidence, ordering, and a 200-row cap. Output
+  is reduced to strict `{ id, label, meta }` DTOs with bounded strings. Database
+  or DTO failures return no partial catalog.
+- Audit behavior: every successful catalog read writes a metadata-only durable
+  audit containing source type and result count; an audit failure prevents the
+  catalog response.
+- Interface: the picker no longer receives or trusts a client barangay ID and
+  no longer fetches broad community-needs, surveys, observations, or profiling
+  endpoints. It verifies the narrow DTO shape before showing a candidate.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass; and the
+  168-page/route production build passes.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow transition, worker action, or external AI call occurred.
+- Rollback: revert this API/UI checkpoint together. The server-side link-write
+  verification remains authoritative.
+- Next exact action: inspect the proposal validation-event DTO itself and remove
+  actor identifiers or stakeholder fields that are not required by the review
+  interface, while preserving authorized stakeholder review.

@@ -1407,7 +1407,6 @@ export default function ProposalsPage() {
                     proposalId={detail.id}
                     proposalStatus={detail.status}
                     validatedFlag={detail.community_validated}
-                    proposalBarangayId={detail.barangay_id}
                     onChange={() => openDetail(detail.id)}
                   />
                 </>

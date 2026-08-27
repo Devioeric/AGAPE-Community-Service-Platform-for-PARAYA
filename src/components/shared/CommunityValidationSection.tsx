@@ -73,10 +73,6 @@ interface Props {
   proposalStatus: string;
   /** Header-level boolean cached on the proposal — driven by DB trigger. */
   validatedFlag:  boolean | null;
-  /** Barangay this proposal targets — used to filter the picker's candidate
-   *  list to records from the same community. Optional; if absent, the picker
-   *  shows everything the caller is allowed to see. */
-  proposalBarangayId?: string | null;
   /** Whether to render the "Add new" affordance. Defaults true when status
    *  is draft / submitted / revisions_requested. */
   canRecord?:     boolean;
@@ -86,7 +82,7 @@ interface Props {
 }
 
 export function CommunityValidationSection({
-  proposalId, proposalStatus, validatedFlag, proposalBarangayId, canRecord, onChange,
+  proposalId, proposalStatus, validatedFlag, canRecord, onChange,
 }: Props) {
   const [list, setList]       = useState<Validation[]>([]);
   const [links, setLinks]     = useState<LinkedRecord[]>([]);
@@ -258,7 +254,6 @@ export function CommunityValidationSection({
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           proposalId={proposalId}
-          proposalBarangayId={proposalBarangayId ?? null}
           onLinked={async () => { await load(); onChangeRef.current?.(); }}
         />
       )}

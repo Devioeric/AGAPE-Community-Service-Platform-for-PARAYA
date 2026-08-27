@@ -32,6 +32,14 @@ export const advisoryProfilingEvidenceSchema = z.object({
   }).strict(),
 }).strict();
 
+export const advisoryHistoricalBenchmarkInputSchema = z.object({
+  matchedRecords: z.number().int().nonnegative(),
+  budgetTotals: z.array(z.number().nonnegative()).max(500),
+  volunteerCounts: z.array(z.number().int().nonnegative()).max(500),
+  windowStart: z.string().date(),
+  asOfDate: z.string().date(),
+}).strict();
+
 export const advisoryNeedInputSchema = z.object({
   id: z.string().uuid(),
   barangayId: z.string().uuid(),
@@ -45,6 +53,7 @@ export const advisoryNeedInputSchema = z.object({
   activeFullProgramCount: z.number().int().nonnegative(),
   completedProgramCount: z.number().int().nonnegative(),
   profilingEvidence: advisoryProfilingEvidenceSchema.nullable(),
+  historicalBenchmark: advisoryHistoricalBenchmarkInputSchema.nullable(),
 }).strict().superRefine((value, ctx) => {
   if (value.activeFullProgramCount > value.activeProgramCount) {
     ctx.addIssue({ code: "custom", message: "Full active coverage cannot exceed all active coverage" });
@@ -92,6 +101,16 @@ export const advisoryRecommendationSchema = z.object({
   }).strict(),
   alternatives: z.array(interventionSchema).min(2).max(3),
   indicativeResources: z.array(resourceSchema).min(1).max(8),
+  planningBenchmarks: z.object({
+    source: z.literal("verified_historical_programs"),
+    matchedRecords: z.number().int().nonnegative(),
+    windowStart: z.string().date().nullable(),
+    asOfDate: z.string().date(),
+    budgetRange: z.object({ low: z.string().regex(/^\d+\.\d{2}$/), high: z.string().regex(/^\d+\.\d{2}$/), currency: z.literal("PHP") }).strict().nullable(),
+    volunteerRange: z.object({ low: z.number().int().nonnegative(), high: z.number().int().nonnegative() }).strict().nullable(),
+    confidence: z.enum(["moderate", "limited", "unavailable"]),
+    limitation: z.string().trim().min(1).max(500),
+  }).strict(),
   suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
   rationale: z.string().trim().min(1).max(500),
   confidence: z.enum(["high", "medium"]),
@@ -211,6 +230,12 @@ function priorityLabel(score: number): "critical" | "high" | "medium" | "low" {
   return "low";
 }
 
+function range(values: number[], minimumEvidence = 2): { low: number; high: number } | null {
+  const usable = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (usable.length < minimumEvidence) return null;
+  return { low: usable[0], high: usable[usable.length - 1] };
+}
+
 export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
@@ -229,6 +254,12 @@ export function buildAdvisoryRecommendations(input: {
       const intervention = rule.alternatives[0];
       const hasPlan = need.plannedProposalCount > 0;
       const hasPartialActiveCoverage = need.activeProgramCount > 0;
+      const budgetRange = range(need.historicalBenchmark?.budgetTotals ?? []);
+      const volunteerRange = range(need.historicalBenchmark?.volunteerCounts ?? []);
+      const matchedRecords = need.historicalBenchmark?.matchedRecords ?? 0;
+      const benchmarkConfidence = matchedRecords === 0
+        ? "unavailable" as const
+        : budgetRange || volunteerRange ? "moderate" as const : "limited" as const;
       const priorProgramNote = need.completedProgramCount > 0
         ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
         : "";
@@ -259,6 +290,20 @@ export function buildAdvisoryRecommendations(input: {
           suggestedSdgs: alternative.sdgs,
         })),
         indicativeResources: rule.resources,
+        planningBenchmarks: {
+          source: "verified_historical_programs" as const,
+          matchedRecords,
+          windowStart: need.historicalBenchmark?.windowStart ?? null,
+          asOfDate: need.historicalBenchmark?.asOfDate ?? asOfDate,
+          budgetRange: budgetRange ? { low: budgetRange.low.toFixed(2), high: budgetRange.high.toFixed(2), currency: "PHP" as const } : null,
+          volunteerRange: volunteerRange ? { low: volunteerRange.low, high: volunteerRange.high } : null,
+          confidence: benchmarkConfidence,
+          limitation: matchedRecords === 0
+            ? "No category-matched accepted and verified historical programs are available in the five-year window. No budget or staffing estimate was generated."
+            : budgetRange || volunteerRange
+              ? "Ranges describe observed verified records only. Finance, volunteer eligibility, availability, scope, and current prices still require human validation."
+              : "Fewer than two usable budget or volunteer observations are available. No range was generated.",
+        },
         suggestedSdgs: intervention.sdgs,
         rationale: hasPartialActiveCoverage
           ? `This approved ${need.category} need has an active linked program, but its recorded coverage is partial. Review the remaining affected group and current outcomes before deciding whether another response is appropriate.${priorProgramNote}`

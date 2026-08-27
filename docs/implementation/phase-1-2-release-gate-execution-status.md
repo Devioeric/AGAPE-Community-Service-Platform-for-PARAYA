@@ -561,6 +561,31 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   unavailable state rather than fabricating an estimate when evidence is too
   sparse.
 
+## Phase 3 verified-history planning benchmarks (owner-authorized local development)
+
+- Status: `locally_complete`. This is an advisory read path only; it neither
+  edits history nor creates or transitions a proposal.
+- Implemented: when the Historical Programs server gate is enabled and its
+  database runtime is `synthetic` or `live`, the recommendation route reads only
+  category, budget total, volunteer count, quality, status, date, and data mode
+  from accepted/archived `complete` or `partial_verified` records in the latest
+  five-year window. Narratives, sources, contacts, documents, and unverified
+  rows are excluded.
+- Estimation: at least two usable observations are required independently for
+  a PHP budget range or volunteer range. Results show observed minimum/maximum,
+  matched-record count, window, confidence, and limitations. Missing or sparse
+  evidence returns `unavailable`/`limited` with null ranges rather than an
+  invented number.
+- Verification: focused advisory tests pass 12/12; all 217 Node tests pass;
+  typecheck and lint pass; and the 165-page production build passes. No SQL,
+  shared database, Auth, or production configuration change occurred.
+- Rollback: revert this checkpoint to remove benchmark calculation and display.
+  Do not substitute unverified history or free-text narratives as AI context.
+- Next exact action: implement durable human recommendation review state with
+  Researcher/Director endorsement and reason-required dismissal, versioned
+  fingerprints, and derived staleness—without letting those actions create or
+  advance proposals.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

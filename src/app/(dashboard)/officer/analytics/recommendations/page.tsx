@@ -230,6 +230,23 @@ export default function AdvisoryRecommendationsPage() {
                         </ul>
                       </div>
                     </div>
+                    <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-foreground/80">
+                      <p className="font-medium text-foreground">Verified five-year history benchmark</p>
+                      {recommendation.planningBenchmarks.matchedRecords > 0 ? (
+                        <div className="mt-1 space-y-1">
+                          <p>{recommendation.planningBenchmarks.matchedRecords} category-matched accepted/verified record{recommendation.planningBenchmarks.matchedRecords === 1 ? "" : "s"}.</p>
+                          <p>
+                            Budget range: {recommendation.planningBenchmarks.budgetRange
+                              ? `PHP ${Number(recommendation.planningBenchmarks.budgetRange.low).toLocaleString("en-PH", { minimumFractionDigits: 2 })}–${Number(recommendation.planningBenchmarks.budgetRange.high).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`
+                              : "insufficient comparable values"}
+                            {" · "}Volunteer range: {recommendation.planningBenchmarks.volunteerRange
+                              ? `${recommendation.planningBenchmarks.volunteerRange.low}–${recommendation.planningBenchmarks.volunteerRange.high}`
+                              : "insufficient comparable values"}
+                          </p>
+                        </div>
+                      ) : <p className="mt-1">No category-matched accepted and verified records are available.</p>}
+                      <p className="mt-1 text-muted-foreground">{recommendation.planningBenchmarks.limitation}</p>
+                    </div>
                     <div className="rounded-md border border-border bg-muted/20 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why it appears</p>
                       <p className="mt-1 text-sm leading-relaxed text-foreground/80">{recommendation.rationale}</p>

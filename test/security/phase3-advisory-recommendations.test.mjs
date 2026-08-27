@@ -19,6 +19,7 @@ const NEED = {
   activeFullProgramCount: 0,
   completedProgramCount: 0,
   profilingEvidence: null,
+  historicalBenchmark: null,
 };
 
 test("advisory engine ranks uncovered approved needs and excludes active coverage", () => {
@@ -102,6 +103,34 @@ test("recommendations cite only de-identified profiling provenance and suppressi
   assert.equal("cells" in result.recommendations[0].evidence.profiling, false);
 });
 
+test("verified history produces bounded budget and volunteer ranges without inventing sparse estimates", () => {
+  const result = buildAdvisoryRecommendations({
+    now: new Date("2026-08-27T00:00:00.000Z"),
+    needs: [{
+      ...NEED,
+      category: "education",
+      priorityScore: 4,
+      historicalBenchmark: {
+        matchedRecords: 3,
+        budgetTotals: [2500, 1000, 1800],
+        volunteerCounts: [12, 5, 8],
+        windowStart: "2021-08-27",
+        asOfDate: "2026-08-27",
+      },
+    }],
+  });
+  assert.deepEqual(result.recommendations[0].planningBenchmarks.budgetRange, { low: "1000.00", high: "2500.00", currency: "PHP" });
+  assert.deepEqual(result.recommendations[0].planningBenchmarks.volunteerRange, { low: 5, high: 12 });
+  assert.equal(result.recommendations[0].planningBenchmarks.confidence, "moderate");
+
+  const sparse = buildAdvisoryRecommendations({
+    needs: [{ ...NEED, category: "education", priorityScore: 4, historicalBenchmark: { matchedRecords: 1, budgetTotals: [1000], volunteerCounts: [5], windowStart: "2021-08-27", asOfDate: "2026-08-27" } }],
+  });
+  assert.equal(sparse.recommendations[0].planningBenchmarks.budgetRange, null);
+  assert.equal(sparse.recommendations[0].planningBenchmarks.volunteerRange, null);
+  assert.equal(sparse.recommendations[0].planningBenchmarks.confidence, "limited");
+});
+
 test("advisory response rejects extra or resident-identifying fields", () => {
   const result = buildAdvisoryRecommendations({
     needs: [{ ...NEED, category: "infrastructure", priorityScore: 4 }],
@@ -124,6 +153,9 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /validateProfilingAggregateDTO/);
   assert.match(route, /aggregate_schema_version", "agape\.profiling\.aggregate\.v2/);
   assert.match(route, /cell\.dimension === "needs"/);
+  assert.match(route, /isPhase2ComponentEnabled\("historical_programs"\)/);
+  assert.match(route, /\.in\("quality", \["complete", "partial_verified"\]\)/);
+  assert.match(route, /\.select\("category,budget_total,volunteer_count,quality,status,starts_on,data_mode"\)/);
   assert.doesNotMatch(route, /select\(["'`]\*["'`]\)/);
   assert.doesNotMatch(route, /need_description|resident_name|contact|receipt|storage_path|profiling_resident_versions|profiling_household_versions/);
   assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
@@ -145,6 +177,8 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Small cells remain suppressed and have no drill-through/);
   assert.match(page, /Ranked alternatives/);
   assert.match(page, /Indicative resources/);
+  assert.match(page, /Verified five-year history benchmark/);
+  assert.match(page, /insufficient comparable values/);
   assert.match(page, /Showing \{visibleRecommendations\.length\} of \{data\.recommendations\.length\} recommendations/);
   assert.match(page, /No recommendations match these filters/);
   assert.match(sidebar, /\/officer\/analytics\/recommendations/);

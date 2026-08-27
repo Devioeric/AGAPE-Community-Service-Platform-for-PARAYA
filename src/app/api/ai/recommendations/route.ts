@@ -6,6 +6,7 @@ import { buildAdvisoryRecommendations } from "@/lib/ai/advisory-recommendations"
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { hasCapability } from "@/lib/auth/capabilities";
 import { validateProfilingAggregateDTO } from "@/lib/profiling/privacy";
+import { isPhase2ComponentEnabled } from "@/lib/phase2/feature";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProfilingAggregateDTO } from "@/types/profiling";
 
@@ -90,6 +91,46 @@ export async function GET(request: Request) {
 
   const needIds = (needRows ?? []).map((row) => row.id);
   const barangayIds = Array.from(new Set((needRows ?? []).map((row) => row.barangay_id)));
+  const historyAsOfDate = new Date().toISOString().slice(0, 10);
+  const historyWindowStartDate = new Date(`${historyAsOfDate}T00:00:00.000Z`);
+  historyWindowStartDate.setUTCFullYear(historyWindowStartDate.getUTCFullYear() - 5);
+  const historyWindowStart = historyWindowStartDate.toISOString().slice(0, 10);
+  const historyByCategory = new Map<string, { matchedRecords: number; budgetTotals: number[]; volunteerCounts: number[] }>();
+  if (isPhase2ComponentEnabled("historical_programs")) {
+    const runtimeResult = await admin
+      .from("phase2_component_runtime")
+      .select("mode")
+      .eq("component", "historical_programs")
+      .maybeSingle();
+    if (runtimeResult.error) {
+      console.error("[ai-recommendations] historical runtime query failed", { code: runtimeResult.error.code });
+      return NextResponse.json({ error: "Unable to verify historical benchmark runtime" }, { status: 500 });
+    }
+    if (runtimeResult.data?.mode === "synthetic" || runtimeResult.data?.mode === "live") {
+      const historyResult = await admin
+        .from("historical_programs")
+        .select("category,budget_total,volunteer_count,quality,status,starts_on,data_mode")
+        .in("status", ["accepted", "archived"])
+        .in("quality", ["complete", "partial_verified"])
+        .eq("data_mode", runtimeResult.data.mode)
+        .gte("starts_on", historyWindowStart)
+        .lte("starts_on", historyAsOfDate)
+        .limit(2_000);
+      if (historyResult.error) {
+        console.error("[ai-recommendations] verified history benchmark query failed", { code: historyResult.error.code });
+        return NextResponse.json({ error: "Unable to load verified historical benchmarks" }, { status: 500 });
+      }
+      for (const row of historyResult.data ?? []) {
+        const values = historyByCategory.get(row.category) ?? { matchedRecords: 0, budgetTotals: [], volunteerCounts: [] };
+        values.matchedRecords += 1;
+        const budget = row.budget_total === null ? null : Number(row.budget_total);
+        const volunteers = row.volunteer_count === null ? null : Number(row.volunteer_count);
+        if (budget !== null && Number.isFinite(budget) && budget >= 0) values.budgetTotals.push(budget);
+        if (volunteers !== null && Number.isInteger(volunteers) && volunteers >= 0) values.volunteerCounts.push(volunteers);
+        historyByCategory.set(row.category, values);
+      }
+    }
+  }
   const profilingByBarangay = new Map<string, { snapshotId: string; aggregate: ProfilingAggregateDTO }>();
   if (barangayIds.length > 0) {
     const cyclesResult = await admin
@@ -219,6 +260,7 @@ export async function GET(request: Request) {
       const barangay = need.barangays as unknown as { name: string } | null;
       const profiling = profilingByBarangay.get(need.barangay_id);
       const needCell = profiling?.aggregate.cells.find((cell) => cell.dimension === "needs" && cell.key === need.category) ?? null;
+      const historicalBenchmark = historyByCategory.get(need.category);
       return {
         id: need.id,
         barangayId: need.barangay_id,
@@ -243,6 +285,13 @@ export async function GET(request: Request) {
           responseRatePercent: profiling.aggregate.sample.responseRatePercent,
           needCount: needCell?.count ?? null,
           dataQuality: profiling.aggregate.dataQuality,
+        } : null,
+        historicalBenchmark: historicalBenchmark ? {
+          matchedRecords: historicalBenchmark.matchedRecords,
+          budgetTotals: historicalBenchmark.budgetTotals,
+          volunteerCounts: historicalBenchmark.volunteerCounts,
+          windowStart: historyWindowStart,
+          asOfDate: historyAsOfDate,
         } : null,
       };
     }),

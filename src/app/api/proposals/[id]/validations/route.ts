@@ -22,6 +22,8 @@ const createValidationSchema = z.object({
   }).strict()).min(3).max(100),
 }).strict();
 
+const createValidationResultSchema = z.object({ id: z.string().uuid() }).strict();
+
 // ── GET: list every validation event with stakeholders + evidence ───────────
 export async function GET(_req: Request, { params }: Ctx) {
   const { id }   = await params;
@@ -109,43 +111,27 @@ export async function POST(request: Request, { params }: Ctx) {
     present: stakeholder.present,
   }));
 
-  const admin = createAdminClient();
-  if (auth.actor.role.startsWith("barangay_")) {
-    const { data: proposal } = await admin.from("project_proposals").select("barangay_id").eq("id", id).maybeSingle();
-    if (!auth.actor.barangayId || !proposal || proposal.barangay_id !== auth.actor.barangayId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const { data, error } = await auth.supabase.rpc("proposal_create_validation_event", {
+    p_proposal_id: id,
+    p_method: body.method,
+    p_date_conducted: body.date_conducted,
+    p_summary: body.summary,
+    p_stakeholders: cleanStakeholders,
+  });
+  if (error) {
+    const status = error.code === "42501" ? 403
+      : error.code === "P0002" ? 404
+        : error.code === "40001" ? 409
+          : error.code === "22023" ? 400
+            : 500;
+    console.error("Proposal validation creation failed", { proposalId: id, code: error.code });
+    return NextResponse.json({ error: "The validation event could not be recorded" }, { status });
   }
-  const { data: validation, error: vErr } = await admin
-    .from("proposal_validations")
-    .insert({
-      proposal_id:    id,
-      method:         body.method,
-      date_conducted: body.date_conducted,
-      summary:        body.summary.trim(),
-      recorded_by:    auth.actor.id,
-    })
-    .select("id")
-    .single();
-
-  if (vErr || !validation) {
-    return NextResponse.json({ error: vErr?.message ?? "Failed to record validation." }, { status: 500 });
-  }
-
-  const { error: sErr } = await admin
-    .from("proposal_validation_stakeholders")
-    .insert(cleanStakeholders.map((s) => ({
-      validation_id:    validation.id,
-      stakeholder_name: s.name,
-      role:             s.role,
-      present:          s.present,
-    })));
-
-  if (sErr) {
-    // Rollback the validation so we don't leave an orphan with no stakeholders.
-    await admin.from("proposal_validations").delete().eq("id", validation.id).then(() => {}, () => {});
-    return NextResponse.json({ error: sErr.message }, { status: 500 });
+  const result = createValidationResultSchema.safeParse(data);
+  if (!result.success) {
+    console.error("Proposal validation creation returned an invalid result", { proposalId: id });
+    return NextResponse.json({ error: "The validation event returned an invalid result" }, { status: 500 });
   }
 
-  return NextResponse.json({ data: { id: validation.id } }, { status: 201 });
+  return NextResponse.json({ data: result.data }, { status: 201 });
 }

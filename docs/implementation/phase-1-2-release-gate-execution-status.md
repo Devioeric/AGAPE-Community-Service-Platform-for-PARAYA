@@ -1249,3 +1249,39 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Rollback: revert this UI checkpoint. The append-only API remains unchanged.
 - Next exact action: replace the validation-event two-step service-role insert
   and best-effort hard-delete cleanup with one atomic authenticated RPC.
+
+## Phase 3 atomic proposal-validation events
+
+- Status: `locally_complete`. A validation event and all of its stakeholders
+  now commit as one authenticated database transaction or not at all.
+- Database boundary: forward migration
+  `20260818000990_phase3_atomic_proposal_validation.sql` adds a fixed-search-path
+  RPC that independently verifies the active actor capability, editable proposal
+  state, same-barangay scope for barangay actors, method/date/summary bounds,
+  stakeholder count, JSON types, allowed keys, and field lengths.
+- Trigger compatibility: the RPC uses a transaction-local service claim only
+  for its narrow internal graph inserts because the legacy derived-validation
+  trigger updates the parent proposal. The original authenticated actor is
+  retained explicitly on the event and durable audit; request claims are
+  restored before the RPC returns.
+- Application behavior: the API calls the RPC through the authenticated client,
+  validates the returned `{ id }` DTO, maps controlled SQLSTATE classes, and no
+  longer performs service-role table inserts or best-effort hard-delete cleanup.
+- Executable verification: two clean Phase 2 replays match at SHA-256
+  `1fdb942e2224603a534811a402061ddda635c36c3b37725dcf91758d93b4118b`;
+  catalog/runtime/Storage pgTAP passes 32/32; seeded workflow pgTAP passes
+  191/191, including 13 new atomic-validation cases; behavioral Auth,
+  PostgREST, RPC, Storage, and concurrency checks pass 83/83; and legacy seed
+  compatibility passes. All disposable stacks were removed.
+- Application verification: complete Node tests pass 235/235 with zero
+  failures/skips; typecheck and lint pass; and the 168-page/route production
+  build passes.
+- Migration/security impact: this migration was applied only to disposable
+  loopback Supabase stacks. No shared/remote database, feature flag, runtime
+  mode, worker, existing account, or mutation authority changed.
+- Rollback: keep the forward migration and governed validation/audit history
+  after application. Application rollback disables the calling control; it must
+  not hard-delete validation evidence.
+- Next exact action: harden validation-event reads and evidence uploads so
+  database/Storage failures cannot silently return partial review data or leak
+  provider/database error messages.

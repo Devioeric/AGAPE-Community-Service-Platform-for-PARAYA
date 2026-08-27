@@ -647,7 +647,7 @@ test("advisory provenance remains visible but cannot satisfy human community val
   assert.match(section, /link\.provenance_kind === "validation"/);
   assert.match(section, /excluded from the human-validation threshold/);
   assert.match(prescreening, /Recommendation planning provenance does not count/);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000980_phase3_advisory_provenance_boundary.sql");
+  assert.ok(scopes.scopes.phase2.migrationNames.includes("20260818000980_phase3_advisory_provenance_boundary.sql"));
 });
 
 test("manual proposal evidence links are strict, state-bound, and same-barangay", () => {
@@ -686,6 +686,30 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.doesNotMatch(validationPanel, /method: "DELETE"|handleDelete|deleteEvidence/);
   assert.match(validationPanel, /Validation history is retained for traceability/);
   assert.match(validationPanel, /canAddEvidence=\{showAddButton\}/);
+});
+
+test("proposal validation events are created atomically through an authenticated RPC", () => {
+  const migration = readFileSync("supabase/migrations/20260818000990_phase3_atomic_proposal_validation.sql", "utf8");
+  const route = readFileSync("src/app/api/proposals/[id]/validations/route.ts", "utf8");
+  const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));
+
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.proposal_create_validation_event/);
+  assert.match(migration, /SECURITY DEFINER\s+SET search_path = ''/);
+  assert.match(migration, /phase1_current_has_capability\('proposal\.validation\.record'\)/);
+  assert.match(migration, /proposal\.status NOT IN \('draft', 'submitted', 'revisions_requested'\)/);
+  assert.match(migration, /item\.value - ARRAY\['name', 'role', 'present'\]::text\[\]/);
+  assert.match(migration, /INSERT INTO public\.proposal_validations/);
+  assert.match(migration, /INSERT INTO public\.proposal_validation_stakeholders/);
+  assert.match(migration, /prior_claim_role := current_setting\('request\.jwt\.claim\.role', true\)/);
+  assert.match(migration, /set_config\('request\.jwt\.claim\.role', 'service_role', true\)/);
+  assert.match(migration, /set_config\('request\.jwt\.claim\.sub', coalesce\(prior_claim_sub, ''\), true\)/);
+  assert.match(migration, /INSERT INTO public\.audit_logs/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION[\s\S]*TO authenticated/);
+  assert.match(route, /auth\.supabase\.rpc\("proposal_create_validation_event"/);
+  assert.doesNotMatch(route.slice(route.indexOf("export async function POST")), /\.from\("proposal_validations"\)|\.delete\(\)|error\.message/);
+  assert.equal(scopes.scopes.phase1.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

@@ -1413,3 +1413,22 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect the proposal validation-event DTO itself and remove
   actor identifiers or stakeholder fields that are not required by the review
   interface, while preserving authorized stakeholder review.
+
+## Phase 3 minimal validation-event DTO
+
+- Status: `locally_complete`. Authorized reviewers still receive the names and
+  roles needed for human validation review, but internal actor and join fields
+  are no longer returned to the browser.
+- Response minimization: stakeholder rows are rebuilt as explicit
+  `{ id, stakeholder_name, role, present }` DTOs. Validation output omits the
+  recorder UUID, and evidence output omits uploader UUID and internal
+  `validation_id`; display names and governed file metadata remain available.
+- Commands/results: focused advisory/proposal tests pass 29/29; typecheck and
+  lint pass with zero errors.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow transition, worker action, or external AI call occurred.
+- Rollback: revert this response-shaping checkpoint. Do not restore unused actor
+  identifiers to public DTOs.
+- Next exact action: make validation-event creation and evidence upload controls
+  recover cleanly from network exceptions so users are not left in a permanent
+  saving/uploading state.

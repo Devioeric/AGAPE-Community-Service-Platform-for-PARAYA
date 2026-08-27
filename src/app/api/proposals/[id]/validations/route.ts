@@ -57,7 +57,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   // Fetch stakeholders and evidence in two parallel queries, then stitch.
   const [stakeholderResult, evidenceResult] = await Promise.all([
     admin.from("proposal_validation_stakeholders")
-      .select("id, validation_id, stakeholder_name, role, present, created_at")
+      .select("id, validation_id, stakeholder_name, role, present")
       .in("validation_id", validationIds),
     admin.from("proposal_validation_evidence")
       .select("id, validation_id, storage_path, file_name, mime_type, file_size, uploaded_by, created_at, users:uploaded_by(full_name)")
@@ -77,7 +77,12 @@ export async function GET(_req: Request, { params }: Ctx) {
   const stakeholdersByValidation = new Map<string, unknown[]>();
   for (const s of stakeholders ?? []) {
     const arr = stakeholdersByValidation.get(s.validation_id as string) ?? [];
-    arr.push(s);
+    arr.push({
+      id: s.id,
+      stakeholder_name: s.stakeholder_name,
+      role: s.role,
+      present: s.present,
+    });
     stakeholdersByValidation.set(s.validation_id as string, arr);
   }
 
@@ -93,11 +98,9 @@ export async function GET(_req: Request, { params }: Ctx) {
     }
     arr.push({
       id: e.id,
-      validation_id: e.validation_id,
       file_name: e.file_name,
       mime_type: e.mime_type,
       file_size: e.file_size,
-      uploaded_by: e.uploaded_by,
       created_at: e.created_at,
       url: signed.signedUrl,
       uploader: (e.users as unknown as { full_name?: string | null } | null)?.full_name ?? null,
@@ -126,7 +129,6 @@ export async function GET(_req: Request, { params }: Ctx) {
     method:         v.method,
     date_conducted: v.date_conducted,
     summary:        v.summary,
-    recorded_by:    v.recorded_by,
     recorder_name:  (v.users as unknown as { full_name?: string | null } | null)?.full_name ?? null,
     created_at:     v.created_at,
     stakeholders:   stakeholdersByValidation.get(v.id as string) ?? [],

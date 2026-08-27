@@ -739,6 +739,9 @@ test("proposal validation evidence reads and uploads use a bounded private DTO",
   assert.match(validationRoute, /createSignedUrl\(e\.storage_path as string, 300\)/);
   assert.match(validationRoute, /proposal\.validation_evidence\.read/);
   assert.match(validationRoute, /Proposal validation evidence read audit failed/);
+  assert.match(validationRoute, /arr\.push\(\{\s*id: s\.id,\s*stakeholder_name: s\.stakeholder_name,\s*role: s\.role,\s*present: s\.present/);
+  const validationOutput = validationRoute.slice(validationRoute.indexOf("const enriched ="), validationRoute.indexOf("return NextResponse.json({ data: enriched })"));
+  assert.doesNotMatch(validationOutput, /recorded_by|uploaded_by|validation_id/);
   assert.doesNotMatch(validationRoute, /\.\.\.e,/);
   assert.doesNotMatch(validationRoute, /error\.message/);
   assert.match(evidenceRoute, /validateProposalValidationEvidence\(file, bytes\)/);

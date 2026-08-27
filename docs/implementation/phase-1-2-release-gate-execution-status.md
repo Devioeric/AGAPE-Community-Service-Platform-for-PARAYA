@@ -1362,3 +1362,25 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: replace the picker's unchecked source-specific row casts
   with explicit allowlisted candidate DTO validation so malformed or excessive
   endpoint fields cannot enter the proposal evidence interface.
+
+## Phase 3 barangay validation-link scope
+
+- Status: `locally_complete`. Barangay validation users can now read and record
+  evidence links through the intended capability, but only for proposals in
+  their own assigned barangay.
+- Authorization correction: link reads accept either ordinary proposal-read or
+  validation-record authority. Link writes require the narrower
+  `proposal.validation.record` capability instead of generic proposal review.
+  This matches the Captain, Secretary, and Mother Leader capability matrix.
+- Parent scope: both reads and writes load the proposal first, return not-found
+  explicitly, fail on context-query errors, and deny an absent or mismatched
+  barangay assignment before any service-role link query or mutation.
+- Commands/results: focused advisory/proposal tests pass 29/29; complete Node
+  tests pass 238/238 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, database operation, feature-state
+  change, account change, worker action, or external AI call occurred.
+- Rollback: revert this API checkpoint. Do not broaden the route back to generic
+  proposal review or remove the parent barangay check.
+- Next exact action: provide one narrow, proposal-scoped validation-candidate
+  API so the browser no longer downloads broad community-needs, survey,
+  observation, or profiling endpoint rows and filters them client-side.

@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { authorizeCapability } from "@/lib/auth/authorize";
+import { authorizeAnyCapability, authorizeCapability } from "@/lib/auth/authorize";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -34,11 +34,21 @@ const LINKABLE_PROPOSAL_STATUSES = ["draft", "submitted", "revisions_requested"]
 // ── GET: list all links for a proposal, with the referenced records' details ─
 export async function GET(_req: Request, { params }: Ctx) {
   const { id }   = await params;
-  const auth = await authorizeCapability("proposal.read");
+  const auth = await authorizeAnyCapability(["proposal.read", "proposal.validation.record"]);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
   const admin = createAdminClient();
+  const { data: proposal, error: proposalError } = await admin.from("project_proposals")
+    .select("id,barangay_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (proposalError) return NextResponse.json({ error: "Proposal validation context could not be loaded" }, { status: 500 });
+  if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
+  if (auth.actor.role.startsWith("barangay_") && (!auth.actor.barangayId || proposal.barangay_id !== auth.actor.barangayId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { data: links, error } = await admin
     .from("proposal_validation_links")
     .select("id, source_type, source_id, provenance_kind, rationale, linked_by, created_at, users:linked_by(full_name)")
@@ -156,7 +166,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 // Body: { source_type, source_id, rationale }
 export async function POST(request: Request, { params }: Ctx) {
   const { id }   = await params;
-  const auth = await authorizeCapability("proposal.review");
+  const auth = await authorizeCapability("proposal.validation.record");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
@@ -171,6 +181,9 @@ export async function POST(request: Request, { params }: Ctx) {
     .maybeSingle();
   if (proposalError) return NextResponse.json({ error: "Proposal validation context could not be loaded" }, { status: 500 });
   if (!proposal) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
+  if (auth.actor.role.startsWith("barangay_") && (!auth.actor.barangayId || proposal.barangay_id !== auth.actor.barangayId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   if (!proposal.barangay_id || !(LINKABLE_PROPOSAL_STATUSES as readonly string[]).includes(proposal.status)) {
     return NextResponse.json({ error: "Evidence can only be linked to an editable barangay proposal" }, { status: 409 });
   }

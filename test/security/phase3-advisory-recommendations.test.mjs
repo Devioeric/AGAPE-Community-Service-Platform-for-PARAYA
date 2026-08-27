@@ -656,6 +656,8 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
 
   assert.match(route, /createLinkSchema = z\.object/);
   assert.match(route, /\.strict\(\)/);
+  assert.match(route, /authorizeAnyCapability\(\["proposal\.read", "proposal\.validation\.record"\]\)/);
+  assert.match(route, /authorizeCapability\("proposal\.validation\.record"\)/);
   assert.match(route, /source_id: z\.string\(\)\.uuid\(\)/);
   assert.match(route, /rationale: z\.string\(\)\.trim\(\)\.min\(10\)\.max\(2_000\)/);
   const linkableSourceBlock = route.slice(
@@ -665,6 +667,8 @@ test("manual proposal evidence links are strict, state-bound, and same-barangay"
   assert.doesNotMatch(linkableSourceBlock, /survey_response/);
   assert.match(route, /\.select\("id,barangay_id,status"\)/);
   assert.match(route, /LINKABLE_PROPOSAL_STATUSES/);
+  assert.match(route, /auth\.actor\.role\.startsWith\("barangay_"\)/);
+  assert.match(route, /proposal\.barangay_id !== auth\.actor\.barangayId/);
   assert.match(route, /need\.approval_status === "approved" && need\.barangay_id === proposal\.barangay_id/);
   assert.match(route, /\["published", "closed"\]\.includes\(survey\.status\)/);
   assert.match(route, /survey\.target_barangay_id === proposal\.barangay_id/);

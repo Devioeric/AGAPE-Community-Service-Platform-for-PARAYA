@@ -182,7 +182,8 @@ test("former institutional logins cannot mutate validation or volunteer data", a
     assert.doesNotMatch(route, /isStaffOrAdmin/);
     assert.doesNotMatch(route, /created_by\s*===\s*user\.id/);
   }
-  assert.match(links, /authorizeCapability\("proposal\.review"\)/);
+  assert.match(links, /authorizeCapability\("proposal\.validation\.record"\)/);
+  assert.match(links, /proposal\.barangay_id !== auth\.actor\.barangayId/);
   assert.doesNotMatch(links, /isStaffOrAdmin|created_by\s*===\s*user\.id/);
   assert.match(signup, /authorizeAnyCapability\(\["volunteer\.self", "volunteer\.manage"\]\)/);
   assert.doesNotMatch(signup, /isPartner/);

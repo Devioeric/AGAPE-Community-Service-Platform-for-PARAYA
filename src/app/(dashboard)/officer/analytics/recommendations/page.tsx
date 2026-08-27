@@ -206,6 +206,30 @@ export default function AdvisoryRecommendationsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm leading-relaxed text-foreground/80">{recommendation.intervention.description}</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-md border border-border p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ranked alternatives</p>
+                        <ol className="mt-2 space-y-2 text-sm">
+                          {recommendation.alternatives.map((alternative, index) => (
+                            <li key={alternative.code}>
+                              <span className="font-medium text-foreground">{index + 1}. {alternative.title}</span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">SDG {alternative.suggestedSdgs.join(", ")}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                      <div className="rounded-md border border-border p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Indicative resources</p>
+                        <ul className="mt-2 space-y-2 text-sm">
+                          {recommendation.indicativeResources.map((resource) => (
+                            <li key={`${resource.category}:${resource.item}`}>
+                              <span className="font-medium text-foreground">{resource.item}</span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">{resource.indicativeQuantity} · {resource.limitation}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
                     <div className="rounded-md border border-border bg-muted/20 p-3">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Why it appears</p>
                       <p className="mt-1 text-sm leading-relaxed text-foreground/80">{recommendation.rationale}</p>

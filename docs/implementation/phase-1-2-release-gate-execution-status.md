@@ -538,6 +538,29 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   recommendation review state—and implement the smallest complete vertical
   slice without external AI or automated workflow transitions.
 
+## Phase 3 ranked alternatives and resource guidance (owner-authorized local development)
+
+- Status: `locally_complete`. No feature flag, runtime mode, database row, or
+  proposal workflow state was changed.
+- Implemented: every controlled community-need category now produces three
+  deterministic ranked alternatives. The first remains the editable proposal
+  prefill suggestion; the other two are visible comparison options and never
+  create drafts automatically.
+- Resource guidance: every recommendation lists bounded indicative
+  coordination, people, material, venue, or technical-support needs with a
+  quantity basis and an explicit limitation. The guidance does not invent
+  prices, promise outcomes, assign volunteers, or bypass technical and human
+  validation.
+- Verification: focused advisory tests pass 11/11; all 216 Node tests pass;
+  typecheck and lint pass; and the 165-page production build passes.
+- Rollback: revert this development checkpoint to return to a single primary
+  intervention. Keep proposal saving/submission and every workflow transition
+  human-controlled.
+- Next exact action: add quality-aware, category-matched verified-history
+  benchmarks for indicative budget and volunteer ranges, returning an explicit
+  unavailable state rather than fabricating an estimate when evidence is too
+  sparse.
+
 ## Migration, security, and rollback notes
 
 - No migration was applied to a shared or remote database. Four timestamped migrations proven absent from the sole authoritative ledger were corrected locally after executable replay exposed deterministic defects.

@@ -45,6 +45,9 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
   assert.equal(result.recommendations[0].category, "health");
   assert.equal(result.recommendations[0].priority.label, "critical");
   assert.equal(result.recommendations[0].action, "develop_response");
+  assert.equal(result.recommendations[0].alternatives.length, 3);
+  assert.equal(result.recommendations[0].alternatives[0].code, result.recommendations[0].intervention.code);
+  assert.equal(result.recommendations[0].indicativeResources.length, 3);
   assert.equal(result.recommendations[1].action, "review_planned_response");
   assert.equal(result.recommendations.some((item) => item.category === "livelihood"), false);
   assert.equal(advisoryRecommendationResponseSchema.safeParse(result).success, true);
@@ -140,6 +143,8 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Partial active coverage/);
   assert.match(page, /Approved profiling context/);
   assert.match(page, /Small cells remain suppressed and have no drill-through/);
+  assert.match(page, /Ranked alternatives/);
+  assert.match(page, /Indicative resources/);
   assert.match(page, /Showing \{visibleRecommendations\.length\} of \{data\.recommendations\.length\} recommendations/);
   assert.match(page, /No recommendations match these filters/);
   assert.match(sidebar, /\/officer\/analytics\/recommendations/);

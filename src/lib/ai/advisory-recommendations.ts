@@ -51,6 +51,20 @@ export const advisoryNeedInputSchema = z.object({
   }
 });
 
+const interventionSchema = z.object({
+  code: z.string().regex(/^[a-z][a-z0-9_]{2,79}$/),
+  title: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(500),
+  suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
+}).strict();
+
+const resourceSchema = z.object({
+  category: z.enum(["coordination", "people", "materials", "venue", "technical_support"]),
+  item: z.string().trim().min(1).max(160),
+  indicativeQuantity: z.string().trim().min(1).max(120),
+  limitation: z.string().trim().min(1).max(240),
+}).strict();
+
 export const advisoryRecommendationSchema = z.object({
   needId: z.string().uuid(),
   barangay: z.object({
@@ -76,6 +90,8 @@ export const advisoryRecommendationSchema = z.object({
     title: z.string().trim().min(1).max(160),
     description: z.string().trim().min(1).max(500),
   }).strict(),
+  alternatives: z.array(interventionSchema).min(2).max(3),
+  indicativeResources: z.array(resourceSchema).min(1).max(8),
   suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
   rationale: z.string().trim().min(1).max(500),
   confidence: z.enum(["high", "medium"]),
@@ -118,36 +134,73 @@ type InterventionRule = {
   sdgs: number[];
 };
 
-const INTERVENTIONS: Record<z.infer<typeof needCategorySchema>, InterventionRule> = {
+type ResourceRule = z.infer<typeof resourceSchema>;
+
+type RecommendationRule = {
+  alternatives: [InterventionRule, InterventionRule, InterventionRule];
+  resources: ResourceRule[];
+};
+
+const INTERVENTIONS: Record<z.infer<typeof needCategorySchema>, RecommendationRule> = {
   health: {
-    code: "community_health_outreach",
-    title: "Community health assessment and outreach",
-    description: "Validate the priority with local health partners, then prepare a focused prevention, referral, and education activity.",
-    sdgs: [3],
+    alternatives: [
+      { code: "community_health_outreach", title: "Community health assessment and outreach", description: "Validate the priority with local health partners, then prepare a focused prevention, referral, and education activity.", sdgs: [3] },
+      { code: "health_education_sessions", title: "Preventive health education sessions", description: "Deliver a short series of locally validated health-learning sessions with referral guidance and outcome checks.", sdgs: [3, 4] },
+      { code: "health_referral_coordination", title: "Community health referral coordination", description: "Strengthen the referral pathway between residents, barangay focal persons, and qualified health providers without collecting clinical records.", sdgs: [3, 17] },
+    ],
+    resources: [
+      { category: "coordination", item: "Barangay and health-provider coordination group", indicativeQuantity: "1 working group", limitation: "Membership requires human confirmation." },
+      { category: "people", item: "Qualified facilitators and referral focal persons", indicativeQuantity: "At least 2 roles", limitation: "Credentials and availability require validation." },
+      { category: "materials", item: "Reviewed health-learning and referral materials", indicativeQuantity: "1 activity set", limitation: "Content must be approved by qualified personnel." },
+    ],
   },
   livelihood: {
-    code: "livelihood_skills_market_linkage",
-    title: "Livelihood skills and market-linkage initiative",
-    description: "Assess participant readiness and connect practical skills development with mentoring, resources, and realistic market opportunities.",
-    sdgs: [1, 8],
+    alternatives: [
+      { code: "livelihood_skills_market_linkage", title: "Livelihood skills and market-linkage initiative", description: "Assess participant readiness and connect practical skills development with mentoring, resources, and realistic market opportunities.", sdgs: [1, 8] },
+      { code: "enterprise_readiness_workshop", title: "Enterprise readiness workshop", description: "Provide foundational costing, recordkeeping, and market-validation activities before committing capital or equipment.", sdgs: [4, 8] },
+      { code: "employment_pathway_coordination", title: "Employment pathway coordination", description: "Coordinate skills mapping, career preparation, and referrals with appropriate employers or training partners.", sdgs: [8, 17] },
+    ],
+    resources: [
+      { category: "people", item: "Skills trainer or enterprise mentor", indicativeQuantity: "1–2 facilitators", limitation: "Expertise must match the validated beneficiary group." },
+      { category: "materials", item: "Training and market-validation materials", indicativeQuantity: "1 set per activity", limitation: "Quantities depend on the final participant count." },
+      { category: "technical_support", item: "Partner referral or market-linkage support", indicativeQuantity: "At least 1 partner", limitation: "No income outcome is guaranteed." },
+    ],
   },
   education: {
-    code: "learning_support_intervention",
-    title: "Targeted learning support intervention",
-    description: "Coordinate with education stakeholders to define the learner group, support activity, materials, and measurable learning outputs.",
-    sdgs: [4],
+    alternatives: [
+      { code: "learning_support_intervention", title: "Targeted learning support intervention", description: "Coordinate with education stakeholders to define the learner group, support activity, materials, and measurable learning outputs.", sdgs: [4] },
+      { code: "learning_resource_access", title: "Learning resource access activity", description: "Validate priority learning materials and organize equitable access with school or community partners.", sdgs: [4, 10] },
+      { code: "digital_learning_readiness", title: "Digital learning readiness support", description: "Assess device, connectivity, and digital-literacy barriers before designing a bounded learning-support activity.", sdgs: [4, 9] },
+    ],
+    resources: [
+      { category: "people", item: "Learning facilitators", indicativeQuantity: "Based on validated group size", limitation: "Safeguarding and eligibility checks remain human responsibilities." },
+      { category: "materials", item: "Reviewed learning activity materials", indicativeQuantity: "1 set per learner or group", limitation: "Final quantities depend on the approved beneficiary count." },
+      { category: "venue", item: "Accessible learning space", indicativeQuantity: "1 suitable venue", limitation: "Availability and accessibility require local confirmation." },
+    ],
   },
   infrastructure: {
-    code: "infrastructure_readiness_assessment",
-    title: "Infrastructure readiness and partner assessment",
-    description: "Document the service gap, validate technical feasibility, and identify the government or community partners needed before project design.",
-    sdgs: [9, 11],
+    alternatives: [
+      { code: "infrastructure_readiness_assessment", title: "Infrastructure readiness and partner assessment", description: "Document the service gap, validate technical feasibility, and identify the government or community partners needed before project design.", sdgs: [9, 11] },
+      { code: "minor_facility_improvement", title: "Minor facility improvement activity", description: "Define a small, technically reviewed improvement with clear ownership, maintenance, and safety responsibilities.", sdgs: [9, 11] },
+      { code: "public_service_access_mapping", title: "Public service access mapping", description: "Map the service-access gap at an aggregate level and coordinate referrals to the responsible infrastructure authority.", sdgs: [9, 10, 11] },
+    ],
+    resources: [
+      { category: "technical_support", item: "Qualified technical assessor", indicativeQuantity: "At least 1 reviewer", limitation: "AGAPE does not replace engineering or government approval." },
+      { category: "coordination", item: "Responsible authority and community coordination", indicativeQuantity: "1 joint review", limitation: "Ownership and maintenance must be confirmed before implementation." },
+      { category: "materials", item: "Indicative works or assessment materials", indicativeQuantity: "To be quantified after assessment", limitation: "No construction quantity is inferred automatically." },
+    ],
   },
   environment: {
-    code: "environmental_resilience_action",
-    title: "Environmental resilience action",
-    description: "Combine community education, local coordination, and a measurable environmental action suited to the approved need category.",
-    sdgs: [6, 11, 13],
+    alternatives: [
+      { code: "environmental_resilience_action", title: "Environmental resilience action", description: "Combine community education, local coordination, and a measurable environmental action suited to the approved need category.", sdgs: [6, 11, 13] },
+      { code: "waste_reduction_campaign", title: "Waste reduction and segregation campaign", description: "Pair practical education with a measurable local waste-reduction or segregation activity and follow-up check.", sdgs: [11, 12, 13] },
+      { code: "community_risk_preparedness", title: "Community environmental risk preparedness", description: "Validate local environmental risks and coordinate a bounded preparedness, mitigation, or information activity.", sdgs: [11, 13] },
+    ],
+    resources: [
+      { category: "coordination", item: "Barangay environmental focal group", indicativeQuantity: "1 working group", limitation: "Local roles and authority require confirmation." },
+      { category: "materials", item: "Activity and information materials", indicativeQuantity: "Based on validated activity scope", limitation: "Quantities are not inferred from suppressed cells." },
+      { category: "people", item: "Facilitators and community volunteers", indicativeQuantity: "Based on activity area and duration", limitation: "Eligibility and availability must be checked separately." },
+    ],
   },
 };
 
@@ -172,7 +225,8 @@ export function buildAdvisoryRecommendations(input: {
     .filter((need) => need.activeFullProgramCount === 0)
     .map((need) => {
       const score = need.priorityScore ?? 3;
-      const intervention = INTERVENTIONS[need.category];
+      const rule = INTERVENTIONS[need.category];
+      const intervention = rule.alternatives[0];
       const hasPlan = need.plannedProposalCount > 0;
       const hasPartialActiveCoverage = need.activeProgramCount > 0;
       const priorProgramNote = need.completedProgramCount > 0
@@ -198,6 +252,13 @@ export function buildAdvisoryRecommendations(input: {
           title: intervention.title,
           description: intervention.description,
         },
+        alternatives: rule.alternatives.map((alternative) => ({
+          code: alternative.code,
+          title: alternative.title,
+          description: alternative.description,
+          suggestedSdgs: alternative.sdgs,
+        })),
+        indicativeResources: rule.resources,
         suggestedSdgs: intervention.sdgs,
         rationale: hasPartialActiveCoverage
           ? `This approved ${need.category} need has an active linked program, but its recorded coverage is partial. Review the remaining affected group and current outcomes before deciding whether another response is appropriate.${priorProgramNote}`

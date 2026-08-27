@@ -712,6 +712,22 @@ test("proposal validation events are created atomically through an authenticated
   assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
 });
 
+test("proposal validation evidence reads and uploads use a bounded private DTO", () => {
+  const validationRoute = readFileSync("src/app/api/proposals/[id]/validations/route.ts", "utf8");
+  const evidenceRoute = readFileSync("src/app/api/proposals/[id]/validations/[vid]/evidence/route.ts", "utf8");
+
+  assert.match(validationRoute, /stakeholderResult\.error \|\| evidenceResult\.error/);
+  assert.match(validationRoute, /createSignedUrl\(e\.storage_path as string, 300\)/);
+  assert.match(validationRoute, /proposal\.validation_evidence\.read/);
+  assert.match(validationRoute, /Proposal validation evidence read audit failed/);
+  assert.doesNotMatch(validationRoute, /\.\.\.e,/);
+  assert.doesNotMatch(validationRoute, /error\.message/);
+  assert.match(evidenceRoute, /validateProposalValidationEvidence\(file, bytes\)/);
+  assert.match(evidenceRoute, /proposalValidationEvidencePath\(vid, verifiedFile\.extension, verifiedFile\.sha256\)/);
+  assert.match(evidenceRoute, /\.select\("id, file_name, mime_type, file_size, created_at"\)/);
+  assert.doesNotMatch(evidenceRoute, /createSignedUrl|file\.name\.split|upErr\.message|dbErr\.message/);
+});
+
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {
   const migration = readFileSync("supabase/migrations/20260818000930_phase2_proposal_compatibility_correction.sql", "utf8");
   const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));

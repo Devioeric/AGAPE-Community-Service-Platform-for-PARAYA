@@ -37,7 +37,6 @@ interface Evidence {
   file_name:    string;
   mime_type:    string | null;
   file_size:    number | null;
-  storage_path: string;
   url:          string | null;
   created_at:   string;
   uploader:     string | null;

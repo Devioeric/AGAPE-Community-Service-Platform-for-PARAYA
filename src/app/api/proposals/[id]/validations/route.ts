@@ -23,16 +23,19 @@ const createValidationSchema = z.object({
 }).strict();
 
 const createValidationResultSchema = z.object({ id: z.string().uuid() }).strict();
+const proposalIdSchema = z.string().uuid();
 
 // ── GET: list every validation event with stakeholders + evidence ───────────
 export async function GET(_req: Request, { params }: Ctx) {
   const { id }   = await params;
   const auth = await authorizeCapability("proposal.validation.record");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
   const admin = createAdminClient();
   if (auth.actor.role.startsWith("barangay_")) {
-    const { data: proposal } = await admin.from("project_proposals").select("barangay_id").eq("id", id).maybeSingle();
+    const { data: proposal, error: proposalError } = await admin.from("project_proposals").select("barangay_id").eq("id", id).maybeSingle();
+    if (proposalError) return NextResponse.json({ error: "Proposal validation context could not be loaded" }, { status: 500 });
     if (!auth.actor.barangayId || !proposal || proposal.barangay_id !== auth.actor.barangayId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -43,13 +46,16 @@ export async function GET(_req: Request, { params }: Ctx) {
     .eq("proposal_id", id)
     .order("date_conducted", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Proposal validation events could not be loaded", { proposalId: id, code: error.code });
+    return NextResponse.json({ error: "Proposal validation events could not be loaded" }, { status: 500 });
+  }
 
   const validationIds = (validations ?? []).map((v) => v.id);
   if (validationIds.length === 0) return NextResponse.json({ data: [] });
 
   // Fetch stakeholders and evidence in two parallel queries, then stitch.
-  const [{ data: stakeholders }, { data: evidence }] = await Promise.all([
+  const [stakeholderResult, evidenceResult] = await Promise.all([
     admin.from("proposal_validation_stakeholders")
       .select("id, validation_id, stakeholder_name, role, present, created_at")
       .in("validation_id", validationIds),
@@ -57,6 +63,16 @@ export async function GET(_req: Request, { params }: Ctx) {
       .select("id, validation_id, storage_path, file_name, mime_type, file_size, uploaded_by, created_at, users:uploaded_by(full_name)")
       .in("validation_id", validationIds),
   ]);
+  if (stakeholderResult.error || evidenceResult.error) {
+    console.error("Proposal validation details could not be loaded", {
+      proposalId: id,
+      stakeholderCode: stakeholderResult.error?.code,
+      evidenceCode: evidenceResult.error?.code,
+    });
+    return NextResponse.json({ error: "Proposal validation details could not be loaded" }, { status: 500 });
+  }
+  const stakeholders = stakeholderResult.data;
+  const evidence = evidenceResult.data;
 
   const stakeholdersByValidation = new Map<string, unknown[]>();
   for (const s of stakeholders ?? []) {
@@ -69,14 +85,40 @@ export async function GET(_req: Request, { params }: Ctx) {
   for (const e of evidence ?? []) {
     const arr = evidenceByValidation.get(e.validation_id as string) ?? [];
     // Generate a short-lived signed URL — bucket is private.
-    const { data: signed } = await admin.storage.from(BUCKET)
-      .createSignedUrl(e.storage_path as string, 3600);
+    const { data: signed, error: signedError } = await admin.storage.from(BUCKET)
+      .createSignedUrl(e.storage_path as string, 300);
+    if (signedError || !signed?.signedUrl) {
+      console.error("Proposal validation evidence URL could not be issued", { proposalId: id, evidenceId: e.id });
+      return NextResponse.json({ error: "Proposal validation evidence could not be opened" }, { status: 500 });
+    }
     arr.push({
-      ...e,
-      url:      signed?.signedUrl ?? null,
+      id: e.id,
+      validation_id: e.validation_id,
+      file_name: e.file_name,
+      mime_type: e.mime_type,
+      file_size: e.file_size,
+      uploaded_by: e.uploaded_by,
+      created_at: e.created_at,
+      url: signed.signedUrl,
       uploader: (e.users as unknown as { full_name?: string | null } | null)?.full_name ?? null,
     });
     evidenceByValidation.set(e.validation_id as string, arr);
+  }
+
+  if ((evidence ?? []).length > 0) {
+    const { error: auditError } = await admin.from("audit_logs").insert({
+      user_id: auth.actor.id,
+      user_email: auth.actor.email,
+      action: "proposal.validation_evidence.read",
+      resource_type: "project_proposal",
+      resource_id: id,
+      level: "info",
+      metadata: { evidence_count: (evidence ?? []).length },
+    });
+    if (auditError) {
+      console.error("Proposal validation evidence read audit failed", { proposalId: id, code: auditError.code });
+      return NextResponse.json({ error: "Proposal validation evidence access could not be audited" }, { status: 500 });
+    }
   }
 
   const enriched = (validations ?? []).map((v) => ({
@@ -101,6 +143,7 @@ export async function POST(request: Request, { params }: Ctx) {
   const { id }   = await params;
   const auth = await authorizeCapability("proposal.validation.record");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!proposalIdSchema.safeParse(id).success) return NextResponse.json({ error: "Invalid proposal id" }, { status: 400 });
 
   const parsed = createValidationSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid validation record" }, { status: 400 });

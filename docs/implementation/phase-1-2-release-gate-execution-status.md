@@ -1285,3 +1285,36 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: harden validation-event reads and evidence uploads so
   database/Storage failures cannot silently return partial review data or leak
   provider/database error messages.
+
+## Phase 3 private validation-evidence boundary
+
+- Status: `locally_complete`. Validation evidence is now accepted, stored, and
+  returned through a bounded private-file contract rather than trusting browser
+  metadata or exposing Storage internals.
+- Upload validation: files are limited to 10 MiB, empty files are rejected, and
+  the declared MIME type must match a reviewed server-side file signature. The
+  original name is sanitized and bounded, SHA-256 is computed server-side, and
+  the generated Storage path uses only the validation ID, content hash, and a
+  server-selected extension.
+- Parent boundary: proposal and validation identifiers must be UUIDs, the
+  validation must belong to the proposal, the proposal must remain editable,
+  and barangay actors remain limited to their assigned proposal barangay.
+- Read privacy: evidence responses use explicit allowlisted fields, never expose
+  `storage_path`, and issue parent-authorized signed links for at most five
+  minutes. Child query and signed-URL failures fail the entire review read
+  instead of silently returning partial data.
+- Audit/error behavior: every evidence read appends a durable metadata-only
+  audit event and fails closed if that audit cannot be written. Database and
+  Storage provider messages are not returned to callers or written to ordinary
+  logs; failed metadata writes trigger checked object compensation.
+- Commands/results: focused validation-evidence and advisory tests pass 31/31;
+  complete Node tests pass 238/238 with zero failures/skips; typecheck and lint
+  pass; and the 168-page/route production build passes.
+- Migration/security impact: no migration, remote/shared database operation,
+  feature-state change, workflow transition, worker action, or external AI call
+  occurred.
+- Rollback: revert this application checkpoint. Do not delete already retained
+  evidence objects or their governed metadata merely to roll back the UI/API.
+- Next exact action: make the validation workspace surface list and evidence
+  fetch failures explicitly instead of presenting failed reads as empty review
+  history.

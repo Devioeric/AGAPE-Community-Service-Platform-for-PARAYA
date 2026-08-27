@@ -1480,3 +1480,28 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect the server proposal-detail compatibility DTO and
   workflow response contracts for fields that can be removed or validated
   before the UI trusts them.
+
+## Phase 3 proposal compatibility DTO boundary
+
+- Status: `locally_complete`. V1 proposal compatibility reads and workflow
+  responses now expose and accept only the state needed by the working officer
+  interface.
+- Read minimization: proposal list, create-result, and detail field lists omit
+  creator, Finance approver, and community-validation actor UUIDs. Detail SDG
+  rows no longer return their unused internal junction ID.
+- Detail correctness: proposal IDs are UUID-validated before querying, missing
+  rows now return 404 through `maybeSingle`, and the stale comment suggesting
+  legacy submitter detail access was removed. Institutional history continues
+  through its summary-only adapter.
+- Client trust: workflow transitions must return a recognized proposal status,
+  and Finance clearance must return the exact success DTO before the interface
+  reports success or refreshes authoritative detail.
+- Commands/results: focused advisory/proposal tests pass 30/30; complete Node
+  tests pass 239/239 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow action, worker action, or external AI call occurred.
+- Rollback: revert this API/UI checkpoint together. Do not restore unused actor
+  identifiers to compatibility responses.
+- Next exact action: audit the printable PPF proposal page for direct
+  service-role reads, raw source hydration, and fields that bypass the newly
+  minimized proposal/evidence APIs.

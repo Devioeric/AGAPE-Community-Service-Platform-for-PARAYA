@@ -630,6 +630,24 @@ test("proposal editing visibly reloads preserved recommendation evidence", () =>
   assert.match(proposalPage, /finally \{\s*setSaving\(false\);/);
   assert.match(proposalPage, /finally \{\s*setLoading\(false\);/);
   assert.match(proposalPage, /Finance clearance could not be recorded\. Check your connection and try again/);
+  assert.match(proposalPage, /if \(!isProposalStatus\(j\?\.status\)\) throw new Error/);
+  assert.match(proposalPage, /body\?\.success !== true \|\| body\.finance_clearance !== true/);
+});
+
+test("proposal compatibility DTOs omit internal actor identifiers", () => {
+  const listRoute = readFileSync("src/app/api/proposals/route.ts", "utf8");
+  const detailRoute = readFileSync("src/app/api/proposals/[id]/route.ts", "utf8");
+
+  assert.match(detailRoute, /proposalIdSchema = z\.string\(\)\.uuid\(\)/);
+  assert.match(detailRoute, /\.maybeSingle\(\)/);
+  assert.match(detailRoute, /Proposal not found/);
+  const detailFields = detailRoute.match(/const PROPOSAL_DETAIL_FIELDS = "([^"]+)"/)?.[1] ?? "";
+  const listFields = listRoute.match(/const PROPOSAL_LIST_FIELDS = "([^"]+)"/)?.[1] ?? "";
+  const writeFields = listRoute.match(/const PROPOSAL_WRITE_FIELDS = "([^"]+)"/)?.[1] ?? "";
+  for (const fields of [detailFields, listFields, writeFields]) {
+    assert.doesNotMatch(fields, /created_by|finance_cleared_by|community_validated_by/);
+  }
+  assert.doesNotMatch(detailFields, /proposal_sdg_alignment\(id,/);
 });
 
 test("advisory provenance remains visible but cannot satisfy human community validation", () => {

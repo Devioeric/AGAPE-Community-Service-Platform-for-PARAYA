@@ -5,8 +5,8 @@ import { hasCapability } from "@/lib/auth/capabilities";
 import { parseProposalCreateInput } from "@/lib/proposals/mutation-contracts";
 import { NextResponse } from "next/server";
 
-const PROPOSAL_LIST_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,finance_clearance,finance_cleared_at,finance_notes,prescreening_passed,prescreening_checks,prescreening_ran_at,revision_count,revision_requested_from,community_validated,community_validation_notes,community_validated_at,informed_by_proposals,created_at,updated_at,barangay_id,created_by,barangays(name),proposal_sdg_alignment(sdg_number,indicator)";
-const PROPOSAL_WRITE_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,informed_by_proposals,created_at,updated_at,barangay_id,created_by";
+const PROPOSAL_LIST_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,finance_clearance,finance_cleared_at,finance_notes,prescreening_passed,prescreening_checks,prescreening_ran_at,revision_count,revision_requested_from,community_validated,community_validation_notes,community_validated_at,informed_by_proposals,created_at,updated_at,barangay_id,barangays(name),proposal_sdg_alignment(sdg_number,indicator)";
+const PROPOSAL_WRITE_FIELDS = "id,title,rationale,objectives,target_beneficiaries,expected_beneficiary_count,expected_output,timeline_start,timeline_end,budget,status,is_income_generating,informed_by_proposals,created_at,updated_at,barangay_id";
 
 // Looser read-only gate for endpoints that should be visible to Finance Officers
 // and partner accounts (so they can see their own submissions). The GET handler

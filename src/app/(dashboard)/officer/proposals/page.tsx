@@ -40,6 +40,15 @@ type ProposalStatus =
   | "sdg_review" | "finance_review" | "approved" | "rejected"
   | "revisions_requested";
 
+const PROPOSAL_STATUSES = new Set<ProposalStatus>([
+  "draft", "submitted", "pre_screening", "sdg_review", "finance_review",
+  "approved", "rejected", "revisions_requested",
+]);
+
+function isProposalStatus(value: unknown): value is ProposalStatus {
+  return typeof value === "string" && PROPOSAL_STATUSES.has(value as ProposalStatus);
+}
+
 type RecommendationDraftContext = {
   needId: string;
   recommendationFingerprint: string;
@@ -579,8 +588,9 @@ export default function ProposalsPage() {
         body:    JSON.stringify({ action, notes: reviewNotes.trim() || null }),
       });
       if (res.ok) {
-        const j = await res.json();
-        const newStatus = j.status as ProposalStatus;
+        const j = await res.json().catch(() => null) as { status?: unknown } | null;
+        if (!isProposalStatus(j?.status)) throw new Error("The proposal action returned an invalid status.");
+        const newStatus = j.status;
         setProposals((prev) => prev.map((p) => p.id === proposalId ? { ...p, status: newStatus } : p));
         const successMsg =
           action === "advance"           ? "Proposal advanced."
@@ -626,6 +636,10 @@ export default function ProposalsPage() {
         body:    JSON.stringify({ action: "mark_finance_cleared", finance_notes: financeNotes }),
       });
       if (res.ok) {
+        const body = await res.json().catch(() => null) as { success?: unknown; finance_clearance?: unknown } | null;
+        if (body?.success !== true || body.finance_clearance !== true) {
+          throw new Error("Finance clearance returned an invalid result.");
+        }
         toast.success("Finance clearance recorded.");
         setReviewNotes("");
         await openDetail(proposalId);

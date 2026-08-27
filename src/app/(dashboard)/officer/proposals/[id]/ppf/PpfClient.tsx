@@ -20,9 +20,8 @@ interface Proposal {
   budget:                      number | null;
   status:                      string;
   created_at:                  string;
-  community_validation_notes: string | null;
   community_validated_at:     string | null;
-  barangays:                   { name: string; contact_person?: string | null } | null;
+  barangays:                   { name: string } | null;
   proposal_sdg_alignment:      { sdg_number: number; indicator: string | null }[];
   users:                       { full_name: string | null } | null;
 }
@@ -30,9 +29,8 @@ interface Proposal {
 interface ValidationLink {
   id:          string;
   source_type: string;
-  source_id:   string;
+  provenance_kind: "validation" | "advisory_planning";
   rationale:   string;
-  created_at:  string;
   details:     Record<string, unknown> | null;
 }
 
@@ -41,9 +39,8 @@ interface ValidationEvent {
   method:         string;
   date_conducted: string;
   summary:        string;
-  stakeholders:   { stakeholder_name: string; role: string | null; present: boolean }[];
+  stakeholders:   { role: string | null; present: boolean }[];
   evidence_count: number;
-  evidence_names: string[];
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -90,6 +87,11 @@ function summarizeLink(link: ValidationLink): { title: string; meta: string } {
       title: (d.title as string) ?? "Survey",
       meta:  [(d.status as string) ?? "", brgy].filter(Boolean).join(" · "),
     };
+  }
+  if (link.source_type === "survey_response") {
+    const surveyValue = d.surveys as { title?: string } | { title?: string }[] | null;
+    const survey = Array.isArray(surveyValue) ? surveyValue[0] : surveyValue;
+    return { title: survey?.title ? `Legacy response for ${survey.title}` : "Legacy survey response", meta: "Historical lineage" };
   }
   if (link.source_type === "field_observation") {
     const obs = (d.observation as string) ?? "";
@@ -228,7 +230,7 @@ export default function PpfClient({
             {proposal.community_validated_at && (
               <span className="block mt-1 italic">
                 Legacy attestation recorded {fmtDate(proposal.community_validated_at)}.
-                {proposal.community_validation_notes && ` — “${proposal.community_validation_notes}”`}
+                Supporting notes remain in the governed proposal record.
               </span>
             )}
           </p>
@@ -262,6 +264,9 @@ export default function PpfClient({
                           <li key={l.id} className="text-xs">
                             <span className="font-medium text-foreground">{s.title}</span>
                             {s.meta && <span className="text-muted-foreground"> — {s.meta}</span>}
+                            {l.provenance_kind === "advisory_planning" && (
+                              <span className="text-info"> — planning provenance only</span>
+                            )}
                             <p className="text-foreground/70 italic mt-0.5 pl-3">→ {l.rationale}</p>
                           </li>
                         );
@@ -292,16 +297,15 @@ export default function PpfClient({
                       <p className="text-foreground/80 italic mt-0.5 pl-3">“{e.summary}”</p>
                       {e.stakeholders.length > 0 && (
                         <p className="pl-3 mt-1 text-foreground/70">
-                          <span className="font-medium">Stakeholders ({e.stakeholders.length}):</span>{" "}
-                          {e.stakeholders
-                            .map((s) => `${s.stakeholder_name}${s.role ? ` (${s.role})` : ""}${s.present === false ? " — absent" : ""}`)
-                            .join("; ")}
+                          <span className="font-medium">Stakeholders:</span>{" "}
+                          {e.stakeholders.filter((s) => s.present).length} present of {e.stakeholders.length}
+                          {e.stakeholders.some((s) => s.role) && ` · Roles: ${Array.from(new Set(e.stakeholders.map((s) => s.role).filter(Boolean))).join(", ")}`}
                         </p>
                       )}
                       {e.evidence_count > 0 && (
                         <p className="pl-3 text-foreground/70">
-                          <span className="font-medium">Evidence ({e.evidence_count}):</span>{" "}
-                          {e.evidence_names.join(", ")}
+                          <span className="font-medium">Evidence:</span>{" "}
+                          {e.evidence_count} retained file{e.evidence_count === 1 ? "" : "s"}
                         </p>
                       )}
                     </li>
@@ -310,17 +314,6 @@ export default function PpfClient({
               </div>
             )}
 
-            {proposal.community_validated_at && (proposal.community_validation_notes ?? "").trim().length > 0 && (
-              <div className="mt-3 pt-2 border-t border-foreground/10">
-                <p className="text-xs font-semibold text-foreground/80">5.3 Legacy Attestation Notes</p>
-                <p className="text-xs italic text-foreground/70 mt-1">
-                  “{proposal.community_validation_notes}”
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Recorded {fmtDate(proposal.community_validated_at)} (pre-evidence-based flow).
-                </p>
-              </div>
-            )}
           </>
         )}
       </section>
@@ -328,9 +321,9 @@ export default function PpfClient({
       {/* Signature blocks */}
       <section className="mt-12 grid grid-cols-2 gap-12 text-sm">
         <SignatureBlock label="Prepared by" name={proposal.users?.full_name ?? ""} />
-        <SignatureBlock label="Endorsed by (PARAYA Director)" />
+        <SignatureBlock label="Evidence reviewed by (PARAYA Researcher)" />
         <SignatureBlock label="Approved by (PARAYA Director)" />
-        <SignatureBlock label="Received by (Partner Barangay)" name={proposal.barangays?.contact_person ?? ""} />
+        <SignatureBlock label="Received by (Partner Barangay)" />
       </section>
 
       <footer className="mt-12 pt-4 border-t border-foreground/20 text-[10px] text-muted-foreground">

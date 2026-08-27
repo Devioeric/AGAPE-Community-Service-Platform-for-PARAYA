@@ -1505,3 +1505,34 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: audit the printable PPF proposal page for direct
   service-role reads, raw source hydration, and fields that bypass the newly
   minimized proposal/evidence APIs.
+
+## Phase 3 redacted printable PPF
+
+- Status: `locally_complete`. The printable proposal form now uses a reviewed,
+  fail-closed evidence projection and no longer acts as an unguarded alternate
+  route to validation identities or file names.
+- Access/query boundary: printing requires proposal-review capability, validates
+  the proposal UUID, checks proposal/link/event and every source-hydration query,
+  validates stored source/provenance shapes, requires every source to resolve,
+  and appends a metadata-only durable print-read audit.
+- Redaction: the client receives no Partner contact person, stakeholder name,
+  evidence filename, legacy attestation free text, source UUID, or source-row ID.
+  Consultation output shows present/total counts, optional role categories, and
+  retained-file counts instead.
+- Provenance: advisory-planning links remain visible but are explicitly labeled
+  as planning-only. Legacy household lineage remains code/sitio-only, and legacy
+  survey response lineage resolves without exposing respondent identity.
+- Authority/document correction: the stale President wording is absent;
+  Researcher evidence review and PARAYA Director final approval are separate
+  signature blocks.
+- Commands/results: focused advisory/proposal tests pass 31/31; complete Node
+  tests pass 240/240 with zero failures/skips; typecheck and lint pass; and the
+  168-page/route production build passes.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow action, worker action, print action, or external AI call
+  occurred during verification.
+- Rollback: revert the PPF checkpoint. Do not restore validation names, file
+  names, Partner contact data, or legacy free text to the printable artifact.
+- Next exact action: audit remaining proposal compatibility service-role reads
+  for missing durable read audits and decide which operational reads need an
+  audited narrow adapter without changing current workflow authority.

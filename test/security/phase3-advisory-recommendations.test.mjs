@@ -650,6 +650,25 @@ test("proposal compatibility DTOs omit internal actor identifiers", () => {
   assert.doesNotMatch(detailFields, /proposal_sdg_alignment\(id,/);
 });
 
+test("printable PPF uses a reviewed and redacted evidence projection", () => {
+  const page = readFileSync("src/app/(dashboard)/officer/proposals/[id]/ppf/page.tsx", "utf8");
+  const client = readFileSync("src/app/(dashboard)/officer/proposals/[id]/ppf/PpfClient.tsx", "utf8");
+
+  assert.match(page, /authorizeCapability\("proposal\.review"\)/);
+  assert.match(page, /proposalIdSchema = z\.string\(\)\.uuid\(\)/);
+  assert.match(page, /proposalResult\.error \|\| linkResult\.error \|\| validationResult\.error/);
+  assert.match(page, /\.some\(\(result\) => result\.error\)/);
+  assert.match(page, /proposal\.ppf\.read/);
+  assert.match(page, /proposal_validation_stakeholders\(role, present\)/);
+  assert.match(page, /proposal_validation_evidence\(id\)/);
+  assert.doesNotMatch(page, /contact_person|stakeholder_name|file_name|community_validation_notes/);
+  assert.doesNotMatch(client, /stakeholder_name|evidence_names|contact_person|community_validation_notes/);
+  assert.match(client, /planning provenance only/);
+  assert.match(client, /Evidence reviewed by \(PARAYA Researcher\)/);
+  assert.match(client, /Approved by \(PARAYA Director\)/);
+  assert.doesNotMatch(client, /Office of the President|Approved by \(President/);
+});
+
 test("advisory provenance remains visible but cannot satisfy human community validation", () => {
   const migration = readFileSync("supabase/migrations/20260818000980_phase3_advisory_provenance_boundary.sql", "utf8");
   const proposalRoute = readFileSync("src/app/api/proposals/route.ts", "utf8");

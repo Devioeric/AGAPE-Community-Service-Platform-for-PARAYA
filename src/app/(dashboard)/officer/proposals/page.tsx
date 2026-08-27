@@ -57,6 +57,25 @@ type AlignmentEvidenceReferences = {
   profilingEvidenceSnapshotId: string | null;
 };
 
+type ProposalEvidenceLink = {
+  id: string;
+  source_type: string;
+  source_id: string;
+  rationale: string;
+  created_at: string;
+  details: {
+    title?: string | null;
+    category?: string | null;
+    approval_status?: string | null;
+    aggregate_schema_version?: string | null;
+    generated_at?: string | null;
+    profiling_cycles?: {
+      name?: string | null;
+      barangays?: { name?: string | null } | null;
+    } | null;
+  } | null;
+};
+
 interface SdgAlignment { sdg_number: number; indicator?: string | null; }
 
 interface PrescreeningCheck { name: string; passed: boolean; message: string; }
@@ -274,6 +293,9 @@ export default function ProposalsPage() {
     approvedNeedId: null,
     profilingEvidenceSnapshotId: null,
   });
+  const [proposalEvidenceLinks, setProposalEvidenceLinks] = useState<ProposalEvidenceLink[]>([]);
+  const [proposalEvidenceLoading, setProposalEvidenceLoading] = useState(false);
+  const [proposalEvidenceError, setProposalEvidenceError] = useState<string | null>(null);
   const [recommendationDraftContext, setRecommendationDraftContext] = useState<RecommendationDraftContext | null>(null);
 
   // Detail sheet state
@@ -324,6 +346,9 @@ export default function ProposalsPage() {
     setAlignment(null);
     setAlignmentAssessment(null);
     setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null });
+    setProposalEvidenceLinks([]);
+    setProposalEvidenceLoading(false);
+    setProposalEvidenceError(null);
     setRecommendationDraftContext(null);
     reset({});
     setFormOpen(true);
@@ -393,6 +418,9 @@ export default function ProposalsPage() {
     setAlignment(null);
     setAlignmentAssessment(null);
     setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null });
+    setProposalEvidenceLinks([]);
+    setProposalEvidenceLoading(true);
+    setProposalEvidenceError(null);
     setRecommendationDraftContext(null);
     reset({
       title:                p.title,
@@ -409,15 +437,22 @@ export default function ProposalsPage() {
     });
     void fetch(`/api/proposals/${p.id}/validation-links`, { cache: "no-store" })
       .then(async (response) => {
-        if (!response.ok) return [];
-        const body = await response.json().catch(() => null) as { data?: Array<{ source_type?: string; source_id?: string }> } | null;
+        const body = await response.json().catch(() => null) as { data?: ProposalEvidenceLink[]; error?: string } | null;
+        if (!response.ok) throw new Error(body?.error ?? "Proposal evidence could not be loaded");
         return body?.data ?? [];
       })
-      .then((links) => setAlignmentEvidence({
-        approvedNeedId: links.find((link) => link.source_type === "community_need")?.source_id ?? null,
-        profilingEvidenceSnapshotId: links.find((link) => link.source_type === "profiling_evidence_snapshot")?.source_id ?? null,
-      }))
-      .catch(() => setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null }));
+      .then((links) => {
+        setProposalEvidenceLinks(links);
+        setAlignmentEvidence({
+          approvedNeedId: links.find((link) => link.source_type === "community_need")?.source_id ?? null,
+          profilingEvidenceSnapshotId: links.find((link) => link.source_type === "profiling_evidence_snapshot")?.source_id ?? null,
+        });
+      })
+      .catch((error) => {
+        setAlignmentEvidence({ approvedNeedId: null, profilingEvidenceSnapshotId: null });
+        setProposalEvidenceError(error instanceof Error ? error.message : "Proposal evidence could not be loaded");
+      })
+      .finally(() => setProposalEvidenceLoading(false));
     setFormOpen(true);
   }
 
@@ -857,6 +892,52 @@ export default function ProposalsPage() {
                   <p className="sr-only">
                     Recommendation {recommendationDraftContext.recommendationFingerprint}; need {recommendationDraftContext.needId}; evidence {recommendationDraftContext.evidenceSnapshotId ?? "unavailable"}.
                   </p>
+                </div>
+              )}
+
+              {editProposal && (
+                <div className="rounded-xl border border-border bg-muted/20 p-4 text-sm space-y-3" data-testid="proposal-preserved-evidence">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-foreground">Preserved proposal evidence</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Review these server-verified sources before changing or submitting the draft.
+                      </p>
+                    </div>
+                    <Badge variant="outline">{proposalEvidenceLinks.length} linked</Badge>
+                  </div>
+                  {proposalEvidenceLoading ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading evidence…
+                    </p>
+                  ) : proposalEvidenceError ? (
+                    <p className="text-xs text-danger" role="alert">{proposalEvidenceError}. Reload before relying on the alignment check.</p>
+                  ) : proposalEvidenceLinks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No approved need or profiling evidence is linked to this draft yet.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {proposalEvidenceLinks.map((link) => {
+                        const isRecommendation = link.rationale.startsWith("Preserved from advisory recommendation ");
+                        const cycleName = link.details?.profiling_cycles?.name;
+                        const label = link.source_type === "community_need"
+                          ? `Approved need: ${link.details?.title ?? "linked community need"}`
+                          : link.source_type === "profiling_evidence_snapshot"
+                            ? `Completed profiling evidence: ${cycleName ?? "approved aggregate snapshot"}`
+                            : `${link.source_type.replaceAll("_", " ")}: linked record`;
+                        return (
+                          <li key={link.id} className="rounded-lg border border-border bg-background px-3 py-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-medium text-foreground">{label}</span>
+                              {isRecommendation && <Badge className="bg-info/10 text-info border-info/20 border text-[10px]">Recommendation provenance</Badge>}
+                            </div>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Verified source · linked {fmt(link.created_at)}
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
               )}
 

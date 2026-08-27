@@ -611,6 +611,20 @@ test("explicit draft creation preserves verified recommendation provenance witho
   assert.doesNotMatch(proposalRoute, /recommendation\.rationale|recommendation\.intervention|raw_recommendation/i);
 });
 
+test("proposal editing visibly reloads preserved recommendation evidence", () => {
+  const proposalPage = readFileSync("src/app/(dashboard)/officer/proposals/page.tsx", "utf8");
+  assert.match(proposalPage, /proposalEvidenceLinks/);
+  assert.match(proposalPage, /proposalEvidenceLoading/);
+  assert.match(proposalPage, /proposalEvidenceError/);
+  assert.match(proposalPage, /fetch\(`\/api\/proposals\/\$\{p\.id\}\/validation-links`/);
+  assert.match(proposalPage, /Preserved proposal evidence/);
+  assert.match(proposalPage, /Review these server-verified sources before changing or submitting the draft/);
+  assert.match(proposalPage, /Recommendation provenance/);
+  assert.match(proposalPage, /Approved need:/);
+  assert.match(proposalPage, /Completed profiling evidence:/);
+  assert.match(proposalPage, /Reload before relying on the alignment check/);
+});
+
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {
   const migration = readFileSync("supabase/migrations/20260818000930_phase2_proposal_compatibility_correction.sql", "utf8");
   const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));

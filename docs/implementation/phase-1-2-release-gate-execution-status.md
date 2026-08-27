@@ -1118,3 +1118,27 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   as a rollback shortcut.
 - Next exact action: surface preserved recommendation provenance on proposal
   detail/edit views so officers can verify the source before submission.
+
+## Phase 3 preserved-evidence review in proposal editing
+
+- Status: `locally_complete`. Officers can now see preserved evidence before
+  changing or submitting a proposal; this is a read-only usability improvement.
+- Interface: opening a draft loads its existing validation-link DTO and displays
+  approved community needs, completed profiling evidence, link timestamps, and
+  a clear `Recommendation provenance` marker for links created through an
+  explicit recommendation-originated draft save.
+- Failure behavior: the editor shows a visible evidence-load error and warns the
+  officer to reload before relying on alignment. It does not silently interpret
+  a failed evidence request as proof that the proposal has no evidence.
+- Alignment integration: the same successfully loaded identifiers feed the
+  server-verified alignment request. New and ordinary drafts reset evidence
+  state so links cannot leak between editor sessions.
+- Commands/results: focused advisory contracts pass 25/25; complete Node tests
+  pass 232/232 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, workflow mutation, external AI call,
+  feature-state change, or remote/shared database operation occurred.
+- Rollback: revert this checkpoint to remove the edit-view summary. The proposal
+  validation-link data remains unchanged and visible in the detail panel.
+- Next exact action: replace the legacy linked-record threshold wording and
+  automatic validation interpretation with source-quality-aware guidance so an
+  AI-preserved pair is not mistaken for completed human community validation.

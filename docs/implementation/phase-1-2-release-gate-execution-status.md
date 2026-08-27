@@ -918,3 +918,33 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   approved automation rule—automated alerts target High/Critical gaps, while
   lower-priority needs remain available for manual analysis without routine
   notification noise.
+
+## Phase 3 high-priority alert eligibility
+
+- Status: `locally_complete`. The recommendation page still shows every
+  approved open need that passes the advisory rules, but the weekly worker now
+  sends only the narrower approved alert candidate set.
+- Implemented: each recommendation carries a strict automation decision and
+  reason. High/Critical unaddressed, unverified planned, insufficient planned,
+  and partial-active gaps are eligible. Lower-priority recommendations remain
+  manual-analysis-only. A planned response at or above the initial 80% planning
+  threshold is shown but excluded from routine alerts.
+- Safety: active partial coverage remains alert-eligible even when a raw count
+  appears high, because the governed link still declares a remaining gap. The
+  weekly route filters before calling the service-only notification RPC and
+  continues to create notices only—never proposals or workflow transitions.
+- Interface: the Analytics summary shows the candidate count, and each card
+  explains whether it is a weekly alert candidate or manual analysis only. The
+  80% threshold is visible as an initial planning threshold, not a final human
+  decision.
+- Commands/results: focused advisory contracts pass 21/21; the complete Node
+  suite passes 226/226; typecheck and lint pass; the 166-page/route build
+  passes; the disposable seeded database suite passes 154/154; and the
+  authenticated browser/AI privacy gate passes 8/8. No shared or remote change
+  occurred, and the disposable stack was removed.
+- Rollback: revert this development checkpoint. Do not restore all-priority
+  automated notices or allow the alert label to mutate a need or proposal.
+- Next exact action: add Director-managed recommendation threshold
+  configuration behind an authenticated, versioned setting boundary, keeping
+  80% as the fail-safe default and never permitting configuration to activate
+  automation.

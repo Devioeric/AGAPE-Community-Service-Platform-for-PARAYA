@@ -44,6 +44,7 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
     needsWithPartialActiveCoverage: 0,
     needsWithFullActiveCoverage: 1,
     needsWithRecentCompletedPrograms: 0,
+    automatedAlertCandidates: 2,
     recommendationCount: 2,
   });
   assert.equal(result.recommendations[0].category, "health");
@@ -54,6 +55,7 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
   assert.equal(result.recommendations[0].indicativeResources.length, 3);
   assert.match(result.recommendations[0].recommendationFingerprint, /^[0-9a-f]{64}$/);
   assert.equal(result.recommendations[0].review.status, "open");
+  assert.equal(result.recommendations[0].automation.eligible, true);
   assert.equal(result.scope.canReview, false);
   assert.equal(result.recommendations[1].action, "review_planned_response");
   assert.equal(result.recommendations.some((item) => item.category === "livelihood"), false);
@@ -206,6 +208,39 @@ test("coverage estimates remain unavailable when a safe denominator or linked pl
   assert.equal(result.recommendations[0].beneficiaryGuidance.source, "approved_need_only");
 });
 
+test("weekly alert candidates are limited to high-priority insufficient gaps", () => {
+  const profilingEvidence = {
+    evidenceSnapshotId: "30000000-0000-4000-8000-000000000001",
+    cycleId: "30000000-0000-4000-8000-000000000002",
+    cycleName: "Synthetic Completed Cycle",
+    reportingDate: "2026-07-31",
+    sampleMethod: "systematic",
+    approvedHouseholds: 20,
+    approvedResidents: 75,
+    coveragePercent: 80,
+    responseRatePercent: 90,
+    needCount: { suppressed: false, value: 40, label: "40" },
+    dataQuality: { pendingPackages: 0, returnedPackages: 0, excludedPackages: 0, unresolvedDuplicates: 0 },
+  };
+  const result = buildAdvisoryRecommendations({
+    sufficientCoveragePercent: 80,
+    needs: [
+      { ...NEED, category: "health", priorityScore: 3 },
+      { ...NEED, id: "10000000-0000-4000-8000-000000000002", category: "education", priorityScore: 4, plannedProposalCount: 1, largestLinkedPlannedBeneficiaryCount: 35, profilingEvidence },
+      { ...NEED, id: "10000000-0000-4000-8000-000000000003", category: "environment", priorityScore: 4, activeProgramCount: 1, largestLinkedPlannedBeneficiaryCount: 40, profilingEvidence },
+    ],
+  });
+  const byCategory = new Map(result.recommendations.map((item) => [item.category, item]));
+  assert.equal(byCategory.get("health").automation.reason, "lower_priority_manual_analysis");
+  assert.equal(byCategory.get("health").automation.eligible, false);
+  assert.equal(byCategory.get("education").coverage.estimate.estimatedPercent, 87.5);
+  assert.equal(byCategory.get("education").automation.reason, "planned_coverage_at_or_above_threshold");
+  assert.equal(byCategory.get("education").automation.eligible, false);
+  assert.equal(byCategory.get("environment").automation.reason, "high_priority_partial_active_gap");
+  assert.equal(byCategory.get("environment").automation.eligible, true);
+  assert.equal(result.summary.automatedAlertCandidates, 1);
+});
+
 test("verified history produces bounded budget and volunteer ranges without inventing sparse estimates", () => {
   const result = buildAdvisoryRecommendations({
     now: new Date("2026-08-27T00:00:00.000Z"),
@@ -308,6 +343,7 @@ test("scheduled recommendation notices are disabled, mode-bound, deduplicated, a
   assert.match(feature, /!== "off"/);
   assert.match(route, /requireCronAuth\(request\)/);
   assert.match(route, /phase3_sync_recommendation_notifications/);
+  assert.match(route, /filter\(\(recommendation\) => recommendation\.automation\.eligible\)/);
   assert.match(route, /recommendationFingerprint/);
   assert.match(vercel, /\/api\/ai\/recommendations\?scheduled=true/);
   assert.match(migration, /UNIQUE\(need_id,recommendation_fingerprint,recipient_user_id\)/);
@@ -339,6 +375,8 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Largest linked plan/);
   assert.match(page, /Percentage suppressed for privacy/);
   assert.match(page, /Beneficiary planning guidance/);
+  assert.match(page, /Weekly alert candidate/);
+  assert.match(page, /Manual analysis only/);
   assert.match(page, /Small cells remain suppressed and have no drill-through/);
   assert.match(page, /Ranked alternatives/);
   assert.match(page, /Indicative resources/);

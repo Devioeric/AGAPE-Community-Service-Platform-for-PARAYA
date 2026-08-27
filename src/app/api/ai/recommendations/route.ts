@@ -446,7 +446,7 @@ export async function GET(request: Request) {
   if (scheduled) {
     const syncResult = await admin.rpc("phase3_sync_recommendation_notifications", {
       p_mode: automationMode,
-      p_recommendations: result.recommendations.map((recommendation) => ({
+      p_recommendations: result.recommendations.filter((recommendation) => recommendation.automation.eligible).map((recommendation) => ({
         needId: recommendation.needId,
         recommendationFingerprint: recommendation.recommendationFingerprint,
         priorityLabel: recommendation.priority.label,
@@ -465,6 +465,7 @@ export async function GET(request: Request) {
         skipped: false,
         mode: automationMode,
         recommendationCount: result.summary.recommendationCount,
+        automatedAlertCandidates: result.summary.automatedAlertCandidates,
         ...sync.data,
       },
     });

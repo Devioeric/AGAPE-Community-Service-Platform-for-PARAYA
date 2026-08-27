@@ -165,6 +165,7 @@ export default function AdvisoryRecommendationsPage() {
               ["Plans to review", data.summary.needsWithPlannedResponses],
               ["Active coverage", data.summary.needsWithActivePrograms],
               ["Recent completed context", data.summary.needsWithRecentCompletedPrograms],
+              ["Weekly alert candidates", data.summary.automatedAlertCandidates],
             ].map(([label, value]) => (
               <Card key={String(label)} className="border-border shadow-card">
                 <CardContent className="p-4">
@@ -250,6 +251,11 @@ export default function AdvisoryRecommendationsPage() {
                         {recommendation.coverage.state === "partial_active"
                           ? "Partial active coverage"
                           : recommendation.coverage.state === "planned" ? "Plan exists" : "No plan"}
+                      </Badge>
+                      <Badge variant="outline" className={recommendation.automation.eligible
+                        ? "border-warning/30 bg-warning/10 text-warning"
+                        : "border-muted-foreground/30 bg-muted/30 text-muted-foreground"}>
+                        {recommendation.automation.eligible ? "Weekly alert candidate" : "Manual analysis only"}
                       </Badge>
                       <Badge variant="outline" className={recommendation.review.status === "endorsed"
                         ? "border-success/30 bg-success/10 text-success"
@@ -369,6 +375,9 @@ export default function AdvisoryRecommendationsPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Approved need evidence · identified {new Date(`${recommendation.evidence.identifiedDate}T00:00:00`).toLocaleDateString("en-PH")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Alert rule: High/Critical with no sufficient response at the initial {recommendation.automation.sufficientCoveragePercent}% planning threshold. This label never changes workflow state.
                     </p>
                     {recommendation.review.reviewedAt && (
                       <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-muted-foreground">

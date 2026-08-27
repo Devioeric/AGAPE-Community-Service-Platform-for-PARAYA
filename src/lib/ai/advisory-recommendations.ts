@@ -140,6 +140,18 @@ export const advisoryRecommendationSchema = z.object({
     }).strict(),
   }).strict(),
   beneficiaryGuidance: beneficiaryGuidanceSchema,
+  automation: z.object({
+    eligible: z.boolean(),
+    reason: z.enum([
+      "lower_priority_manual_analysis",
+      "high_priority_partial_active_gap",
+      "planned_coverage_at_or_above_threshold",
+      "high_priority_insufficient_planned_coverage",
+      "high_priority_planned_coverage_unverified",
+      "high_priority_unaddressed",
+    ]),
+    sufficientCoveragePercent: z.number().min(1).max(100),
+  }).strict(),
   action: z.enum(["develop_response", "review_planned_response", "review_active_gap"]),
   intervention: z.object({
     code: z.string().regex(/^[a-z][a-z0-9_]{2,79}$/),
@@ -178,6 +190,7 @@ export const advisoryRecommendationResponseSchema = z.object({
     barangayId: z.string().uuid().nullable(),
     source: z.literal("approved_community_needs"),
     asOfDate: z.string().date(),
+    sufficientCoveragePercent: z.number().min(1).max(100),
     canReview: z.boolean(),
   }).strict(),
   summary: z.object({
@@ -188,6 +201,7 @@ export const advisoryRecommendationResponseSchema = z.object({
     needsWithPartialActiveCoverage: z.number().int().nonnegative(),
     needsWithFullActiveCoverage: z.number().int().nonnegative(),
     needsWithRecentCompletedPrograms: z.number().int().nonnegative(),
+    automatedAlertCandidates: z.number().int().nonnegative(),
     recommendationCount: z.number().int().nonnegative(),
   }).strict(),
   recommendations: z.array(advisoryRecommendationSchema).max(100),
@@ -302,6 +316,11 @@ function recommendationFingerprint(value: {
   category: string;
   priority: { score: number; label: string };
   coverage: Record<string, unknown>;
+  automation: {
+    eligible: boolean;
+    reason: string;
+    sufficientCoveragePercent: number;
+  };
   beneficiaryGuidance: {
     categoryCode: string;
     suggestedCount: number | null;
@@ -324,11 +343,12 @@ function recommendationFingerprint(value: {
 }): string {
   const materialState = {
     schema: "agape.ai.need-recommendations.v2",
-    ruleVersion: 2,
+    ruleVersion: 3,
     needId: value.needId,
     category: value.category,
     priority: value.priority,
     coverage: value.coverage,
+    automation: value.automation,
     beneficiaryGuidance: value.beneficiaryGuidance,
     interventionCode: value.intervention.code,
     alternativeCodes: value.alternatives.map((item) => item.code),
@@ -436,12 +456,14 @@ function buildBeneficiaryGuidance(need: AdvisoryNeedInput) {
 export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
+  sufficientCoveragePercent?: number;
   now?: Date;
 }): AdvisoryRecommendationResponse {
   const needs = z.array(advisoryNeedInputSchema).max(5_000).parse(input.needs);
   const now = input.now ?? new Date();
   const generatedAt = now.toISOString();
   const asOfDate = generatedAt.slice(0, 10);
+  const sufficientCoveragePercent = z.number().min(1).max(100).parse(input.sufficientCoveragePercent ?? 80);
 
   const recommendations = needs
     .filter((need) => need.activeFullProgramCount === 0)
@@ -465,6 +487,26 @@ export function buildAdvisoryRecommendations(input: {
           : "";
       const coverageEstimate = buildCoverageEstimate(need);
       const beneficiaryGuidance = buildBeneficiaryGuidance(need);
+      const isHighPriority = score >= 4;
+      const plannedCoverageLooksSufficient = !hasPartialActiveCoverage
+        && hasPlan
+        && coverageEstimate.status === "available"
+        && coverageEstimate.estimatedPercent >= sufficientCoveragePercent;
+      const automation = {
+        eligible: isHighPriority && !plannedCoverageLooksSufficient,
+        reason: !isHighPriority
+          ? "lower_priority_manual_analysis" as const
+          : hasPartialActiveCoverage
+            ? "high_priority_partial_active_gap" as const
+            : plannedCoverageLooksSufficient
+              ? "planned_coverage_at_or_above_threshold" as const
+              : hasPlan && coverageEstimate.status === "available"
+                ? "high_priority_insufficient_planned_coverage" as const
+                : hasPlan
+                  ? "high_priority_planned_coverage_unverified" as const
+                  : "high_priority_unaddressed" as const,
+        sufficientCoveragePercent,
+      };
 
       const recommendation = {
         needId: need.id,
@@ -483,6 +525,7 @@ export function buildAdvisoryRecommendations(input: {
           estimate: coverageEstimate,
         },
         beneficiaryGuidance,
+        automation,
         action: hasPartialActiveCoverage ? "review_active_gap" as const : hasPlan ? "review_planned_response" as const : "develop_response" as const,
         intervention: {
           code: intervention.code,
@@ -552,6 +595,7 @@ export function buildAdvisoryRecommendations(input: {
       barangayId: input.barangayId ?? null,
       source: "approved_community_needs",
       asOfDate,
+      sufficientCoveragePercent,
       canReview: false,
     },
     summary: {
@@ -562,6 +606,7 @@ export function buildAdvisoryRecommendations(input: {
       needsWithPartialActiveCoverage: needs.filter((need) => need.activeProgramCount > 0 && need.activeFullProgramCount === 0).length,
       needsWithFullActiveCoverage: needs.filter((need) => need.activeFullProgramCount > 0).length,
       needsWithRecentCompletedPrograms: needs.filter((need) => need.recentCompletedProgramCount > 0).length,
+      automatedAlertCandidates: recommendations.filter((recommendation) => recommendation.automation.eligible).length,
       recommendationCount: recommendations.length,
     },
     recommendations,

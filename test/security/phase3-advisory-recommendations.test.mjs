@@ -6,7 +6,11 @@ import {
   advisoryRecommendationResponseSchema,
   buildAdvisoryRecommendations,
 } from "../../src/lib/ai/advisory-recommendations.ts";
-import { assessProposalAlignment, proposalAlignmentRequestSchema } from "../../src/lib/ai/proposal-alignment.ts";
+import {
+  assessProposalAlignment,
+  proposalAlignmentRequestSchema,
+  proposalAlignmentResponseSchema,
+} from "../../src/lib/ai/proposal-alignment.ts";
 
 const NEED = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -527,6 +531,15 @@ test("proposal alignment is server-validated, metadata-only audited, and cannot 
   assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: validDraft }).success, false, "money must remain a number in this bounded advisory request");
   assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 } }).success, true);
   assert.equal(proposalAlignmentRequestSchema.safeParse({ draft: { ...validDraft, budget: 0 }, workflowAction: "approve" }).success, false);
+  const assessmentResult = assessProposalAlignment({ ...validDraft, budget: 0 });
+  assert.equal(proposalAlignmentResponseSchema.safeParse({
+    data: assessmentResult,
+    assessment: { assessedAt: "2026-08-27T10:00:00+08:00", draftFingerprint: "a".repeat(64) },
+  }).success, true);
+  assert.equal(proposalAlignmentResponseSchema.safeParse({
+    data: assessmentResult,
+    assessment: { assessedAt: "not-a-date", draftFingerprint: "a".repeat(64), rawDraft: validDraft },
+  }).success, false);
   assert.match(route, /authorizeCapability\("proposal\.create"\)/);
   assert.match(route, /hasCapability\(auth\.actor\.role, auth\.actor\.permissions, "ai\.assist"\)/);
   assert.match(route, /proposalAlignmentRequestSchema\.safeParse/);
@@ -534,10 +547,15 @@ test("proposal alignment is server-validated, metadata-only audited, and cannot 
   assert.match(route, /createHash\("sha256"\)/);
   assert.match(route, /ai\.proposal_alignment\.assessed/);
   assert.match(route, /dimension_ratings/);
+  assert.match(route, /assessedAt: new Date\(\)\.toISOString\(\)/);
+  assert.match(route, /draftFingerprint/);
   assert.doesNotMatch(route, /rationale:\s*parsed|objectives:\s*parsed|targetBeneficiaries:\s*parsed/);
   assert.doesNotMatch(route, /advance|submit|approve|reject|project_proposals.*(?:insert|update)/i);
   assert.match(page, /fetch\("\/api\/ai\/proposal-alignment"/);
   assert.doesNotMatch(page, /setAlignment\(assessProposalAlignment/);
+  assert.match(page, /Outdated after edits/);
+  assert.match(page, /Recheck edited draft/);
+  assert.match(page, /This result describes an earlier version of the draft/);
 });
 
 test("forward proposal correction supplies beneficiary count and the complete SDG catalog", () => {

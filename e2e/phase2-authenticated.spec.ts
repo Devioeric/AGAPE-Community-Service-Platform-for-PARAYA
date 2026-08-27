@@ -132,6 +132,12 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await page.getByRole("button", { name: "New Proposal" }).click();
     await page.getByRole("button", { name: "Check this draft" }).click();
     await expect(page.getByText("Not Recommended", { exact: true })).toBeVisible();
+    await expect(page.getByText("Current draft", { exact: true })).toBeVisible();
+    await page.getByLabel(/^Title/).fill("Edited synthetic proposal");
+    await expect(page.getByText("Outdated after edits", { exact: true })).toBeVisible();
+    await expect(page.getByText(/This result describes an earlier version of the draft/)).toBeVisible();
+    await page.getByRole("button", { name: "Recheck edited draft" }).click();
+    await expect(page.getByText("Current draft", { exact: true })).toBeVisible();
     await expect(page.getByText(/never rejects or changes the proposal workflow automatically/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Create Proposal" })).toBeVisible();
   });

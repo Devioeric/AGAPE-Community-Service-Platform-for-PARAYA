@@ -1020,3 +1020,31 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: add a human-visible alignment assessment timestamp and
   stale-after-edit indicator so officers cannot mistake an older advisory result
   for an assessment of the current draft.
+
+## Phase 3 proposal-alignment freshness guard
+
+- Status: `locally_complete`. This improves interpretation of advisory output
+  without changing any workflow authority or database state.
+- Implemented: the strict alignment response now includes an allowlisted
+  assessment timestamp and SHA-256 draft fingerprint. The proposal editor keeps
+  a normalized local signature of the assessed form, SDG selection, and prior-
+  initiative count.
+- Interface behavior: a newly returned result is labelled `Current draft` with
+  its assessment time. Any subsequent form, SDG, or prior-initiative edit marks
+  it `Outdated after edits`, displays a clear warning, and changes the action to
+  `Recheck edited draft`. Rerunning the server check returns the label to
+  `Current draft`.
+- Privacy behavior: the client uses its local normalized draft only for change
+  comparison. The API returns a one-way fingerprint and never echoes raw draft
+  prose in assessment metadata.
+- Commands/results: focused advisory contracts pass 23/23; typecheck and lint
+  pass; seeded Phase 2 SQL remains 168/168; and authenticated browser/AI privacy
+  gates pass 10/10. The browser proves the current → edited/outdated → rechecked/
+  current sequence and unchanged proposal/program workflow state.
+- Migration/security impact: no migration, remote/shared operation, external AI
+  request, or feature-state change occurred. The disposable stack was removed.
+- Rollback: revert this checkpoint to remove freshness metadata and the stale
+  indicator. Do not silently display an old result as current after draft edits.
+- Next exact action: improve alignment usefulness by linking the check to
+  approved need/evidence presence instead of treating a written rationale as
+  sufficient community-need evidence.

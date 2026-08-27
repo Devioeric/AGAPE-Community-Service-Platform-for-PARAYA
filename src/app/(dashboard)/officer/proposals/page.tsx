@@ -27,7 +27,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
-import { proposalAlignmentResultSchema, type ProposalAlignmentResult } from "@/lib/ai/proposal-alignment";
+import {
+  proposalAlignmentResponseSchema,
+  type ProposalAlignmentInput,
+  type ProposalAlignmentResult,
+} from "@/lib/ai/proposal-alignment";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -169,6 +173,30 @@ function currency(n: number | null) {
   return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 }
 
+function alignmentDraft(values: Partial<FormData>, sdgs: number[], priorInitiativeCount: number): ProposalAlignmentInput {
+  const parsedBudget = values.budget?.trim() ? Number(values.budget) : null;
+  const parsedBeneficiaryCount = values.expected_beneficiary_count?.trim()
+    ? Number(values.expected_beneficiary_count)
+    : null;
+  return {
+    title: values.title ?? "",
+    rationale: values.rationale ?? "",
+    objectives: values.objectives ?? "",
+    targetBeneficiaries: values.target_beneficiaries ?? "",
+    expectedBeneficiaryCount: parsedBeneficiaryCount !== null && Number.isInteger(parsedBeneficiaryCount) && parsedBeneficiaryCount > 0
+      ? parsedBeneficiaryCount
+      : null,
+    expectedOutput: values.expected_output ?? "",
+    timelineStart: values.timeline_start ?? "",
+    timelineEnd: values.timeline_end ?? "",
+    budget: parsedBudget !== null && Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null,
+    barangayId: values.barangay_id || null,
+    isIncomeGenerating: Boolean(values.is_income_generating),
+    sdgs: [...sdgs].sort((left, right) => left - right),
+    priorInitiativeCount,
+  };
+}
+
 // ─── Pipeline Stepper ─────────────────────────────────────────────────────────
 
 function PipelineStepper({ status }: { status: ProposalStatus }) {
@@ -232,6 +260,11 @@ export default function ProposalsPage() {
   const [saving, setSaving]             = useState(false);
   const [alignment, setAlignment]       = useState<ProposalAlignmentResult | null>(null);
   const [alignmentLoading, setAlignmentLoading] = useState(false);
+  const [alignmentAssessment, setAlignmentAssessment] = useState<{
+    assessedAt: string;
+    draftFingerprint: string;
+    inputSignature: string;
+  } | null>(null);
   const [recommendationDraftContext, setRecommendationDraftContext] = useState<RecommendationDraftContext | null>(null);
 
   // Detail sheet state
@@ -249,9 +282,13 @@ export default function ProposalsPage() {
   const [showReviseForm, setShowReviseForm] = useState(false);
   const [advancing, setAdvancing]       = useState(false);
 
-  const { register, handleSubmit, reset, getValues, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, getValues, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+  const watchedValues = watch();
+  const currentAlignmentSignature = JSON.stringify(alignmentDraft(watchedValues, sdgSelected, informedBy.length));
+  const alignmentIsStale = alignmentAssessment !== null
+    && alignmentAssessment.inputSignature !== currentAlignmentSignature;
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
@@ -273,6 +310,7 @@ export default function ProposalsPage() {
     setSdgSelected([]); setSdgIndicators({});
     setInformedBy([]);
     setAlignment(null);
+    setAlignmentAssessment(null);
     setRecommendationDraftContext(null);
     reset({});
     setFormOpen(true);
@@ -296,6 +334,7 @@ export default function ProposalsPage() {
         setEditProposal(null);
         setInformedBy([]);
         setAlignment(null);
+        setAlignmentAssessment(null);
         const supportedSdgs = new Set<number>(SDG_META.map((item) => item.n));
         setSdgSelected(recommendation.suggestedSdgs.filter((sdg) => supportedSdgs.has(sdg)));
         setSdgIndicators({});
@@ -335,6 +374,7 @@ export default function ProposalsPage() {
     setSdgIndicators(ind);
     setInformedBy(((p as Proposal & { informed_by_proposals?: string[] | null }).informed_by_proposals) ?? []);
     setAlignment(null);
+    setAlignmentAssessment(null);
     setRecommendationDraftContext(null);
     reset({
       title:                p.title,
@@ -357,40 +397,29 @@ export default function ProposalsPage() {
   }
 
   async function runAlignmentCheck() {
-    const values = getValues();
-    const parsedBudget = values.budget?.trim() ? Number(values.budget) : null;
+    const draft = alignmentDraft(getValues(), sdgSelected, informedBy.length);
+    const inputSignature = JSON.stringify(draft);
     setAlignmentLoading(true);
     try {
       const response = await fetch("/api/ai/proposal-alignment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draft: {
-            title: values.title ?? "",
-            rationale: values.rationale ?? "",
-            objectives: values.objectives ?? "",
-            targetBeneficiaries: values.target_beneficiaries ?? "",
-            expectedBeneficiaryCount: values.expected_beneficiary_count?.trim()
-              ? Number(values.expected_beneficiary_count)
-              : null,
-            expectedOutput: values.expected_output ?? "",
-            timelineStart: values.timeline_start ?? "",
-            timelineEnd: values.timeline_end ?? "",
-            budget: parsedBudget !== null && Number.isFinite(parsedBudget) && parsedBudget >= 0 ? parsedBudget : null,
-            barangayId: values.barangay_id || null,
-            isIncomeGenerating: Boolean(values.is_income_generating),
-            sdgs: sdgSelected,
-            priorInitiativeCount: informedBy.length,
-          },
-        }),
+        body: JSON.stringify({ draft }),
       });
-      const body = await response.json().catch(() => null) as { data?: unknown; error?: string } | null;
-      if (!response.ok) throw new Error(body?.error ?? "Unable to assess this draft");
-      const parsed = proposalAlignmentResultSchema.safeParse(body?.data);
+      const body = await response.json().catch(() => null) as unknown;
+      if (!response.ok) {
+        const error = body && typeof body === "object" && "error" in body && typeof body.error === "string"
+          ? body.error
+          : "Unable to assess this draft";
+        throw new Error(error);
+      }
+      const parsed = proposalAlignmentResponseSchema.safeParse(body);
       if (!parsed.success) throw new Error("The alignment response was invalid");
-      setAlignment(parsed.data);
+      setAlignment(parsed.data.data);
+      setAlignmentAssessment({ ...parsed.data.assessment, inputSignature });
     } catch (error) {
       setAlignment(null);
+      setAlignmentAssessment(null);
       toast.error(error instanceof Error ? error.message : "Unable to assess this draft");
     } finally {
       setAlignmentLoading(false);
@@ -937,7 +966,7 @@ export default function ProposalsPage() {
                     </div>
                     <Button type="button" size="sm" variant="outline" onClick={() => void runAlignmentCheck()} disabled={alignmentLoading}>
                       {alignmentLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Check this draft
+                      {alignmentIsStale ? "Recheck edited draft" : "Check this draft"}
                     </Button>
                   </div>
                 </CardHeader>
@@ -947,8 +976,20 @@ export default function ProposalsPage() {
                       <Badge variant={alignment.overall === "recommended" ? "secondary" : "outline"}>
                         {alignment.overallLabel}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">Advisory only · run again after editing</span>
+                      <Badge variant="outline" className={alignmentIsStale ? "border-warning/40 text-warning" : "border-success/40 text-success"}>
+                        {alignmentIsStale ? "Outdated after edits" : "Current draft"}
+                      </Badge>
+                      {alignmentAssessment && (
+                        <span className="text-xs text-muted-foreground">
+                          Assessed {new Date(alignmentAssessment.assessedAt).toLocaleString()}
+                        </span>
+                      )}
                     </div>
+                    {alignmentIsStale && (
+                      <p className="rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning" role="status">
+                        This result describes an earlier version of the draft. Run the check again before relying on it.
+                      </p>
+                    )}
                     <p className="text-sm leading-relaxed text-muted-foreground">{alignment.summary}</p>
                     <div className="grid gap-2 md:grid-cols-2">
                       {alignment.dimensions.map((dimension) => (

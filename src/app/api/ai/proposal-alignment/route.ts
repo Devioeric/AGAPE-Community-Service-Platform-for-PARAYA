@@ -42,7 +42,13 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { data: result },
+    {
+      data: result,
+      assessment: {
+        assessedAt: new Date().toISOString(),
+        draftFingerprint,
+      },
+    },
     { headers: { "Cache-Control": "private, no-store, max-age=0" } },
   );
 }

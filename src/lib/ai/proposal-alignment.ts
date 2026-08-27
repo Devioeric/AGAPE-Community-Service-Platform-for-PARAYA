@@ -53,8 +53,17 @@ export const proposalAlignmentResultSchema = z.object({
   limitations: z.array(z.string().min(1).max(300)).min(1).max(6),
 }).strict();
 
+export const proposalAlignmentResponseSchema = z.object({
+  data: proposalAlignmentResultSchema,
+  assessment: z.object({
+    assessedAt: z.string().datetime({ offset: true }),
+    draftFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
+  }).strict(),
+}).strict();
+
 export type ProposalAlignmentInput = z.input<typeof proposalAlignmentInputSchema>;
 export type ProposalAlignmentResult = z.infer<typeof proposalAlignmentResultSchema>;
+export type ProposalAlignmentResponse = z.infer<typeof proposalAlignmentResponseSchema>;
 
 type Dimension = z.infer<typeof dimensionSchema>;
 type Rating = z.infer<typeof ratingSchema>;

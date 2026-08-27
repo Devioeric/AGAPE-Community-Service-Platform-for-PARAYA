@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit/log";
-import { buildAdvisoryRecommendations } from "@/lib/ai/advisory-recommendations";
+import {
+  advisoryRecommendationResponseSchema,
+  buildAdvisoryRecommendations,
+  recommendationDismissalReasonSchema,
+} from "@/lib/ai/advisory-recommendations";
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { hasCapability } from "@/lib/auth/capabilities";
 import { validateProfilingAggregateDTO } from "@/lib/profiling/privacy";
@@ -25,6 +29,16 @@ const PLANNED_PROPOSAL_STATUSES = new Set([
   "approved",
 ]);
 const ACTIVE_PROGRAM_STATUSES = new Set(["planning", "upcoming", "active"]);
+
+type StoredRecommendationReview = {
+  need_id: string;
+  event_sequence: number;
+  recommendation_fingerprint: string;
+  action: "endorsed" | "dismissed";
+  reason_code: string | null;
+  actor_id: string;
+  created_at: string;
+};
 
 function isMissingOptionalPhase2Relation(error: { code?: string } | null): boolean {
   return error?.code === "42P01" || error?.code === "PGRST205";
@@ -251,7 +265,7 @@ export async function GET(request: Request) {
     for (const program of data ?? []) programStatuses.set(program.id, program.status);
   }
 
-  const result = buildAdvisoryRecommendations({
+  const generated = buildAdvisoryRecommendations({
     barangayId: parsed.data.barangay_id ?? null,
     needs: (needRows ?? []).map((need) => {
       const relatedProposalIds = proposalIdsByNeed.get(need.id) ?? new Set<string>();
@@ -293,6 +307,60 @@ export async function GET(request: Request) {
           windowStart: historyWindowStart,
           asOfDate: historyAsOfDate,
         } : null,
+      };
+    }),
+  });
+
+  const latestReviewByNeed = new Map<string, StoredRecommendationReview>();
+  const reviewActorNames = new Map<string, string>();
+  const recommendationNeedIds = generated.recommendations.map((recommendation) => recommendation.needId);
+  if (recommendationNeedIds.length > 0) {
+    const reviewsResult = await admin
+      .from("ai_recommendation_reviews")
+      .select("need_id,event_sequence,recommendation_fingerprint,action,reason_code,actor_id,created_at")
+      .in("need_id", recommendationNeedIds)
+      .order("event_sequence", { ascending: false })
+      .limit(1_000);
+    if (reviewsResult.error && !isMissingOptionalPhase2Relation(reviewsResult.error)) {
+      console.error("[ai-recommendations] review-state query failed", { code: reviewsResult.error.code });
+      return NextResponse.json({ error: "Unable to load recommendation review state" }, { status: 500 });
+    }
+    for (const row of (reviewsResult.data ?? []) as StoredRecommendationReview[]) {
+      if (!latestReviewByNeed.has(row.need_id)) latestReviewByNeed.set(row.need_id, row);
+    }
+    const actorIds = Array.from(new Set(Array.from(latestReviewByNeed.values()).map((review) => review.actor_id)));
+    if (actorIds.length > 0) {
+      const actorsResult = await admin.from("users").select("id,full_name").in("id", actorIds);
+      if (actorsResult.error) {
+        console.error("[ai-recommendations] review-actor query failed", { code: actorsResult.error.code });
+        return NextResponse.json({ error: "Unable to load recommendation review state" }, { status: 500 });
+      }
+      for (const actor of actorsResult.data ?? []) reviewActorNames.set(actor.id, actor.full_name);
+    }
+  }
+
+  const result = advisoryRecommendationResponseSchema.parse({
+    ...generated,
+    scope: {
+      ...generated.scope,
+      canReview: hasCapability(auth.actor.role, auth.actor.permissions, "ai.recommendation.review"),
+    },
+    recommendations: generated.recommendations.map((recommendation) => {
+      const storedReview = latestReviewByNeed.get(recommendation.needId);
+      if (!storedReview) return recommendation;
+      const actorName = reviewActorNames.get(storedReview.actor_id);
+      const isCurrent = storedReview.recommendation_fingerprint === recommendation.recommendationFingerprint;
+      return {
+        ...recommendation,
+        review: {
+          status: isCurrent ? storedReview.action : "stale",
+          lastAction: storedReview.action,
+          reasonCode: storedReview.reason_code && recommendationDismissalReasonSchema.safeParse(storedReview.reason_code).success
+            ? storedReview.reason_code
+            : null,
+          reviewedAt: storedReview.created_at,
+          reviewedBy: actorName ? { id: storedReview.actor_id, name: actorName } : null,
+        },
       };
     }),
   });

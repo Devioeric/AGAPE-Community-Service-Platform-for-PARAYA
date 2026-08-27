@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 export const needCategorySchema = z.enum([
@@ -74,8 +75,28 @@ const resourceSchema = z.object({
   limitation: z.string().trim().min(1).max(240),
 }).strict();
 
+export const recommendationDismissalReasonSchema = z.enum([
+  "insufficient_evidence",
+  "duplicate_or_covered",
+  "outside_current_scope",
+  "data_quality_concern",
+  "defer_until_next_cycle",
+]);
+
+const recommendationReviewSchema = z.object({
+  status: z.enum(["open", "endorsed", "dismissed", "stale"]),
+  lastAction: z.enum(["endorsed", "dismissed"]).nullable(),
+  reasonCode: recommendationDismissalReasonSchema.nullable(),
+  reviewedAt: z.string().datetime({ offset: true }).nullable(),
+  reviewedBy: z.object({
+    id: z.string().uuid(),
+    name: z.string().trim().min(1).max(160),
+  }).strict().nullable(),
+}).strict();
+
 export const advisoryRecommendationSchema = z.object({
   needId: z.string().uuid(),
+  recommendationFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
   barangay: z.object({
     id: z.string().uuid(),
     name: z.string().trim().min(1).max(160),
@@ -120,6 +141,7 @@ export const advisoryRecommendationSchema = z.object({
     quality: z.literal("approved"),
     profiling: advisoryProfilingEvidenceSchema.nullable(),
   }).strict(),
+  review: recommendationReviewSchema,
 }).strict();
 
 export const advisoryRecommendationResponseSchema = z.object({
@@ -130,6 +152,7 @@ export const advisoryRecommendationResponseSchema = z.object({
     barangayId: z.string().uuid().nullable(),
     source: z.literal("approved_community_needs"),
     asOfDate: z.string().date(),
+    canReview: z.boolean(),
   }).strict(),
   summary: z.object({
     approvedOpenNeeds: z.number().int().nonnegative(),
@@ -236,6 +259,65 @@ function range(values: number[], minimumEvidence = 2): { low: number; high: numb
   return { low: usable[0], high: usable[usable.length - 1] };
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function recommendationFingerprint(value: {
+  needId: string;
+  category: string;
+  priority: { score: number; label: string };
+  coverage: Record<string, unknown>;
+  intervention: { code: string };
+  alternatives: Array<{ code: string }>;
+  indicativeResources: Array<{ category: string; item: string; indicativeQuantity: string }>;
+  planningBenchmarks: {
+    matchedRecords: number;
+    budgetRange: unknown;
+    volunteerRange: unknown;
+  };
+  suggestedSdgs: number[];
+  evidence: {
+    identifiedDate: string;
+    profiling: { evidenceSnapshotId: string; needCount: unknown } | null;
+  };
+}): string {
+  const materialState = {
+    schema: "agape.ai.need-recommendations.v2",
+    ruleVersion: 1,
+    needId: value.needId,
+    category: value.category,
+    priority: value.priority,
+    coverage: value.coverage,
+    interventionCode: value.intervention.code,
+    alternativeCodes: value.alternatives.map((item) => item.code),
+    indicativeResources: value.indicativeResources.map((item) => ({
+      category: item.category,
+      item: item.item,
+      indicativeQuantity: item.indicativeQuantity,
+    })),
+    planningBenchmarks: {
+      matchedRecords: value.planningBenchmarks.matchedRecords,
+      budgetRange: value.planningBenchmarks.budgetRange,
+      volunteerRange: value.planningBenchmarks.volunteerRange,
+    },
+    suggestedSdgs: value.suggestedSdgs,
+    evidence: {
+      identifiedDate: value.evidence.identifiedDate,
+      profilingEvidenceSnapshotId: value.evidence.profiling?.evidenceSnapshotId ?? null,
+      profilingNeedCount: value.evidence.profiling?.needCount ?? null,
+    },
+  };
+  return createHash("sha256").update(stableJson(materialState)).digest("hex");
+}
+
 export function buildAdvisoryRecommendations(input: {
   needs: AdvisoryNeedInput[];
   barangayId?: string | null;
@@ -264,7 +346,7 @@ export function buildAdvisoryRecommendations(input: {
         ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
         : "";
 
-      return {
+      const recommendation = {
         needId: need.id,
         barangay: { id: need.barangayId, name: need.barangayName },
         category: need.category,
@@ -318,6 +400,17 @@ export function buildAdvisoryRecommendations(input: {
           profiling: need.profilingEvidence,
         },
       };
+      return {
+        ...recommendation,
+        recommendationFingerprint: recommendationFingerprint(recommendation),
+        review: {
+          status: "open" as const,
+          lastAction: null,
+          reasonCode: null,
+          reviewedAt: null,
+          reviewedBy: null,
+        },
+      };
     })
     .sort((a, b) =>
       b.priority.score - a.priority.score
@@ -335,6 +428,7 @@ export function buildAdvisoryRecommendations(input: {
       barangayId: input.barangayId ?? null,
       source: "approved_community_needs",
       asOfDate,
+      canReview: false,
     },
     summary: {
       approvedOpenNeeds: needs.length,

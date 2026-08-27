@@ -91,6 +91,22 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await expect(page.getByRole("heading", { name: "Unverified historical metrics", exact: true })).toBeVisible();
   });
 
+  if (component === "recommendation_review") test("Researcher can dismiss and endorse an advisory recommendation without changing proposal workflow", async ({ page }) => {
+    await signIn(page, "researcher", /\/officer(?:\/)?$/);
+    await page.goto("/officer/analytics/recommendations");
+    const card = page.getByTestId("recommendation-card").first();
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId("recommendation-review-controls")).toBeVisible();
+    await card.getByLabel(/Dismissal reason for/).selectOption("data_quality_concern");
+    await card.getByRole("button", { name: "Dismiss" }).click();
+    await expect(page.getByRole("status")).toContainText("Recommendation dismissed");
+    await expect(card).toContainText("Dismissed");
+    await card.getByRole("button", { name: "Endorse" }).click();
+    await expect(page.getByRole("status")).toContainText("Recommendation endorsed");
+    await expect(card).toContainText("Researcher-endorsed");
+    await expect(card).toContainText("do not create or advance a proposal");
+  });
+
   if (component === "ai_privacy") test("AI receives aggregate-only Phase 2-safe context and remains advisory", async ({ page }) => {
     await signIn(page, "researcher", /\/officer(?:\/)?$/);
     const result = await page.evaluate(async () => {

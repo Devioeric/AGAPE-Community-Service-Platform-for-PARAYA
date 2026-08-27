@@ -594,6 +594,57 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - The four reported secret-rule matches are deliberate invalid JWT/PostgreSQL fixtures in security tests and were acknowledged by the repository owner.
 - Rollback before the checkpoint consists of removing only the newly added manifest/status tooling; user work remains untouched.
 
+## Phase 3 durable recommendation review (owner-authorized local development)
+
+- Status: `locally_complete`. This is a dark local development slice only; it
+  does not close a release gate, apply a migration to a shared database, or
+  authorize production activation.
+- Implemented: deterministic material-state SHA-256 fingerprints on advisory
+  recommendations; derived `open`, `endorsed`, `dismissed`, and `stale` review
+  states; Researcher/Director endorsement; and controlled, reason-required
+  dismissal. Review events use a database-issued event sequence, are
+  append-only, and retain actor and timestamp. Identical retries are
+  idempotent.
+- Authorization: added `ai.recommendation.review` to the canonical TypeScript
+  and SQL capability matrices for the Director and Researcher only. The
+  existing `ai_assistance` deny override can only remove it. Admin, Associate,
+  Finance, barangay roles, Volunteers, and legacy roles cannot record a final
+  recommendation review.
+- Database boundary: added forward-only migration
+  `20260818000950_phase3_recommendation_review_state.sql`, restrictive forced
+  RLS, no direct authenticated table mutation, revoked `PUBLIC`/`anon`
+  execution, a fixed-search-path RPC, controlled reasons, approved/open-need
+  validation, transactional audit insertion, and immutable history. No
+  existing timestamped migration was edited.
+- Interface: the Analytics recommendation cards show current/stale human review
+  state and expose review controls only when the response confirms review
+  authority. The controls explicitly state that review does not create or
+  advance a proposal.
+- Verification: focused contracts pass 34/34; the complete Node suite passes
+  220/220; typecheck and lint pass; and the 166-page/route production build
+  passes. The complete disposable Phase 2 database gate passes two clean
+  replays with matching SHA-256
+  `f79ff0767b9e9c8ac788b62a1f2c85fec55d964d94849bd225f6b0b6f6d10998`,
+  catalog/runtime/Storage assertions 32/32, seeded workflow assertions 135/135,
+  behavioral cases 83/83, and legacy-seed compatibility. Authenticated browser
+  and AI privacy gates pass 7/7, including a real Researcher dismiss/endorse
+  flow whose proposal/program workflow fingerprint remains unchanged.
+- Defects found by executable testing: a null SQL dismissal reason initially
+  passed because of SQL three-valued `NOT IN` semantics; it now fails
+  explicitly. Timestamp-only event ordering was ambiguous inside one
+  transaction; a database identity sequence now defines the latest review.
+  PostgreSQL offset timestamps are accepted by the strict response schema.
+- Final state: disposable stacks were removed, Phase 2 modes returned to
+  `off`, V1 mutation authority remains the default, and no remote/shared
+  database or real personal/financial record was changed.
+- Rollback: revert this development checkpoint before deployment. If the new
+  migration is ever applied, correct defects through a later forward migration
+  and retain all review/audit history; do not use a destructive down migration.
+- Next exact action: implement a bounded scheduled advisory-refresh and
+  notification path that remains disabled by default, creates recommendation
+  notices only, honors current/stale fingerprints, and cannot create or
+  transition proposals.
+
 ## Combined evidence-verifier and gate-status correction record
 
 - Status: `locally_complete`. This is a normal development packet and does not

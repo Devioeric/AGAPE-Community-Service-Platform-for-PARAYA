@@ -49,9 +49,44 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
   assert.equal(result.recommendations[0].alternatives.length, 3);
   assert.equal(result.recommendations[0].alternatives[0].code, result.recommendations[0].intervention.code);
   assert.equal(result.recommendations[0].indicativeResources.length, 3);
+  assert.match(result.recommendations[0].recommendationFingerprint, /^[0-9a-f]{64}$/);
+  assert.equal(result.recommendations[0].review.status, "open");
+  assert.equal(result.scope.canReview, false);
   assert.equal(result.recommendations[1].action, "review_planned_response");
   assert.equal(result.recommendations.some((item) => item.category === "livelihood"), false);
   assert.equal(advisoryRecommendationResponseSchema.safeParse(result).success, true);
+});
+
+test("recommendation fingerprints change only when material planning inputs change", () => {
+  const first = buildAdvisoryRecommendations({
+    now: new Date("2026-08-27T00:00:00.000Z"),
+    needs: [{ ...NEED, category: "health", priorityScore: 4 }],
+  });
+  const nextDay = buildAdvisoryRecommendations({
+    now: new Date("2026-08-28T00:00:00.000Z"),
+    needs: [{ ...NEED, category: "health", priorityScore: 4 }],
+  });
+  const changed = buildAdvisoryRecommendations({
+    now: new Date("2026-08-28T00:00:00.000Z"),
+    needs: [{ ...NEED, category: "health", priorityScore: 5 }],
+  });
+  assert.equal(first.recommendations[0].recommendationFingerprint, nextDay.recommendations[0].recommendationFingerprint);
+  assert.notEqual(first.recommendations[0].recommendationFingerprint, changed.recommendations[0].recommendationFingerprint);
+});
+
+test("recommendation review timestamps accept PostgreSQL UTC offsets", () => {
+  const result = buildAdvisoryRecommendations({
+    needs: [{ ...NEED, category: "health", priorityScore: 4 }],
+  });
+  const reviewed = structuredClone(result);
+  reviewed.recommendations[0].review = {
+    status: "endorsed",
+    lastAction: "endorsed",
+    reasonCode: null,
+    reviewedAt: "2026-08-27T10:15:30.123456+00:00",
+    reviewedBy: { id: "f2200000-0000-4000-8000-000000000004", name: "Synthetic Researcher" },
+  };
+  assert.equal(advisoryRecommendationResponseSchema.safeParse(reviewed).success, true);
 });
 
 test("partial active coverage remains visible while full active coverage suppresses duplicate work", () => {
@@ -156,10 +191,33 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /isPhase2ComponentEnabled\("historical_programs"\)/);
   assert.match(route, /\.in\("quality", \["complete", "partial_verified"\]\)/);
   assert.match(route, /\.select\("category,budget_total,volunteer_count,quality,status,starts_on,data_mode"\)/);
+  assert.match(route, /\.from\("ai_recommendation_reviews"\)/);
+  assert.match(route, /event_sequence,recommendation_fingerprint,action,reason_code,actor_id,created_at/);
+  assert.match(route, /status: isCurrent \? storedReview\.action : "stale"/);
+  assert.match(route, /"ai\.recommendation\.review"/);
   assert.doesNotMatch(route, /select\(["'`]\*["'`]\)/);
   assert.doesNotMatch(route, /need_description|resident_name|contact|receipt|storage_path|profiling_resident_versions|profiling_household_versions/);
   assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
   assert.doesNotMatch(route, /anthropic|generativelanguage|openai|googleapis/i);
+});
+
+test("recommendation review is capability-gated, strict, append-only, and cannot transition proposals", () => {
+  const route = readFileSync("src/app/api/ai/recommendations/reviews/route.ts", "utf8");
+  const migration = readFileSync("supabase/migrations/20260818000950_phase3_recommendation_review_state.sql", "utf8");
+  const scopes = JSON.parse(readFileSync("supabase/database-gate-scopes.json", "utf8"));
+  assert.match(route, /authorizeCapability\("ai\.recommendation\.review"\)/);
+  assert.match(route, /recommendationFingerprint: z\.string\(\)\.regex/);
+  assert.match(route, /Dismissal requires a reason/);
+  assert.match(route, /phase3_record_recommendation_review/);
+  assert.match(migration, /CREATE TABLE public\.ai_recommendation_reviews/);
+  assert.match(migration, /ai_recommendation_reviews_immutable/);
+  assert.match(migration, /phase2_current_has_capability\('ai\.recommendation\.review'\)/);
+  assert.match(migration, /approval_status<>'approved' OR need\.status='addressed'/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.phase3_record_recommendation_review\(uuid,text,text,text\) FROM PUBLIC,anon/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.phase3_record_recommendation_review\(uuid,text,text,text\) TO authenticated/);
+  assert.doesNotMatch(route, /proposal|advance|approve|reject|submit/i);
+  assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000950_phase3_recommendation_review_state.sql"), false);
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000950_phase3_recommendation_review_state.sql");
 });
 
 test("recommendation interface clearly remains advisory and is reachable from Analytics", () => {
@@ -179,6 +237,9 @@ test("recommendation interface clearly remains advisory and is reachable from An
   assert.match(page, /Indicative resources/);
   assert.match(page, /Verified five-year history benchmark/);
   assert.match(page, /insufficient comparable values/);
+  assert.match(page, /recommendation-review-controls/);
+  assert.match(page, /Select a reason only when dismissing/);
+  assert.match(page, /Endorsement and dismissal are advisory review records only/);
   assert.match(page, /Showing \{visibleRecommendations\.length\} of \{data\.recommendations\.length\} recommendations/);
   assert.match(page, /No recommendations match these filters/);
   assert.match(sidebar, /\/officer\/analytics\/recommendations/);
@@ -255,7 +316,7 @@ test("forward proposal correction supplies beneficiary count and the complete SD
   assert.match(migration, /COMMIT;\s*$/);
   assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000930_phase2_proposal_compatibility_correction.sql"), false);
   assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000930_phase2_proposal_compatibility_correction.sql"), true);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000940_phase2_beneficiary_evidence_options.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000940_phase2_beneficiary_evidence_options.sql"), true);
   for (let sdg = 1; sdg <= 17; sdg += 1) assert.match(proposals, new RegExp(`\\{ n: ${sdg},`));
 });
 

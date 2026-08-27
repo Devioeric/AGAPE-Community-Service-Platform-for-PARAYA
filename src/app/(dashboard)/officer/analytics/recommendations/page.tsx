@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -24,6 +24,14 @@ const CATEGORY_LABEL = {
   environment: "Environment",
 } as const;
 
+const DISMISSAL_REASON_LABEL = {
+  insufficient_evidence: "Evidence is not sufficient",
+  duplicate_or_covered: "Duplicate or already covered",
+  outside_current_scope: "Outside the current program scope",
+  data_quality_concern: "Data-quality concern",
+  defer_until_next_cycle: "Defer until the next profiling cycle",
+} as const;
+
 export default function AdvisoryRecommendationsPage() {
   const [data, setData] = useState<AdvisoryRecommendationResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +40,9 @@ export default function AdvisoryRecommendationsPage() {
   const [priority, setPriority] = useState("all");
   const [coverage, setCoverage] = useState("all");
   const [barangay, setBarangay] = useState("all");
+  const [reviewReasons, setReviewReasons] = useState<Record<string, keyof typeof DISMISSAL_REASON_LABEL>>({});
+  const [reviewingNeedId, setReviewingNeedId] = useState<string | null>(null);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +60,40 @@ export default function AdvisoryRecommendationsPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const recordReview = async (
+    recommendation: AdvisoryRecommendationResponse["recommendations"][number],
+    action: "endorsed" | "dismissed",
+  ) => {
+    const reasonCode = action === "dismissed" ? reviewReasons[recommendation.needId] : null;
+    if (action === "dismissed" && !reasonCode) {
+      setError("Choose a dismissal reason before dismissing this recommendation.");
+      return;
+    }
+    setReviewingNeedId(recommendation.needId);
+    setReviewMessage(null);
+    setError(null);
+    try {
+      const response = await fetch("/api/ai/recommendations/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          needId: recommendation.needId,
+          recommendationFingerprint: recommendation.recommendationFingerprint,
+          action,
+          reasonCode,
+        }),
+      });
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error ?? "Unable to record recommendation review");
+      setReviewMessage(action === "endorsed" ? "Recommendation endorsed." : "Recommendation dismissed with its reason recorded.");
+      await load();
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : "Unable to record recommendation review");
+    } finally {
+      setReviewingNeedId(null);
+    }
+  };
 
   const barangays = Array.from(new Map(
     (data?.recommendations ?? []).map((item) => [item.barangay.id, item.barangay.name]),
@@ -101,6 +146,13 @@ export default function AdvisoryRecommendationsPage() {
         <div className="flex items-center gap-2 rounded-lg border border-danger/20 bg-danger/5 p-4 text-sm text-danger" role="alert">
           <AlertCircle className="h-4 w-4" />
           {error}
+        </div>
+      )}
+
+      {reviewMessage && (
+        <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 p-4 text-sm text-success" role="status">
+          <CheckCircle2 className="h-4 w-4" />
+          {reviewMessage}
         </div>
       )}
 
@@ -198,6 +250,17 @@ export default function AdvisoryRecommendationsPage() {
                           ? "Partial active coverage"
                           : recommendation.coverage.state === "planned" ? "Plan exists" : "No plan"}
                       </Badge>
+                      <Badge variant="outline" className={recommendation.review.status === "endorsed"
+                        ? "border-success/30 bg-success/10 text-success"
+                        : recommendation.review.status === "dismissed"
+                          ? "border-muted-foreground/30 bg-muted/30 text-muted-foreground"
+                          : recommendation.review.status === "stale"
+                            ? "border-warning/30 bg-warning/10 text-warning"
+                            : "border-info/30 bg-info/10 text-info"}>
+                        {recommendation.review.status === "open" ? "Awaiting review"
+                          : recommendation.review.status === "stale" ? "Prior review is stale"
+                            : recommendation.review.status === "endorsed" ? "Researcher-endorsed" : "Dismissed"}
+                      </Badge>
                     </div>
                     <div>
                       <CardTitle className="font-heading text-lg">{recommendation.intervention.title}</CardTitle>
@@ -281,6 +344,61 @@ export default function AdvisoryRecommendationsPage() {
                     <p className="text-xs text-muted-foreground">
                       Approved need evidence · identified {new Date(`${recommendation.evidence.identifiedDate}T00:00:00`).toLocaleDateString("en-PH")}
                     </p>
+                    {recommendation.review.reviewedAt && (
+                      <div className="rounded-md border border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground">
+                          {recommendation.review.status === "stale" ? "Previous human review" : "Human review"}
+                        </p>
+                        <p className="mt-1">
+                          {recommendation.review.lastAction === "endorsed" ? "Endorsed" : "Dismissed"}
+                          {recommendation.review.reviewedBy ? ` by ${recommendation.review.reviewedBy.name}` : ""}
+                          {` on ${new Date(recommendation.review.reviewedAt).toLocaleString("en-PH")}`}.
+                          {recommendation.review.reasonCode ? ` Reason: ${DISMISSAL_REASON_LABEL[recommendation.review.reasonCode]}.` : ""}
+                        </p>
+                        {recommendation.review.status === "stale" && (
+                          <p className="mt-1 text-warning">The recommendation inputs changed after that review. Review the current version again.</p>
+                        )}
+                      </div>
+                    )}
+                    {data.scope.canReview && (
+                      <div className="space-y-2 rounded-md border border-border p-3" data-testid="recommendation-review-controls">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Researcher or Director review</p>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <select
+                            aria-label={`Dismissal reason for ${recommendation.intervention.title}`}
+                            value={reviewReasons[recommendation.needId] ?? ""}
+                            onChange={(event) => setReviewReasons((current) => ({
+                              ...current,
+                              [recommendation.needId]: event.target.value as keyof typeof DISMISSAL_REASON_LABEL,
+                            }))}
+                            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                          >
+                            <option value="">Select a reason only when dismissing</option>
+                            {Object.entries(DISMISSAL_REASON_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={reviewingNeedId === recommendation.needId}
+                            onClick={() => void recordReview(recommendation, "dismissed")}
+                          >
+                            {reviewingNeedId === recommendation.needId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsDown className="mr-2 h-4 w-4" />}
+                            Dismiss
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={reviewingNeedId === recommendation.needId}
+                            onClick={() => void recordReview(recommendation, "endorsed")}
+                          >
+                            {reviewingNeedId === recommendation.needId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
+                            Endorse
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Endorsement and dismissal are advisory review records only. They do not create or advance a proposal.</p>
+                      </div>
+                    )}
                     <div className="flex justify-end border-t border-border pt-3">
                       {recommendation.action === "develop_response" ? (
                         <Link

@@ -24,7 +24,7 @@ test("database harness executes Phase 2 behavior and browser gates only in the d
   assert.match(harness, /runPhase2BrowserGates/);
   assert.match(harness, /readPhase2CountsFromDisposableDatabase/);
   assert.match(harness, /result\.finalState\?\.phase2Modes !== "off"/);
-  assert.equal(phase2BrowserGateContract().cases, 6);
+  assert.equal(phase2BrowserGateContract().cases, 7);
   assert.equal(phase2BrowserGateContract().aiRequests, 3);
 });
 

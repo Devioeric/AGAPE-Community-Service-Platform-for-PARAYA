@@ -17,8 +17,13 @@ test("role capabilities isolate Admin from operational domains", () => {
 
 test("capability aliases and generated permission controls use the canonical matrix", () => {
   assert.equal(CAPABILITY_MODULE["volunteer.self"], "volunteers");
+  assert.equal(CAPABILITY_MODULE["ai.recommendation.review"], "ai_assistance");
   assert.equal(permissionModulesForRole("admin").some((module) => module.key === "profiling"), false);
   assert.equal(permissionModulesForRole("paraya_researcher").some((module) => module.key === "profiling"), true);
+  assert.equal(hasCapability("paraya_researcher", {}, "ai.recommendation.review"), true);
+  assert.equal(hasCapability("paraya_director", {}, "ai.recommendation.review"), true);
+  assert.equal(hasCapability("paraya_associate", {}, "ai.recommendation.review"), false);
+  assert.equal(hasCapability("paraya_researcher", { ai_assistance: false }, "ai.recommendation.review"), false);
 });
 
 test("permission overrides can deny but never grant a role capability", () => {

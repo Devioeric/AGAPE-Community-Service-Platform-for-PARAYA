@@ -7,8 +7,14 @@ import {
   buildAdvisoryRecommendations,
   recommendationDismissalReasonSchema,
 } from "@/lib/ai/advisory-recommendations";
+import {
+  getRecommendationAutomationMode,
+  isRecommendationAutomationEnabled,
+  recommendationNotificationSyncResultSchema,
+} from "@/lib/ai/recommendation-automation";
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { hasCapability } from "@/lib/auth/capabilities";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { validateProfilingAggregateDTO } from "@/lib/profiling/privacy";
 import { isPhase2ComponentEnabled } from "@/lib/phase2/feature";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -75,13 +81,27 @@ function addCoverage(
 }
 
 export async function GET(request: Request) {
-  const auth = await authorizeCapability("analytics.aggregate.read");
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  if (!hasCapability(auth.actor.role, auth.actor.permissions, "ai.assist")) {
+  const requestUrl = new URL(request.url);
+  const scheduled = requestUrl.searchParams.get("scheduled") === "true";
+  const automationMode = getRecommendationAutomationMode();
+  if (scheduled) {
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
+    if (Array.from(requestUrl.searchParams.keys()).some((key) => key !== "scheduled")) {
+      return NextResponse.json({ error: "Scheduled refresh does not accept filters" }, { status: 400 });
+    }
+    if (!isRecommendationAutomationEnabled()) {
+      return NextResponse.json({ data: { skipped: true, reason: "recommendation_automation_disabled" } });
+    }
+  }
+
+  const auth = scheduled ? null : await authorizeCapability("analytics.aggregate.read");
+  if (auth && !auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!scheduled && (!auth || !auth.ok || !hasCapability(auth.actor.role, auth.actor.permissions, "ai.assist"))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const rawQuery = queryObject(new URL(request.url).searchParams);
+  const rawQuery = scheduled ? {} : queryObject(requestUrl.searchParams);
   const parsed = querySchema.safeParse(rawQuery);
   if (!parsed.success) {
     return NextResponse.json({ error: "Only one valid barangay_id may be supplied" }, { status: 400 });
@@ -90,12 +110,13 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   let needsQuery = admin
     .from("community_needs")
-    .select("id,barangay_id,category,priority_score,status,identified_date,barangays(name)")
+    .select("id,barangay_id,category,priority_score,status,identified_date,barangays!inner(name,is_synthetic_test)")
     .eq("approval_status", "approved")
     .neq("status", "addressed")
     .order("priority_score", { ascending: false, nullsFirst: false })
     .limit(500);
   if (parsed.data.barangay_id) needsQuery = needsQuery.eq("barangay_id", parsed.data.barangay_id);
+  if (scheduled) needsQuery = needsQuery.eq("barangays.is_synthetic_test", automationMode === "synthetic");
 
   const { data: needRows, error: needsError } = await needsQuery;
   if (needsError) {
@@ -343,7 +364,9 @@ export async function GET(request: Request) {
     ...generated,
     scope: {
       ...generated.scope,
-      canReview: hasCapability(auth.actor.role, auth.actor.permissions, "ai.recommendation.review"),
+      canReview: auth?.ok
+        ? hasCapability(auth.actor.role, auth.actor.permissions, "ai.recommendation.review")
+        : false,
     },
     recommendations: generated.recommendations.map((recommendation) => {
       const storedReview = latestReviewByNeed.get(recommendation.needId);
@@ -364,6 +387,35 @@ export async function GET(request: Request) {
       };
     }),
   });
+
+  if (scheduled) {
+    const syncResult = await admin.rpc("phase3_sync_recommendation_notifications", {
+      p_mode: automationMode,
+      p_recommendations: result.recommendations.map((recommendation) => ({
+        needId: recommendation.needId,
+        recommendationFingerprint: recommendation.recommendationFingerprint,
+        priorityLabel: recommendation.priority.label,
+      })),
+    });
+    if (syncResult.error) {
+      console.error("[ai-recommendations] scheduled notification sync failed", { code: syncResult.error.code });
+      return NextResponse.json({ error: "Unable to synchronize recommendation notices" }, { status: 500 });
+    }
+    const sync = recommendationNotificationSyncResultSchema.safeParse(syncResult.data);
+    if (!sync.success) {
+      return NextResponse.json({ error: "Recommendation notification result was invalid" }, { status: 500 });
+    }
+    return NextResponse.json({
+      data: {
+        skipped: false,
+        mode: automationMode,
+        recommendationCount: result.summary.recommendationCount,
+        ...sync.data,
+      },
+    });
+  }
+
+  if (!auth || !auth.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const auditWritten = await recordAudit({
     user_id: auth.actor.id,

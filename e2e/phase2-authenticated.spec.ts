@@ -107,6 +107,31 @@ if (process.env.AGAPE_PHASE2_E2E === "true") {
     await expect(card).toContainText("do not create or advance a proposal");
   });
 
+  if (component === "recommendation_automation") test("weekly advisory refresh creates only deduplicated synthetic in-app notices", async ({ page }) => {
+    await signIn(page, "researcher", /\/officer(?:\/)?$/);
+    const run = async () => page.request.get("/api/ai/recommendations?scheduled=true", {
+      headers: { authorization: "Bearer SyntheticRecommendationCronOnly!2026" },
+    });
+    const first = await run();
+    expect(first.status()).toBe(200);
+    const firstBody = await first.json();
+    expect(firstBody.data).toMatchObject({ skipped: false, mode: "synthetic" });
+    expect(firstBody.data.created).toBeGreaterThan(0);
+
+    const retry = await run();
+    expect(retry.status()).toBe(200);
+    expect((await retry.json()).data.created).toBe(0);
+
+    const notifications = await page.evaluate(async () => {
+      const response = await fetch("/api/notifications");
+      return { status: response.status, body: await response.json() };
+    });
+    expect(notifications.status).toBe(200);
+    const notice = notifications.body.data.find((item: { title?: string }) => item.title === "Community need recommendation ready");
+    expect(notice).toMatchObject({ type: "alert", action_url: "/officer/analytics/recommendations" });
+    expect(Object.keys(notice).sort()).toEqual(["action_url", "channel", "created_at", "id", "is_read", "message", "title", "type"]);
+  });
+
   if (component === "ai_privacy") test("AI receives aggregate-only Phase 2-safe context and remains advisory", async ({ page }) => {
     await signIn(page, "researcher", /\/officer(?:\/)?$/);
     const result = await page.evaluate(async () => {

@@ -197,7 +197,8 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /"ai\.recommendation\.review"/);
   assert.doesNotMatch(route, /select\(["'`]\*["'`]\)/);
   assert.doesNotMatch(route, /need_description|resident_name|contact|receipt|storage_path|profiling_resident_versions|profiling_household_versions/);
-  assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(|\.rpc\(/);
+  assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(|\.upsert\(/);
+  assert.match(route, /\.rpc\("phase3_sync_recommendation_notifications"/);
   assert.doesNotMatch(route, /anthropic|generativelanguage|openai|googleapis/i);
 });
 
@@ -217,7 +218,36 @@ test("recommendation review is capability-gated, strict, append-only, and cannot
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.phase3_record_recommendation_review\(uuid,text,text,text\) TO authenticated/);
   assert.doesNotMatch(route, /proposal|advance|approve|reject|submit/i);
   assert.equal(scopes.scopes.phase1.migrationNames.includes("20260818000950_phase3_recommendation_review_state.sql"), false);
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000950_phase3_recommendation_review_state.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.includes("20260818000950_phase3_recommendation_review_state.sql"), true);
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818000960_phase3_recommendation_notifications.sql");
+});
+
+test("scheduled recommendation notices are disabled, mode-bound, deduplicated, and advisory-only", () => {
+  const route = readFileSync("src/app/api/ai/recommendations/route.ts", "utf8");
+  const feature = readFileSync("src/lib/ai/recommendation-automation.ts", "utf8");
+  const migration = readFileSync("supabase/migrations/20260818000960_phase3_recommendation_notifications.sql", "utf8");
+  const env = readFileSync(".env.example", "utf8");
+  const vercel = readFileSync("vercel.json", "utf8");
+  const notifications = readFileSync("src/app/api/notifications/route.ts", "utf8");
+  assert.match(env, /^AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED=false$/m);
+  assert.match(env, /^AGAPE_AI_RECOMMENDATION_AUTOMATION_MODE=off$/m);
+  assert.match(feature, /=== "true"/);
+  assert.match(feature, /!== "off"/);
+  assert.match(route, /requireCronAuth\(request\)/);
+  assert.match(route, /phase3_sync_recommendation_notifications/);
+  assert.match(route, /recommendationFingerprint/);
+  assert.match(vercel, /\/api\/ai\/recommendations\?scheduled=true/);
+  assert.match(migration, /UNIQUE\(need_id,recommendation_fingerprint,recipient_user_id\)/);
+  assert.match(migration, /current_review_action='dismissed'/);
+  assert.match(migration, /expected_priority='critical' OR current_review_action='endorsed'/);
+  assert.match(migration, /u\.role IN\('paraya_researcher','paraya_associate'\)/);
+  assert.match(migration, /is_synthetic_test IS DISTINCT FROM \(p_mode='synthetic'\)/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.phase3_sync_recommendation_notifications\(text,jsonb\) FROM PUBLIC,anon,authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.phase3_sync_recommendation_notifications\(text,jsonb\) TO service_role/);
+  assert.doesNotMatch(route, /project_proposals[\s\S]{0,500}\.(insert|update|upsert)\(/);
+  assert.doesNotMatch(route, /director_approve|finance_clear|\/advance/);
+  assert.doesNotMatch(notifications, /\.select\("\*"\)/);
+  assert.match(notifications, /markReadSchema/);
 });
 
 test("recommendation interface clearly remains advisory and is reachable from Analytics", () => {

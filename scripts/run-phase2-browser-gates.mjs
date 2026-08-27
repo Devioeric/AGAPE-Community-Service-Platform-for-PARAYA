@@ -21,7 +21,7 @@ const PARTNERS = [
 const COMPONENTS = ["partners", "historical_programs", "proposals", "program_finance", "external_contact_email"];
 
 export function phase2BrowserGateContract() {
-  return { schema: "agape.phase2-browser-gates.v1", cases: 7, aiRequests: 3, finalState: { phase2Modes: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
+  return { schema: "agape.phase2-browser-gates.v1", cases: 8, aiRequests: 3, finalState: { phase2Modes: "off", recommendationAutomation: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
 }
 
 async function startAiRecorder() {
@@ -117,6 +117,8 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
     AGAPE_PARTNER_REGISTRY_V2_ENABLED: "false", AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED: "false",
     AGAPE_PROPOSALS_V2_ENABLED: "false", AGAPE_PROGRAM_FINANCE_V2_ENABLED: "false",
     AGAPE_EXTERNAL_CONTACT_EMAIL_ENABLED: "false", AGAPE_LEGACY_ACCOUNT_SUSPENSION_ENABLED: "false",
+    AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED: "false", AGAPE_AI_RECOMMENDATION_AUTOMATION_MODE: "off",
+    CRON_SECRET: "SyntheticRecommendationCronOnly!2026",
     AGAPE_PHASE2_E2E: "true", PLAYWRIGHT_BASE_URL: baseUrl,
     LOCAL_AI_BASE_URL: "http://127.0.0.1:3111/v1", LOCAL_AI_API_KEY: "synthetic-phase2-ai-key", LOCAL_AI_MODEL: "synthetic-recording-model",
   });
@@ -130,6 +132,7 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
     { name: "program_finance", modes: [["program_finance", ["f3320000-0000-4000-8000-000000000001"]]], flags: { AGAPE_PROGRAM_FINANCE_V2_ENABLED: "true" } },
     { name: "barangay_scope", modes: [["partners", PARTNERS], ["historical_programs", ["f3200000-0000-4000-8000-000000000001", "f3200000-0000-4000-8000-000000000002"], "2026-01-01"]], flags: { AGAPE_PARTNER_REGISTRY_V2_ENABLED: "true", AGAPE_HISTORICAL_PROGRAMS_V2_ENABLED: "true" } },
     { name: "recommendation_review", modes: [], flags: {} },
+    { name: "recommendation_automation", modes: [], flags: { AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED: "true", AGAPE_AI_RECOMMENDATION_AUTOMATION_MODE: "synthetic" } },
     { name: "ai_privacy", modes: [], flags: {} },
   ];
 

@@ -784,3 +784,45 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: implement a bounded, disabled-by-default scheduled
   recommendation refresh and in-app notification path that honors current and
   stale fingerprints and cannot create or transition proposals.
+
+## Phase 3 scheduled advisory refresh and in-app notices
+
+- Status: `locally_complete`. The job remains explicitly disabled and off in
+  committed configuration; no remote schedule or shared database was changed.
+- Implemented: a Monday refresh reuses the strict recommendation engine and
+  creates only in-app alerts. It is protected by the cron secret, a separate
+  boolean feature gate, and an `off | synthetic | live` process mode. Invalid
+  or missing modes fail closed.
+- Recipient behavior: eligible Researcher and Associate accounts receive a new
+  material recommendation; Directors receive Critical or currently endorsed
+  recommendations. Inactive accounts, AI-denied accounts, and opposite-mode
+  accounts are excluded. A current dismissal suppresses delivery, while a new
+  fingerprint makes the former decision stale and eligible for review again.
+- Database boundary: added forward-only migration
+  `20260818000960_phase3_recommendation_notifications.sql`. The service-only,
+  fixed-search-path RPC validates an exact three-field aggregate payload,
+  validates actual need priority and synthetic/live barangay mode, inserts the
+  notice and immutable delivery record atomically, and deduplicates by need,
+  fingerprint, and recipient under an advisory lock. It cannot create or alter
+  proposals.
+- Notification compatibility: added the already-consumed `action_url` column
+  forward-only. The authenticated notification API now returns an explicit
+  eight-field DTO and uses a strict, bounded mark-read contract instead of
+  `select("*")` and an unchecked body.
+- Verification: focused contracts pass 22/22; complete Node tests pass 222/222;
+  typecheck and lint pass. Two clean Phase 2 database replays match at SHA-256
+  `e9dae37b31d8d8f80f4ce007f6c58502c3778538cf810b1cf3dd9e2c271e61a1`;
+  catalog/runtime/Storage assertions pass 32/32, seeded SQL passes 154/154,
+  behavioral security passes 83/83, legacy-seed compatibility passes, and the
+  authenticated browser/AI gate passes 8/8. The browser gate proves a material
+  first delivery, zero-delivery idempotent retry, visible allowlisted notice,
+  and unchanged proposal/program workflow fingerprint.
+- Final state: disposable stacks were removed. The automation flag remains
+  `false`, its mode remains `off`, Phase 2 modes remain `off`, and V1 mutation
+  authority remains the default.
+- Rollback: disable the flag and set the process mode to `off`. If the migration
+  has been applied, retain immutable delivery history and correct defects with
+  a later forward migration rather than deleting notification evidence.
+- Next exact action: audit the remaining approved Phase 3 advisory scope for a
+  demonstrated local gap, prioritizing user-visible unmet-need coverage and
+  review transparency over external AI or workflow automation.

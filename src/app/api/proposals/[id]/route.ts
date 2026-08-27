@@ -58,6 +58,17 @@ export async function GET(_req: Request, { params }: Ctx) {
   }
   if (!data) return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
 
+  const { error: auditError } = await admin.from("audit_logs").insert({
+    user_id: auth.actor.id,
+    user_email: auth.actor.email,
+    action: "proposal.detail.read",
+    resource_type: "project_proposal",
+    resource_id: id,
+    level: "info",
+    metadata: { status: data.status },
+  });
+  if (auditError) return NextResponse.json({ error: "Proposal detail access could not be audited" }, { status: 500 });
+
   return NextResponse.json({ data });
 }
 

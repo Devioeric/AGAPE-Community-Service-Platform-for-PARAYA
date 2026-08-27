@@ -1536,3 +1536,23 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: audit remaining proposal compatibility service-role reads
   for missing durable read audits and decide which operational reads need an
   audited narrow adapter without changing current workflow authority.
+
+## Phase 3 audited proposal compatibility reads
+
+- Status: `locally_complete`. All service-role proposal compatibility reads now
+  append a durable audit before returning their DTO.
+- Operational reads: list reads record only result count; detail reads record
+  only proposal status and parent ID. Audit failure prevents the service-role
+  response rather than exposing an unaudited proposal payload.
+- Historical adapter: institutional summary reads remain limited to title,
+  status, and date for rows created by that identity, and now record only the
+  returned count. Audit failure also fails this read closed.
+- Commands/results: focused advisory/proposal tests pass 31/31; complete Node
+  tests pass 240/240 with zero failures/skips; typecheck and lint pass.
+- Migration/security impact: no migration, database operation, feature-state
+  change, workflow action, worker action, or external AI call occurred.
+- Rollback: revert this API checkpoint only if necessary. Do not restore
+  unaudited service-role proposal reads.
+- Next exact action: inspect proposal creation, where the parent, SDGs, and
+  recommendation provenance are still written in separate transactions with
+  compensating hard deletes, and replace that graph write atomically.

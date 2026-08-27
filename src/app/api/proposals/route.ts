@@ -16,16 +16,28 @@ export async function GET() {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   if (!hasCapability(auth.actor.role, auth.actor.permissions, "proposal.read")) {
-    const { data, error } = await createAdminClient()
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("project_proposals")
       .select("id, title, status, created_at")
       .eq("created_by", auth.actor.id)
       .order("created_at", { ascending: false });
     if (error) return NextResponse.json({ error: "Historical proposals could not be loaded" }, { status: 500 });
+    const { error: auditError } = await admin.from("audit_logs").insert({
+      user_id: auth.actor.id,
+      user_email: auth.actor.email,
+      action: "proposal.legacy_history.read",
+      resource_type: "project_proposal_collection",
+      resource_id: null,
+      level: "info",
+      metadata: { result_count: (data ?? []).length },
+    });
+    if (auditError) return NextResponse.json({ error: "Historical proposal access could not be audited" }, { status: 500 });
     return NextResponse.json({ data });
   }
 
-  const query = createAdminClient()
+  const admin = createAdminClient();
+  const query = admin
     .from("project_proposals")
     .select(PROPOSAL_LIST_FIELDS)
     .order("created_at", { ascending: false });
@@ -35,6 +47,16 @@ export async function GET() {
     console.error("Proposal list query failed", { code: error.code });
     return NextResponse.json({ error: "Proposals could not be loaded" }, { status: 500 });
   }
+  const { error: auditError } = await admin.from("audit_logs").insert({
+    user_id: auth.actor.id,
+    user_email: auth.actor.email,
+    action: "proposal.list.read",
+    resource_type: "project_proposal_collection",
+    resource_id: null,
+    level: "info",
+    metadata: { result_count: (data ?? []).length },
+  });
+  if (auditError) return NextResponse.json({ error: "Proposal list access could not be audited" }, { status: 500 });
   return NextResponse.json({ data });
 }
 

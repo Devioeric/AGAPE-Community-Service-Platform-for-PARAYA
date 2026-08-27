@@ -648,6 +648,12 @@ test("proposal compatibility DTOs omit internal actor identifiers", () => {
     assert.doesNotMatch(fields, /created_by|finance_cleared_by|community_validated_by/);
   }
   assert.doesNotMatch(detailFields, /proposal_sdg_alignment\(id,/);
+  assert.match(listRoute, /proposal\.legacy_history\.read/);
+  assert.match(listRoute, /proposal\.list\.read/);
+  assert.match(detailRoute, /proposal\.detail\.read/);
+  assert.match(listRoute, /Historical proposal access could not be audited/);
+  assert.match(listRoute, /Proposal list access could not be audited/);
+  assert.match(detailRoute, /Proposal detail access could not be audited/);
 });
 
 test("printable PPF uses a reviewed and redacted evidence projection", () => {

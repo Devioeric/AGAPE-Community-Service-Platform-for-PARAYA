@@ -143,6 +143,9 @@ export async function GET(request: Request) {
   const historyWindowStartDate = new Date(`${historyAsOfDate}T00:00:00.000Z`);
   historyWindowStartDate.setUTCFullYear(historyWindowStartDate.getUTCFullYear() - 5);
   const historyWindowStart = historyWindowStartDate.toISOString().slice(0, 10);
+  const recentProgramWindowStartDate = new Date(`${historyAsOfDate}T00:00:00.000Z`);
+  recentProgramWindowStartDate.setUTCMonth(recentProgramWindowStartDate.getUTCMonth() - 24);
+  const recentProgramWindowStart = recentProgramWindowStartDate.toISOString().slice(0, 10);
   const historyByCategory = new Map<string, { matchedRecords: number; budgetTotals: number[]; volunteerCounts: number[] }>();
   if (isPhase2ComponentEnabled("historical_programs")) {
     const runtimeResult = await admin
@@ -307,13 +310,17 @@ export async function GET(request: Request) {
 
   const allProgramIds = Array.from(new Set(Array.from(programIdsByNeed.values()).flatMap((ids) => Array.from(ids))));
   const programStatuses = new Map<string, string>();
+  const programEndDates = new Map<string, string | null>();
   if (allProgramIds.length > 0) {
-    const { data, error } = await admin.from("programs").select("id,status").in("id", allProgramIds);
+    const { data, error } = await admin.from("programs").select("id,status,end_date").in("id", allProgramIds);
     if (error) {
       console.error("[ai-recommendations] program coverage query failed", { code: error.code });
       return NextResponse.json({ error: "Unable to evaluate program coverage" }, { status: 500 });
     }
-    for (const program of data ?? []) programStatuses.set(program.id, program.status);
+    for (const program of data ?? []) {
+      programStatuses.set(program.id, program.status);
+      programEndDates.set(program.id, program.end_date);
+    }
   }
 
   const generated = buildAdvisoryRecommendations({
@@ -322,6 +329,11 @@ export async function GET(request: Request) {
       const relatedProposalIds = proposalIdsByNeed.get(need.id) ?? new Set<string>();
       const relatedProgramIds = programIdsByNeed.get(need.id) ?? new Set<string>();
       const activeProgramIds = Array.from(relatedProgramIds).filter((id) => ACTIVE_PROGRAM_STATUSES.has(programStatuses.get(id) ?? ""));
+      const completedProgramIds = Array.from(relatedProgramIds).filter((id) => programStatuses.get(id) === "completed");
+      const recentCompletedProgramCount = completedProgramIds.filter((id) => {
+        const endDate = programEndDates.get(id);
+        return Boolean(endDate && endDate >= recentProgramWindowStart && endDate <= historyAsOfDate);
+      }).length;
       const barangay = need.barangays as unknown as { name: string } | null;
       const profiling = profilingByBarangay.get(need.barangay_id);
       const needCell = profiling?.aggregate.cells.find((cell) => cell.dimension === "needs" && cell.key === need.category) ?? null;
@@ -346,7 +358,8 @@ export async function GET(request: Request) {
         plannedProposalCount: Array.from(relatedProposalIds).filter((id) => PLANNED_PROPOSAL_STATUSES.has(proposalStatuses.get(id) ?? "")).length,
         activeProgramCount: activeProgramIds.length,
         activeFullProgramCount: activeProgramIds.filter((id) => programCoverageByNeed.get(need.id)?.get(id) === "full").length,
-        completedProgramCount: Array.from(relatedProgramIds).filter((id) => programStatuses.get(id) === "completed").length,
+        completedProgramCount: completedProgramIds.length,
+        recentCompletedProgramCount,
         largestLinkedPlannedBeneficiaryCount: plannedBeneficiaryCounts.length > 0
           ? Math.max(...plannedBeneficiaryCounts)
           : null,

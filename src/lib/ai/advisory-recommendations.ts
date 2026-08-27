@@ -53,12 +53,16 @@ export const advisoryNeedInputSchema = z.object({
   activeProgramCount: z.number().int().nonnegative(),
   activeFullProgramCount: z.number().int().nonnegative(),
   completedProgramCount: z.number().int().nonnegative(),
+  recentCompletedProgramCount: z.number().int().nonnegative(),
   largestLinkedPlannedBeneficiaryCount: z.number().int().positive().nullable(),
   profilingEvidence: advisoryProfilingEvidenceSchema.nullable(),
   historicalBenchmark: advisoryHistoricalBenchmarkInputSchema.nullable(),
 }).strict().superRefine((value, ctx) => {
   if (value.activeFullProgramCount > value.activeProgramCount) {
     ctx.addIssue({ code: "custom", message: "Full active coverage cannot exceed all active coverage" });
+  }
+  if (value.recentCompletedProgramCount > value.completedProgramCount) {
+    ctx.addIssue({ code: "custom", message: "Recent completed programs cannot exceed all completed programs" });
   }
 });
 
@@ -124,6 +128,8 @@ export const advisoryRecommendationSchema = z.object({
     activeFullPrograms: z.number().int().nonnegative(),
     activePartialPrograms: z.number().int().nonnegative(),
     completedPrograms: z.number().int().nonnegative(),
+    recentCompletedPrograms: z.number().int().nonnegative(),
+    olderOrUndatedCompletedPrograms: z.number().int().nonnegative(),
     estimate: z.object({
       status: z.enum(["available", "suppressed", "unavailable"]),
       affectedCount: evidenceCountSchema.nullable(),
@@ -181,6 +187,7 @@ export const advisoryRecommendationResponseSchema = z.object({
     needsWithActivePrograms: z.number().int().nonnegative(),
     needsWithPartialActiveCoverage: z.number().int().nonnegative(),
     needsWithFullActiveCoverage: z.number().int().nonnegative(),
+    needsWithRecentCompletedPrograms: z.number().int().nonnegative(),
     recommendationCount: z.number().int().nonnegative(),
   }).strict(),
   recommendations: z.array(advisoryRecommendationSchema).max(100),
@@ -450,9 +457,12 @@ export function buildAdvisoryRecommendations(input: {
       const benchmarkConfidence = matchedRecords === 0
         ? "unavailable" as const
         : budgetRange || volunteerRange ? "moderate" as const : "limited" as const;
-      const priorProgramNote = need.completedProgramCount > 0
-        ? ` ${need.completedProgramCount} completed related program${need.completedProgramCount === 1 ? " is" : "s are"} recorded, so verify whether the need persists before finalizing a response.`
-        : "";
+      const olderOrUndatedCompletedPrograms = need.completedProgramCount - need.recentCompletedProgramCount;
+      const priorProgramNote = need.recentCompletedProgramCount > 0
+        ? ` ${need.recentCompletedProgramCount} related program${need.recentCompletedProgramCount === 1 ? " was" : "s were"} completed within the previous 24 months; review its verified outcomes and whether the need recurred before finalizing a response.${olderOrUndatedCompletedPrograms > 0 ? ` ${olderOrUndatedCompletedPrograms} older or undated completed record${olderOrUndatedCompletedPrograms === 1 ? " is" : "s are"} retained as lower-recency context.` : ""}`
+        : olderOrUndatedCompletedPrograms > 0
+          ? ` ${olderOrUndatedCompletedPrograms} related completed record${olderOrUndatedCompletedPrograms === 1 ? " is" : "s are"} older than 24 months or undated, so treat that history as limited context and verify whether the need persists.`
+          : "";
       const coverageEstimate = buildCoverageEstimate(need);
       const beneficiaryGuidance = buildBeneficiaryGuidance(need);
 
@@ -468,6 +478,8 @@ export function buildAdvisoryRecommendations(input: {
           activeFullPrograms: need.activeFullProgramCount,
           activePartialPrograms: need.activeProgramCount - need.activeFullProgramCount,
           completedPrograms: need.completedProgramCount,
+          recentCompletedPrograms: need.recentCompletedProgramCount,
+          olderOrUndatedCompletedPrograms,
           estimate: coverageEstimate,
         },
         beneficiaryGuidance,
@@ -549,6 +561,7 @@ export function buildAdvisoryRecommendations(input: {
       needsWithActivePrograms: needs.filter((need) => need.activeProgramCount > 0).length,
       needsWithPartialActiveCoverage: needs.filter((need) => need.activeProgramCount > 0 && need.activeFullProgramCount === 0).length,
       needsWithFullActiveCoverage: needs.filter((need) => need.activeFullProgramCount > 0).length,
+      needsWithRecentCompletedPrograms: needs.filter((need) => need.recentCompletedProgramCount > 0).length,
       recommendationCount: recommendations.length,
     },
     recommendations,

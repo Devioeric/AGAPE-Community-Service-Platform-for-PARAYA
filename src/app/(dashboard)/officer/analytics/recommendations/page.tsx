@@ -164,6 +164,7 @@ export default function AdvisoryRecommendationsPage() {
               ["Without a response", data.summary.unaddressedNeeds],
               ["Plans to review", data.summary.needsWithPlannedResponses],
               ["Active coverage", data.summary.needsWithActivePrograms],
+              ["Recent completed context", data.summary.needsWithRecentCompletedPrograms],
             ].map(([label, value]) => (
               <Card key={String(label)} className="border-border shadow-card">
                 <CardContent className="p-4">
@@ -360,7 +361,7 @@ export default function AdvisoryRecommendationsPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
-                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.activePartialPrograms} partial active · {recommendation.coverage.completedPrograms} completed · {recommendation.confidence} confidence
+                        {recommendation.coverage.plannedProposals} planned · {recommendation.coverage.activePartialPrograms} partial active · {recommendation.coverage.recentCompletedPrograms} completed in prior 24 months · {recommendation.coverage.olderOrUndatedCompletedPrograms} older/undated · {recommendation.confidence} confidence
                       </div>
                       <div className="flex flex-wrap gap-1.5" aria-label="Suggested Sustainable Development Goals">
                         {recommendation.suggestedSdgs.map((sdg) => <Badge key={sdg} variant="outline">SDG {sdg}</Badge>)}

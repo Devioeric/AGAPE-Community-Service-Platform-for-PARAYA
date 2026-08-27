@@ -18,6 +18,7 @@ const NEED = {
   activeProgramCount: 0,
   activeFullProgramCount: 0,
   completedProgramCount: 0,
+  recentCompletedProgramCount: 0,
   largestLinkedPlannedBeneficiaryCount: null,
   profilingEvidence: null,
   historicalBenchmark: null,
@@ -42,6 +43,7 @@ test("advisory engine ranks uncovered approved needs and excludes active coverag
     needsWithActivePrograms: 1,
     needsWithPartialActiveCoverage: 0,
     needsWithFullActiveCoverage: 1,
+    needsWithRecentCompletedPrograms: 0,
     recommendationCount: 2,
   });
   assert.equal(result.recommendations[0].category, "health");
@@ -106,14 +108,23 @@ test("partial active coverage remains visible while full active coverage suppres
   assert.equal(result.summary.needsWithFullActiveCoverage, 1);
 });
 
-test("advisory engine uses a conservative default when priority evidence is missing", () => {
+test("advisory engine distinguishes recent completed programs from older context", () => {
   const result = buildAdvisoryRecommendations({
-    needs: [{ ...NEED, category: "environment", priorityScore: null, completedProgramCount: 2 }],
+    needs: [{ ...NEED, category: "environment", priorityScore: null, completedProgramCount: 3, recentCompletedProgramCount: 2 }],
   });
   assert.equal(result.recommendations[0].priority.score, 3);
   assert.equal(result.recommendations[0].confidence, "medium");
-  assert.match(result.recommendations[0].rationale, /2 completed related programs are recorded/);
+  assert.equal(result.recommendations[0].coverage.recentCompletedPrograms, 2);
+  assert.equal(result.recommendations[0].coverage.olderOrUndatedCompletedPrograms, 1);
+  assert.match(result.recommendations[0].rationale, /completed within the previous 24 months/);
+  assert.match(result.recommendations[0].rationale, /older or undated completed record/);
   assert.deepEqual(result.recommendations[0].suggestedSdgs, [6, 11, 13]);
+});
+
+test("recent completed counts cannot exceed total completed history", () => {
+  assert.throws(() => buildAdvisoryRecommendations({
+    needs: [{ ...NEED, category: "health", priorityScore: 4, completedProgramCount: 0, recentCompletedProgramCount: 1 }],
+  }), /Recent completed programs cannot exceed/);
 });
 
 test("recommendations cite only de-identified profiling provenance and suppression-safe counts", () => {
@@ -243,6 +254,8 @@ test("recommendation API is capability-gated, allowlisted, audited, and read-onl
   assert.match(route, /intended_coverage/);
   assert.match(route, /planned_beneficiary_count/);
   assert.match(route, /source_proposal_need_link_id/);
+  assert.match(route, /select\("id,status,end_date"\)/);
+  assert.match(route, /setUTCMonth\(recentProgramWindowStartDate\.getUTCMonth\(\) - 24\)/);
   assert.match(route, /Math\.max\(\.\.\.plannedBeneficiaryCounts\)/);
   assert.match(route, /activeFullProgramCount/);
   assert.match(route, /validateProfilingAggregateDTO/);

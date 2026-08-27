@@ -893,3 +893,28 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: inspect the recommendation recency rule and implement the
   approved 24-month prior-program relevance window so completed programs inform
   recommendations without permanently masking recurring needs.
+
+## Phase 3 24-month completed-program relevance
+
+- Status: `locally_complete`. Completed programs remain advisory context and do
+  not automatically hide, resolve, or reject a current approved need.
+- Implemented: the recommendation route now reads only program status and end
+  date for linked operational programs, derives a rolling 24-month window, and
+  separates recent completed programs from older or undated records. Future end
+  dates do not count as recent evidence.
+- Interface: recommendation summaries and cards distinguish recent completion
+  context from older/undated history. The rationale directs staff to review
+  verified outcomes and recurrence for recent programs, while explicitly
+  labelling older or undated records as limited context.
+- Integrity: strict input validation prevents recent completed counts from
+  exceeding total completed history. Both values participate in the material
+  recommendation state and therefore in review staleness.
+- Commands/results: focused advisory contracts pass 20/20; the complete Node
+  suite passes 225/225; typecheck and lint pass; and the 166-page/route
+  production build passes. No migration or remote/shared operation occurred.
+- Rollback: revert this development checkpoint. Do not restore an unbounded
+  historical count that treats old or undated programs as equally current.
+- Next exact action: make the recommendation priority queue conform to the
+  approved automation rule—automated alerts target High/Critical gaps, while
+  lower-priority needs remain available for manual analysis without routine
+  notification noise.

@@ -38,7 +38,7 @@ AI may later provide advisory profiling suggestions, project recommendations, al
 
 Authorized PARAYA personnel encode proposals, including a recorded non-login origin Partner/Proponent where applicable. Required-field checks warn/block incomplete submission rather than auto-reject. Finance may clear or return budget concerns; Director alone finally approves/rejects, with remarks and immutable decision history. Hard deletion of governed proposal/program/budget history is disabled.
 
-Programs, volunteer assignments, invitations/proximity matching, partnerships, previous programs, and structured proposal/budget expansion remain governed by the canonical phased plan. Volunteer matching will prioritize eligibility, skills, availability, then proximity when implemented. Finance monitoring is not payment processing or a replacement accounting system.
+Programs, volunteer assignments, partnerships, previous programs, and structured proposal/budget expansion remain governed by the canonical phased plan. Phase 4 volunteer matching prioritizes eligibility, skills, availability, then Haversine proximity and exposes only a distance band/within-radius result. Volunteers may provide a rounded approximate base only with consent. Secure program invitations are expiring, capacity-bound, hashed, revocable, and audited; ordinary volunteers can create them only when designated as program leaders. Phase 4 remains disabled until its disposable replay and authorization gate pass. Finance monitoring is not payment processing or a replacement accounting system.
 
 ### Surveys, donations, and impact
 

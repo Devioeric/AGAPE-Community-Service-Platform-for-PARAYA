@@ -1,0 +1,23 @@
+flowchart LR
+  Volunteer[Volunteer] -->|skills, availability, optional consented approximate base| Preferences[Matching Preferences]
+  Officer[PARAYA Officer] -->|site, schedule, radius, eligibility and skills| Setup[Program Matching Setup]
+  Preferences --> Matcher[Deterministic Matcher]
+  Setup --> Matcher
+  Classes[Class Schedules] --> Matcher
+  Matcher -->|eligibility, skill count, availability, distance band only| Officer
+  Matcher -->|ranked available programs| Volunteer
+  Officer -->|assigns active enrolled volunteer as leader| Leader[Program Leader]
+  Officer --> Invite[Secure Invitation Operation]
+  Leader --> Invite
+  Invite -->|one-time raw token; hash stored| Recipient[Invite Recipient]
+  Recipient -->|login or fixed-role registration| Consume[Atomic Invitation Consumption]
+  Consume -->|eligible and capacity available| Signup[Confirmed Program Signup]
+  Consume -->|capacity or eligibility review| Waitlist[Idempotent Waitlist]
+  Officer -->|approve or decline| Waitlist
+  Invite --> Events[Immutable Invitation Events]
+  Consume --> Events
+  Waitlist --> Events
+  Runtime[Independent off / synthetic / live gates] --> Preferences
+  Runtime --> Setup
+  Runtime --> Invite
+  Runtime --> Consume

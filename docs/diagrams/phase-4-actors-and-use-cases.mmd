@@ -1,0 +1,36 @@
+flowchart TB
+  Officer[PARAYA Officer]
+  Director[PARAYA Director]
+  Leader[Designated Volunteer Program Leader]
+  Volunteer[Volunteer]
+  Invitee[Invitation Recipient]
+
+  Configure((Configure program matching))
+  Rank((Review ranked volunteers))
+  Assign((Assign volunteer))
+  Delegate((Designate program leader))
+  CreateLink((Create secure invitation))
+  External((Authorize external-email exception))
+  Revoke((Revoke invitation))
+  ReviewWaitlist((Review waitlist))
+  Preferences((Manage own matching preferences))
+  Discover((Discover matched programs))
+  Join((Join through invitation))
+  Register((Register fixed Volunteer account))
+
+  Officer --> Configure
+  Officer --> Rank
+  Officer --> Assign
+  Officer --> Delegate
+  Officer --> CreateLink
+  Officer --> Revoke
+  Officer --> ReviewWaitlist
+  Director --> External
+  External -. extends .-> CreateLink
+  Leader --> CreateLink
+  Leader --> Revoke
+  Volunteer --> Preferences
+  Volunteer --> Discover
+  Volunteer --> Join
+  Invitee --> Register
+  Register --> Join

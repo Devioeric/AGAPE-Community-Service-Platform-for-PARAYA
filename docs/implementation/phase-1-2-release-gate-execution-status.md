@@ -1717,6 +1717,18 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Commands/results: focused Phase 4 tests pass 11/11; typecheck and targeted
   lint pass. No remote database, runtime, worker, email provider, or production
   feature state changed.
-- Next exact action: create the invitation-completion checkpoint. Phase 4
-  functional development is complete; only bundled disposable replay and an
-  authenticated presentation smoke remain before release evidence work.
+- Checkpoints: the leader workspace is `72c2433`; invitation-audit completion
+  is `2fb08d1`.
+- Documentation: `locally_complete`. Added the Phase 4 implementation record,
+  ERD, DFD, and actor/use-case diagram; updated research-facing scope wording
+  and removed the stale Phase 2 statement that matching/invitations were still
+  globally deferred.
+- Replay blocker: the Codex sandbox cannot access the Windows Docker named pipe
+  (`permission denied`), even with read access to the Docker configuration. The
+  repository gate stopped before migration or database mutation. The host
+  PowerShell must run the one bundled Phase 2/full-chain replay for migrations
+  `01020` and `01030`.
+- Next exact action: from the repository root run
+  `$env:AGAPE_DB_TEST_CONFIRM_DISPOSABLE='agape-release-gate'; npm.cmd run
+  test:db:phase2`. If it passes, perform one authenticated Phase 4 presentation
+  smoke. Do not begin blockchain design until Question 329 is answered.

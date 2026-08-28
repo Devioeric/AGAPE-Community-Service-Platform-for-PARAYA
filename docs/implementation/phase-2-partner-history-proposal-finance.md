@@ -120,8 +120,10 @@ on automatic decisions.
 
 ## Deferred and unresolved
 
-AI recommendations/drafting, automated unmet-need proposals, OCR, volunteer
-proximity/invitations, payments, accounting replacement, cryptocurrency, and
-blockchain are excluded. Sir Paul's exact blockchain research problem (Question
-329) remains **Needs confirmation**; no personal or Phase 2 document data may be
-placed on a blockchain.
+AI recommendations/drafting, automated unmet-need proposals, OCR, payments,
+accounting replacement, cryptocurrency, and blockchain are excluded from Phase
+2. Volunteer proximity and invitations were implemented later as the disabled
+Phase 4 slice documented in
+`phase-4-volunteer-matching-invitations.md`. Sir Paul's exact blockchain research
+problem (Question 329) remains **Needs confirmation**; no personal or Phase 2
+document data may be placed on a blockchain.

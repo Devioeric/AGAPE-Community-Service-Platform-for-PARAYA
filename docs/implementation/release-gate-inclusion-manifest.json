@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "72c243306be4439dc3e5e6a88345194a04382198",
+  "head": "2fb08d155796382d98334a543ea7732b4f2de6c7",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,8 +14,8 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 10,
-    "include": 10,
+    "total": 8,
+    "include": 8,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
@@ -25,9 +25,54 @@
   },
   "entries": [
     {
+      "path": "docs/diagrams/phase-4-actors-and-use-cases.mmd",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "docs/diagrams/phase-4-dfd.mmd",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "docs/diagrams/phase-4-erd.mmd",
+      "state": "??",
+      "tracked": false,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
       "path": "docs/implementation/phase-1-2-release-gate-execution-status.md",
       "state": " M",
       "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "docs/implementation/phase-2-partner-history-proposal-finance.md",
+      "state": " M",
+      "tracked": true,
+      "classification": "include",
+      "reason": "recognized-repository-content",
+      "secretRuleIds": [],
+      "acknowledgedSecretRuleIds": []
+    },
+    {
+      "path": "docs/implementation/phase-4-volunteer-matching-invitations.md",
+      "state": "??",
+      "tracked": false,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -43,70 +88,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/auth/signup/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/program-invitations/join/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/invitations/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/volunteers/ProgramVolunteerMatchingPanel.tsx",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/volunteers/phase4-server.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/database-gate-scopes.json",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "supabase/migrations/20260818001030_phase4_invitation_audit_completion.sql",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/phase4-volunteer-matching.test.mjs",
+      "path": "docs/scope-and-delimitation.md",
       "state": " M",
       "tracked": true,
       "classification": "include",

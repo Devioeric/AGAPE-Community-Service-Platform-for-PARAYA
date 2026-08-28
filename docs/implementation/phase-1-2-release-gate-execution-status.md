@@ -1773,3 +1773,31 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   institutional wallet/custody, operating owner, and formal research claim.
 - Next exact action: checkpoint this completed local Phase 5 slice. Do not
   configure or enable live anchoring until the external choices are approved.
+
+## Phase 6 reporting, impact, and communication
+
+- Status: `locally_complete` pending the consolidated Phase 6/7 validation pass.
+- Implementation: governed report lifecycle and immutable approved hashes; strict aggregate-only AI narrative input; explicit impact DTOs and aggregate UI; provider-neutral email/SMS outbox, leases, retries, explicit requeue, Admin runtime configuration, and immutable delivery events.
+- Runtime: notification delivery flag is false and both database channels default to off. In-app notifications remain authoritative.
+- Migration: `20260818001050_phase6_reporting_impact_communication.sql` is forward-only and included in the full/Phase 2 replay scope.
+- Rollback: disable the flag, set channel modes off, stop the worker, and retain governed history.
+
+## Phase 7 dashboards and administration readiness
+
+- Status: `locally_complete` pending the consolidated Phase 6/7 validation pass.
+- Implementation: role-scoped `agape.dashboard.summary.v1`, Admin-only `agape.system.readiness.v1`, shared role cards, and authenticated Admin readiness/integrity/communication pages.
+- Privacy: dashboard and readiness responses expose counts and mode labels only; no resident, contact, receipt, document, or secret values are returned.
+- Migration: `20260818001060_phase7_dashboard_readiness.sql` is read-only, forward-only, and included in the full/Phase 2 replay scope.
+- Next exact action: run one consolidated static and disposable full-chain validation, fix discovered defects once, then checkpoint Phases 6 and 7.
+
+## Phase 6/7 consolidated development validation
+
+- Status: `locally_complete` on branch `release/phase1-phase2-gate-closure`.
+- Static/application result: 265/265 Node tests pass; TypeScript passes; ESLint passes without warnings; the production build generates 180 application routes/pages successfully.
+- Migration result: inventory reports 53 timestamped SQL migrations, zero unordered active SQL, and deterministic preflight PASS.
+- Disposable full-chain result: both clean schema replays pass; 32/32 base catalog/runtime/Storage assertions, 223/223 existing seeded workflow assertions, 83/83 Auth/PostgREST/RPC/Storage/concurrency behavioral cases, and legacy-development seed compatibility pass. Replay SHA-256: `ff79d1b6b9726b145c571a2b1b05eddfa3258f19700c831204bf9209ea7c8792` before the final lifecycle-label correction.
+- Permanent Phase 6/7 seeded coverage: a subsequent full-chain fixture diagnostic passes 245/245 cases, including 22 report lifecycle, aggregate, notification suppression, dashboard, readiness, and historical-account assertions after the lifecycle-label correction.
+- Defects corrected during the consolidated pass: canonical user preference columns, report lifecycle event labels, disabled-provider notification behavior, and stale source assertions.
+- Final state: all new server defaults remain false; profiling and component runtimes default off; V1 Partner/proposal write authority remains unchanged; no shared or production database was modified.
+- Evidence boundary: these are local development results, not independently approved release evidence and not authorization for production activation.
+- Next exact action: checkpoint the Phase 6/7 implementation. Any real deployment still requires the external release evidence/approval lane already recorded above.

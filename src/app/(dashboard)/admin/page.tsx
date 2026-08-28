@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, ShieldCheck, Database, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      <UnifiedDashboardSummary />
 
       {/* ── KPI Cards ──────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

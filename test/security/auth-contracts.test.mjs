@@ -46,9 +46,6 @@ test("public registration accepts and normalizes only its safe fields", () => {
   const parsed = parsePublicSignupBody({
     ...validSignup,
     role: "volunteer",
-    status: "active",
-    is_active: true,
-    permissions: { admin: true },
   });
 
   assert.deepEqual(parsed, {
@@ -57,8 +54,12 @@ test("public registration accepts and normalizes only its safe fields", () => {
       fullName: "Juan Dela Cruz",
       email: "juan@dyci.edu.ph",
       password: validSignup.password,
+      programInvitationToken: null,
     },
   });
+
+  assert.equal(parsePublicSignupBody({ ...validSignup, status: "active" }).ok, false);
+  assert.equal(parsePublicSignupBody({ ...validSignup, permissions: { admin: true } }).ok, false);
 });
 
 test("invalid public signup bodies fail closed", () => {

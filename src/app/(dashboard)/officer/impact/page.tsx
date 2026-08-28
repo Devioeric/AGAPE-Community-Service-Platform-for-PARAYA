@@ -9,6 +9,7 @@ import {
   CheckCircle2, AlertCircle, Quote,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ImpactAggregateSummary } from "@/components/reporting/ImpactAggregateSummary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -248,6 +249,7 @@ export default function OfficerImpactPage() {
 
   return (
     <div className="space-y-6">
+      <ImpactAggregateSummary />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

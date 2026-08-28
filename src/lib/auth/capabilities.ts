@@ -24,7 +24,7 @@ export const CAPABILITIES = [
   "impact.read", "impact.manage",
   "analytics.aggregate.read",
   "report.read", "report.manage",
-  "communication.read", "communication.write", "communication.manage", "communication.moderate",
+  "communication.read", "communication.write", "communication.manage", "communication.moderate", "communication.provider.manage",
   "ai.assist", "ai.recommendation.review", "ai.recommendation.configure",
   "profiling.cycle.manage", "profiling.collect", "profiling.validate", "profiling.endorse",
   "profiling.detail.read", "profiling.aggregate.read", "profiling.privacy.configure",
@@ -95,7 +95,7 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
   "impact.read": "impact", "impact.manage": "impact",
   "analytics.aggregate.read": "analytics",
   "report.read": "reports", "report.manage": "reports",
-  "communication.read": "communication", "communication.write": "communication", "communication.manage": "communication", "communication.moderate": "communication",
+  "communication.read": "communication", "communication.write": "communication", "communication.manage": "communication", "communication.moderate": "communication", "communication.provider.manage": "communication",
   "ai.assist": "ai_assistance", "ai.recommendation.review": "ai_assistance", "ai.recommendation.configure": "ai_assistance",
   "profiling.cycle.manage": "profiling", "profiling.collect": "profiling", "profiling.validate": "profiling",
   "profiling.endorse": "profiling", "profiling.detail.read": "profiling", "profiling.aggregate.read": "profiling",
@@ -140,7 +140,7 @@ export const ROLE_CAPABILITIES: Readonly<Partial<Record<Role, readonly Capabilit
   barangay_mother_leader: ["partnership.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "skill_asset.manage", "communication.read", "communication.write", "ai.assist", "profiling.collect"],
   volunteer: ["program.read", "volunteer.self", "volunteer.preferences.manage", "survey.read", "survey.respond", "attendance.self", "activity_log.self", "communication.read", "communication.write", "ai.assist"],
   office: ["legacy_partner.history.read"], student_org: ["legacy_partner.history.read"], department: ["legacy_partner.history.read"],
-  admin: ["admin.users.manage", "admin.audit.read", "admin.recovery.read", "integrity.provider.manage"],
+  admin: ["admin.users.manage", "admin.audit.read", "admin.recovery.read", "integrity.provider.manage", "communication.provider.manage"],
   paraya_officer: [], barangay_official: [],
 };
 

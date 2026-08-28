@@ -229,7 +229,7 @@ export function ProfileSettings({ userName, userEmail, userRole }: ProfileSettin
               onChange={(e) => setPhone(e.target.value)}
               className="focus-visible:ring-primary/30"
             />
-            <p className="text-xs text-muted-foreground">PH mobile number. Only used when SMS notifications are enabled.</p>
+            <p className="text-xs text-muted-foreground">PH mobile number. Used only when you opt in and the administrator enables an approved SMS provider.</p>
           </div>
 
           <Separator className="bg-border" />
@@ -239,8 +239,8 @@ export function ProfileSettings({ userName, userEmail, userRole }: ProfileSettin
             <p className="text-xs text-muted-foreground mb-3">Choose how you want to receive notifications.</p>
             {[
               { key: "in_app" as const, label: "In-app", icon: Bell,           hint: "Always available in the Notifications page." },
-              { key: "email"  as const, label: "Email",  icon: Mail,           hint: "Sent to your account email address." },
-              { key: "sms"    as const, label: "SMS",    icon: MessageSquare,  hint: "Sent to your mobile number above. Standard rates may apply." },
+              { key: "email"  as const, label: "Email",  icon: Mail,           hint: "Requested for your account email; delivery requires an enabled provider." },
+              { key: "sms"    as const, label: "SMS",    icon: MessageSquare,  hint: "Requested for your mobile number; delivery requires an enabled provider." },
             ].map(({ key, label, icon: Icon, hint }) => (
               <button
                 key={key}

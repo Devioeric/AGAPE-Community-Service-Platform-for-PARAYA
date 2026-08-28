@@ -1,0 +1,16 @@
+flowchart LR
+  Actor[Authenticated role] --> Dashboard[Role-scoped dashboard RPC]
+  Dashboard --> Aggregates[(Approved aggregate records)]
+  Admin[System Admin] --> Readiness[Readiness RPC]
+  Readiness --> Runtime[(Runtime and cutover state)]
+  Officer[Authorized PARAYA] --> Report[Report lifecycle RPC]
+  Aggregates --> Narrative[Strict reporting aggregate DTO]
+  Narrative --> AI[Advisory narrative provider]
+  AI --> Report
+  Report --> ReportEvents[(Immutable report events)]
+  Notification[In-app notification] --> Outbox[(Email/SMS outbox)]
+  Admin --> Delivery[Provider runtime and explicit requeue]
+  Delivery --> Outbox
+  Worker[Authenticated delivery worker] --> Outbox
+  Worker --> Provider[Configured email/SMS provider]
+  Worker --> DeliveryEvents[(Immutable delivery events)]

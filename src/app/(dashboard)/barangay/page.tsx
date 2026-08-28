@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Handshake, ClipboardCheck, Users, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
 
 interface Stats {
   activePartnerships: number;
@@ -89,6 +90,7 @@ export default function BarangayDashboard() {
 
   return (
     <div className="space-y-6">
+      <UnifiedDashboardSummary />
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {statCards.map((stat) => (

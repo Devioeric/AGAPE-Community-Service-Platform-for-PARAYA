@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import Link from "next/link";
 import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
+import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
 
 interface AnalyticsData {
   programs:    { total: number; byStatus: Record<string, number>; chartData: { status: string; count: number }[] };
@@ -140,6 +141,7 @@ export default function OfficerDashboard() {
 
   return (
     <div className="space-y-6">
+      <UnifiedDashboardSummary />
       {recommendations && recommendations.summary.recommendationCount > 0 && (
         <Card className="border-primary/25 bg-primary/5 shadow-card">
           <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">

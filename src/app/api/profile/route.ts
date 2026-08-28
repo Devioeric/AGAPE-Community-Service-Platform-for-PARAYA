@@ -1,5 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
+
+const profileUpdateSchema = z.object({
+  full_name: z.string().trim().min(2).max(150).optional(),
+  phone: z.union([z.string().trim().regex(/^(\+?63|0)9\d{9}$/), z.literal(""), z.null()]).optional(),
+  notification_prefs: z.object({
+    in_app: z.boolean().optional(),
+    email: z.boolean().optional(),
+    sms: z.boolean().optional(),
+  }).strict().optional(),
+}).strict();
 
 export async function GET() {
   const supabase = await createClient();
@@ -21,31 +32,18 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json() as {
-    full_name?:          string;
-    phone?:              string | null;
-    notification_prefs?: { in_app?: boolean; email?: boolean; sms?: boolean };
-  };
+  const parsed = profileUpdateSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid profile update" }, { status: 400 });
+  const body = parsed.data;
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   if (body.full_name !== undefined) {
-    const name = body.full_name.trim();
-    if (name.length < 2) {
-      return NextResponse.json({ error: "Name must be at least 2 characters" }, { status: 400 });
-    }
-    updates.full_name = name;
+    updates.full_name = body.full_name;
   }
 
   if (body.phone !== undefined) {
     const phone = (body.phone ?? "").trim();
-    // Accept Philippine mobile numbers in common forms (or empty to clear).
-    if (phone && !/^(\+?63|0)9\d{9}$/.test(phone)) {
-      return NextResponse.json(
-        { error: "Phone must be a valid PH mobile number (09xxxxxxxxx or +639xxxxxxxxx)" },
-        { status: 400 }
-      );
-    }
     updates.phone = phone || null;
   }
 

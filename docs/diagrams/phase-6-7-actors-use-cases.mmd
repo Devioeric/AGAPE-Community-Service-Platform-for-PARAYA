@@ -1,0 +1,11 @@
+flowchart TB
+  Director[Director / Associate / Researcher] --> Reports[Generate, review, return, approve, archive reports]
+  Director --> Impact[View aggregate impact and authorized details]
+  Finance[Finance Officer] --> FinanceDashboard[View Finance queues]
+  Barangay[Captain / Secretary / Mother Leader] --> BarangayDashboard[View own-barangay summary]
+  Volunteer[Volunteer] --> VolunteerDashboard[View own participation summary]
+  Admin[System Admin] --> AdminDashboard[View account/security summary]
+  Admin --> Readiness[Inspect flags, runtimes, authority, queues]
+  Admin --> Delivery[Configure disabled/synthetic/live delivery runtime]
+  Delivery --> Requeue[Explicitly requeue eligible suppressed messages]
+  Legacy[Historical institutional identity] --> LegacyPortal[Historical summary only]

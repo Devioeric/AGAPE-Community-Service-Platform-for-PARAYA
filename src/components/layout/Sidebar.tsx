@@ -226,6 +226,8 @@ const adminNav: NavItem[] = [
       { label: "Audit Logs",         href: "/admin/audit-logs" },
       { label: "Backup & Recovery",  href: "/admin/backup" },
       { label: "Financial Integrity", href: "/admin/integrity", capabilities: ["integrity.provider.manage"] },
+      { label: "Communication Delivery", href: "/admin/communications", capabilities: ["communication.provider.manage"] },
+      { label: "System Readiness", href: "/admin/readiness", capabilities: ["admin.audit.read"] },
     ],
   },
 ];

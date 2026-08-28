@@ -92,7 +92,9 @@
         "20260818001010_phase4_volunteer_matching_invitations.sql",
         "20260818001020_phase4_leader_invitation_workspace.sql",
         "20260818001030_phase4_invitation_audit_completion.sql",
-        "20260818001040_phase5_finance_integrity_foundation.sql"
+        "20260818001040_phase5_finance_integrity_foundation.sql",
+        "20260818001050_phase6_reporting_impact_communication.sql",
+        "20260818001060_phase7_dashboard_readiness.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2, Sparkles, FileText, CheckCircle2, Clock, Trash2, AlertCircle, Search, X } from "lucide-react";
+import { Loader2, Sparkles, FileText, CheckCircle2, Clock, Archive, AlertCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ interface AIReport {
   period_end: string;
   narrative: string;
   status: "draft" | "reviewed" | "approved";
+  row_version: number;
   created_at: string;
   users: { full_name: string } | null;
 }
@@ -61,8 +62,8 @@ export default function OfficerReportsPage() {
   // View dialog
   const [viewReport, setViewReport] = useState<AIReport | null>(null);
   const [updating, setUpdating]     = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [deleting, setDeleting]     = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<string | null>(null);
+  const [archiving, setArchiving]     = useState(false);
 
   // Knowledge-base filters: full-text search across title + narrative,
   // plus status and year scopes for quickly drilling into past cycles.
@@ -108,37 +109,46 @@ export default function OfficerReportsPage() {
 
   async function updateStatus(id: string, status: string) {
     setUpdating(true);
-    const expectedStatus = reports.find((report) => report.id === id)?.status;
+    const report = reports.find((item) => item.id === id);
+    if (!report) { setUpdating(false); return; }
+    const action = status === "reviewed" ? "review" : "approve";
     const res = await fetch(`/api/ai/reports/${id}`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ expected_status: expectedStatus, status }),
+      body:    JSON.stringify({ expected_version: report.row_version, action }),
     });
     if (res.ok) {
+      const payload = await res.json();
       toast.success(`Report marked as ${status}.`);
-      setReports((prev) => prev.map((r) => r.id === id ? { ...r, status: status as AIReport["status"] } : r));
-      if (viewReport?.id === id) setViewReport((r) => r ? { ...r, status: status as AIReport["status"] } : r);
+      setReports((prev) => prev.map((r) => r.id === id ? { ...r, status: payload.data.status, row_version: payload.data.rowVersion } : r));
+      if (viewReport?.id === id) setViewReport((r) => r ? { ...r, status: payload.data.status, row_version: payload.data.rowVersion } : r);
     } else {
       toast.error("Failed to update report.");
     }
     setUpdating(false);
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────────
+  // ── Archive ───────────────────────────────────────────────────────────────────
 
-  async function confirmDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const res = await fetch(`/api/ai/reports/${deleteTarget}`, { method: "DELETE" });
+  async function confirmArchive() {
+    if (!archiveTarget) return;
+    const report = reports.find(item => item.id === archiveTarget);
+    if (!report) return;
+    setArchiving(true);
+    const res = await fetch(`/api/ai/reports/${archiveTarget}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expected_version: report.row_version, action: "archive", reason: "Archived through the report workspace" }),
+    });
     if (res.ok) {
-      toast.success("Report deleted.");
-      setReports((prev) => prev.filter((r) => r.id !== deleteTarget));
-      if (viewReport?.id === deleteTarget) setViewReport(null);
+      toast.success("Report archived.");
+      setReports((prev) => prev.filter((r) => r.id !== archiveTarget));
+      if (viewReport?.id === archiveTarget) setViewReport(null);
     } else {
-      toast.error("Delete failed.");
+      toast.error("Archive failed.");
     }
-    setDeleteTarget(null);
-    setDeleting(false);
+    setArchiveTarget(null);
+    setArchiving(false);
   }
 
   // ── Filtering / counts ───────────────────────────────────────────────────────
@@ -386,10 +396,10 @@ export default function OfficerReportsPage() {
                       </Button>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(r.id); }}
+                      onClick={(e) => { e.stopPropagation(); setArchiveTarget(r.id); }}
                       className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-danger/10 text-muted-foreground hover:text-danger transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Archive className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -458,17 +468,17 @@ export default function OfficerReportsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      {/* Archive confirmation */}
+      <Dialog open={!!archiveTarget} onOpenChange={(open) => { if (!open) setArchiveTarget(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-heading">Delete Report</DialogTitle>
+            <DialogTitle className="font-heading">Archive Report</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">This will permanently delete the AI report. This action cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">The report will leave the active workspace but remain available in its immutable audit history.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button disabled={deleting} onClick={confirmDelete} className="bg-danger hover:bg-danger/90 text-white">
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+            <Button variant="outline" onClick={() => setArchiveTarget(null)}>Cancel</Button>
+            <Button disabled={archiving} onClick={confirmArchive} className="bg-paraya-brown text-white">
+              {archiving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Archive"}
             </Button>
           </DialogFooter>
         </DialogContent>

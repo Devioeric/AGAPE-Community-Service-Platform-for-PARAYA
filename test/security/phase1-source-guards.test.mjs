@@ -10,7 +10,13 @@ test("Admin is confined to the infrastructure portal", async () => {
   const capability = await source("src/lib/auth/capabilities.ts");
   assert.doesNotMatch(middleware, /ADMIN_PREFIXES/);
   assert.doesNotMatch(sidebar, /Switch portal/);
-  assert.match(capability, /admin:\s*\["admin\.users\.manage",\s*"admin\.audit\.read",\s*"admin\.recovery\.read"\]/);
+  const adminDefaults = capability.match(/admin:\s*\[([^\]]+)\]/)?.[1] ?? "";
+  assert.match(adminDefaults, /"admin\.users\.manage"/);
+  assert.match(adminDefaults, /"admin\.audit\.read"/);
+  assert.match(adminDefaults, /"admin\.recovery\.read"/);
+  assert.match(adminDefaults, /"integrity\.provider\.manage"/);
+  assert.match(adminDefaults, /"communication\.provider\.manage"/);
+  assert.doesNotMatch(adminDefaults, /proposal\.|program\.|profiling\.|budget\.|impact\.|volunteer\./);
 });
 
 test("legacy profiling and raw household analytics are read-only or retired", async () => {

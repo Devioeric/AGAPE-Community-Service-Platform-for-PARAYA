@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, Activity, Calendar, Loader2, Bell, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ export default function VolunteerDashboard() {
 
   return (
     <div className="space-y-6">
+      <UnifiedDashboardSummary />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

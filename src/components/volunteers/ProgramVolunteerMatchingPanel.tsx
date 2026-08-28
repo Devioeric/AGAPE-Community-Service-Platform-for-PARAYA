@@ -63,6 +63,9 @@ export function ProgramVolunteerMatchingPanel({
   const [signupDeadline, setSignupDeadline] = useState("");
   const [inviteLabel, setInviteLabel] = useState("");
   const [inviteUses, setInviteUses] = useState("1");
+  const [canAllowExternalEmail, setCanAllowExternalEmail] = useState(false);
+  const [allowExternalEmail, setAllowExternalEmail] = useState(false);
+  const [externalExceptionReason, setExternalExceptionReason] = useState("");
   const [inviteExpires, setInviteExpires] = useState(() => {
     const value = new Date(Date.now() + 7 * 86400000 - 60000);
     return value.toISOString().slice(0, 16);
@@ -111,7 +114,9 @@ export function ProgramVolunteerMatchingPanel({
         setInvitationsEnabled(false);
       } else if (inviteResponse.ok && leaderResponse.ok && waitlistResponse.ok) {
         setInvitationsEnabled(true);
-        setInvitations((await inviteResponse.json()).data ?? []);
+        const invitationData = await inviteResponse.json();
+        setInvitations(invitationData.data ?? []);
+        setCanAllowExternalEmail(invitationData.meta?.canAllowExternalEmail === true);
         const leaderData = (await leaderResponse.json()).data ?? {};
         setLeaders(leaderData.leaders ?? []);
         setLeaderVersion(leaderData.rowVersion ?? next.rowVersion);
@@ -212,13 +217,17 @@ export function ProgramVolunteerMatchingPanel({
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label: inviteLabel || null, expiresAt: new Date(inviteExpires).toISOString(), maxUses: Number(inviteUses),
-          allowedEmailDomain: "dyci.edu.ph", allowExternalEmail: false, externalExceptionReason: null,
+          allowedEmailDomain: "dyci.edu.ph", allowExternalEmail,
+          externalExceptionReason: allowExternalEmail ? externalExceptionReason : null,
         }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) return toast.error(body.error ?? "Could not create invitation.");
       await navigator.clipboard.writeText(`${window.location.origin}${body.data.joinPath}`);
       toast.success("Invitation created and copied. This is the only time its link is shown.");
+      setInviteLabel("");
+      setAllowExternalEmail(false);
+      setExternalExceptionReason("");
       await load();
     } catch {
       toast.error("Could not create or copy the invitation.");
@@ -326,8 +335,20 @@ export function ProgramVolunteerMatchingPanel({
           <Input placeholder="Invitation label (optional)" value={inviteLabel} onChange={(event) => setInviteLabel(event.target.value)} />
           <Input type="datetime-local" value={inviteExpires} onChange={(event) => setInviteExpires(event.target.value)} />
           <Input type="number" min="1" value={inviteUses} onChange={(event) => setInviteUses(event.target.value)} />
-          <Button onClick={createInvite}><Clipboard className="mr-1 h-4 w-4" />Create & copy</Button>
+          <Button onClick={createInvite} disabled={allowExternalEmail && externalExceptionReason.trim().length < 10}><Clipboard className="mr-1 h-4 w-4" />Create & copy</Button>
         </div>
+        {canAllowExternalEmail && <div className="space-y-2 rounded-lg border border-border p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={allowExternalEmail} onChange={(event) => setAllowExternalEmail(event.target.checked)} />
+            Allow a non-DYCI email by Director exception
+          </label>
+          {allowExternalEmail && <Input
+            value={externalExceptionReason}
+            onChange={(event) => setExternalExceptionReason(event.target.value)}
+            placeholder="Required exception reason (at least 10 characters)"
+            aria-label="External volunteer exception reason"
+          />}
+        </div>}
         <p className="text-xs text-muted-foreground">Links expire in at most seven days, default to DYCI email, respect remaining program capacity, and can be revoked.</p>
         {invitations.map((invitation) => <div key={invitation.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
           <div><p className="font-medium">{invitation.label || "Program invitation"}</p>

@@ -6,7 +6,7 @@ import {
 } from "@/lib/auth/public-signup";
 import { NextResponse } from "next/server";
 import { phase4InvitationsEnabled } from "@/lib/volunteers/phase4-contracts";
-import { hashInvitationEmail, hashInvitationToken } from "@/lib/volunteers/phase4-server";
+import { hashInvitationEmail, hashInvitationToken, invitationFailureReason } from "@/lib/volunteers/phase4-server";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -19,19 +19,29 @@ export async function POST(request: Request) {
   const role = PUBLIC_SIGNUP_ROLE;
   const admin = createAdminClient();
   const invited = Boolean(programInvitationToken);
+  const invitationTokenHash = invited ? hashInvitationToken(programInvitationToken!) : null;
+  const invitationEmailHash = invited ? hashInvitationEmail(email) : null;
 
   if (invited) {
     if (!phase4InvitationsEnabled()) {
       return NextResponse.json({ error: "This program invitation is not available." }, { status: 404 });
     }
     const { data: invitation } = await admin.rpc("phase4_resolve_invitation", {
-      p_token_hash: hashInvitationToken(programInvitationToken!),
+      p_token_hash: invitationTokenHash!,
     });
     if (!invitation || invitation.available !== true) {
+      await admin.rpc("phase4_record_invitation_failure", {
+        p_token_hash: invitationTokenHash!, p_user_id: null,
+        p_email_hash: invitationEmailHash!, p_reason_code: "invitation_unavailable",
+      });
       return NextResponse.json({ error: "This program invitation is invalid or expired." }, { status: 400 });
     }
     if (invitation.requiresInstitutionalEmail === true &&
         email.split("@")[1] !== invitation.allowedEmailDomain) {
+      await admin.rpc("phase4_record_invitation_failure", {
+        p_token_hash: invitationTokenHash!, p_user_id: null,
+        p_email_hash: invitationEmailHash!, p_reason_code: "email_ineligible",
+      });
       return NextResponse.json({ error: "Use the institutional email required by this invitation." }, { status: 400 });
     }
   }
@@ -84,12 +94,20 @@ export async function POST(request: Request) {
     });
     const { data: joinResult, error: joinError } = volunteerError
       ? { data: null, error: volunteerError }
-      : await admin.rpc("phase4_consume_invitation_for_user", {
-          p_token_hash: hashInvitationToken(programInvitationToken!),
+      : await admin.rpc("phase4_consume_invitation_for_new_user", {
+          p_token_hash: invitationTokenHash!,
           p_user_id: authData.user.id,
-          p_email_hash: hashInvitationEmail(email),
+          p_email_hash: invitationEmailHash!,
         });
     if (joinError) {
+      await admin.rpc("phase4_record_invitation_failure", {
+        p_token_hash: invitationTokenHash!,
+        // Keep this null because the just-created account is removed below;
+        // the durable event retains only the recipient hash and reason code.
+        p_user_id: null,
+        p_email_hash: invitationEmailHash!,
+        p_reason_code: volunteerError ? "registration_profile_failed" : invitationFailureReason(joinError),
+      });
       await admin.from("users").delete().eq("id", authData.user.id);
       await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined);
       return NextResponse.json({ error: "Registration could not join this program. Please try again." }, { status: 409 });

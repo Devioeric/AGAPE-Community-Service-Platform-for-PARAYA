@@ -16,6 +16,10 @@ const leaderWorkspaceMigration = readFileSync(
   "supabase/migrations/20260818001020_phase4_leader_invitation_workspace.sql",
   "utf8"
 );
+const invitationAuditMigration = readFileSync(
+  "supabase/migrations/20260818001030_phase4_invitation_audit_completion.sql",
+  "utf8"
+);
 
 test("volunteer preferences reject unknown fields, invalid windows, and unconsented location", () => {
   const valid = {
@@ -162,4 +166,16 @@ test("designated volunteer leaders receive only their scoped invitation workspac
   assert.match(leaderWorkspaceMigration, /p\.id=ANY\(runtime\.synthetic_program_ids\)/);
   assert.match(leaderWorkspaceMigration, /REVOKE ALL ON FUNCTION public\.phase4_list_my_leader_programs\(\) FROM PUBLIC,anon/);
   assert.doesNotMatch(leaderWorkspaceMigration, /token_hash|approximate_latitude|approximate_longitude/);
+});
+
+test("invited registration and controlled failures append service-only audit events", () => {
+  assert.match(invitationAuditMigration, /phase4_consume_invitation_for_new_user/);
+  assert.match(invitationAuditMigration, /'registered'.*'invited_account_created'/s);
+  assert.match(invitationAuditMigration, /phase4_record_invitation_failure/);
+  assert.match(invitationAuditMigration, /'failed'.*p_reason_code/s);
+  assert.match(invitationAuditMigration, /recipient_email_hash/);
+  assert.match(invitationAuditMigration, /REVOKE ALL ON FUNCTION public\.phase4_record_invitation_failure\(text,uuid,text,text\) FROM PUBLIC,anon,authenticated/);
+  assert.match(invitationAuditMigration, /GRANT EXECUTE ON FUNCTION public\.phase4_record_invitation_failure\(text,uuid,text,text\) TO service_role/);
+  assert.doesNotMatch(invitationAuditMigration, /recipient_email\b|raw_token|p_token\b/);
+  assert.match(readFileSync("src/app/api/auth/signup/route.ts", "utf8"), /phase4_consume_invitation_for_new_user/);
 });

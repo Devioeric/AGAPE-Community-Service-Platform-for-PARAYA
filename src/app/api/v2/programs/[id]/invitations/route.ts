@@ -10,7 +10,10 @@ export async function GET(_request: Request, { params }: Ctx) {
   const { id } = await params;
   const { data, error } = await auth.supabase.rpc("phase4_list_program_invitations", { p_program_id: id });
   if (error) return phase4DatabaseError(error);
-  return NextResponse.json({ data: Array.isArray(data) ? data : [] });
+  return NextResponse.json({
+    data: Array.isArray(data) ? data : [],
+    meta: { canAllowExternalEmail: auth.actor.role === "paraya_director" },
+  });
 }
 export async function POST(request: Request, { params }: Ctx) {
   if (!phase4InvitationsEnabled()) return phase4Unavailable();

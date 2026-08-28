@@ -14,6 +14,15 @@ export function hashInvitationEmail(email: string) {
   return createHash("sha256").update(email.trim().toLowerCase(), "utf8").digest("hex");
 }
 
+export function invitationFailureReason(error: { code?: string; message?: string } | null) {
+  if (error?.code === "23514" || /unavailable|expired|capacity|full/i.test(error?.message ?? "")) return "invitation_unavailable";
+  if (error?.code === "42501" && /email/i.test(error?.message ?? "")) return "email_ineligible";
+  if (error?.code === "42501") return "runtime_denied";
+  if (error?.code === "40001") return "stale_conflict";
+  if (error?.code === "22023") return "invalid_request";
+  return "join_failed";
+}
+
 export function phase4Unavailable() {
   return NextResponse.json({ error: "This feature is not enabled." }, { status: 404 });
 }

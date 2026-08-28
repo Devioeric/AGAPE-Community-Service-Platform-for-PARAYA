@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "99b31d131e3005c216723655a1f7e4ba01e0e8c1",
+  "head": "72c243306be4439dc3e5e6a88345194a04382198",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -43,7 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/(dashboard)/officer/programs/page.tsx",
+      "path": "src/app/api/auth/signup/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -52,7 +52,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/(dashboard)/volunteer/programs/page.tsx",
+      "path": "src/app/api/v2/program-invitations/join/route.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -61,9 +61,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/v2/volunteers/leader-programs/route.ts",
-      "state": "??",
-      "tracked": false,
+      "path": "src/app/api/v2/programs/[id]/invitations/route.ts",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -79,9 +79,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/components/volunteers/VolunteerLeaderInvitationPanel.tsx",
-      "state": "??",
-      "tracked": false,
+      "path": "src/lib/volunteers/phase4-server.ts",
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -97,7 +97,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818001020_phase4_leader_invitation_workspace.sql",
+      "path": "supabase/migrations/20260818001030_phase4_invitation_audit_completion.sql",
       "state": "??",
       "tracked": false,
       "classification": "include",

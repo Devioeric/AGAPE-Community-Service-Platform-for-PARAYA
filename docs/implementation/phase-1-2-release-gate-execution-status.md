@@ -1695,3 +1695,28 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Next exact action: checkpoint the leader workspace, then continue only with
   approved Phase 4 documentation and authenticated UI smoke coverage. Do not
   begin blockchain design until Question 329 is answered.
+
+## Phase 4 invitation completion follow-on
+
+- Status: `locally_complete`. The officer invitation form now defaults maximum
+  uses to the program's remaining slots and limits the default expiry to seven
+  days or the signup deadline, whichever is earlier. Only the authenticated
+  PARAYA Director sees the controlled non-DYCI email exception field; the API
+  and database still independently enforce the role and required reason.
+- Audit completion: added forward-only migration
+  `20260818001030_phase4_invitation_audit_completion.sql`. New invited accounts
+  append a `registered` event in the same transaction as invitation
+  consumption. Rejected uses append a separate `failed` event only when the
+  token maps to an in-mode invitation; the event stores a recipient SHA-256
+  hash and fixed reason code, never a raw token, email, or provider response.
+- Security: both new audit functions are fixed-search-path and executable only
+  by `service_role`. The public join route still authenticates and authorizes
+  the volunteer before using the service operation. Failed just-created
+  accounts are not referenced by the durable failure event, so bounded signup
+  rollback can remove them safely.
+- Commands/results: focused Phase 4 tests pass 11/11; typecheck and targeted
+  lint pass. No remote database, runtime, worker, email provider, or production
+  feature state changed.
+- Next exact action: create the invitation-completion checkpoint. Phase 4
+  functional development is complete; only bundled disposable replay and an
+  authenticated presentation smoke remain before release evidence work.

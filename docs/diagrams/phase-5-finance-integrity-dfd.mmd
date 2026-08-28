@@ -1,0 +1,11 @@
+flowchart LR
+    F[Finance / Director] -->|request exact finalized version| API[Finance Integrity API]
+    API -->|capability + version + mode| DB[(AGAPE database)]
+    DB -->|queued hash commitment only| W[Anchoring worker]
+    W -->|proof ID, type, version, schema, SHA-256| R[Provider-neutral HTTPS relay]
+    R -->|transaction / block receipt| W
+    W -->|receipt or bounded error| DB
+    V[Public verifier] -->|opaque verification code| API2[Public verification API]
+    API2 -->|safe proof DTO| V
+
+    PII[Descriptions, payees, contacts, receipts, documents, resident data] -. never leaves .-> DB

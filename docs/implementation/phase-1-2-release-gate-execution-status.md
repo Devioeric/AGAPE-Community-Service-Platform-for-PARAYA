@@ -1732,3 +1732,44 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   `$env:AGAPE_DB_TEST_CONFIRM_DISPOSABLE='agape-release-gate'; npm.cmd run
   test:db:phase2`. If it passes, perform one authenticated Phase 4 presentation
   smoke. Do not begin blockchain design until Question 329 is answered.
+
+## Phase 5 Finance integrity foundation
+
+- Status: `locally_complete`. The project-team interpretation of the panel
+  request is now recorded as tamper-evident proof for project-fund records
+  finalized by Finance: the exact cleared proposal-budget snapshot and the exact
+  verified liquidation summary.
+- Boundary: AGAPE remains the source of truth and does not move funds or replace
+  accounting. The provider-neutral relay receives only proof ID, source class,
+  source version, canonical schema, and SHA-256 hash. Line-item descriptions,
+  payees, contacts, residents, receipts, attachment paths, complete records,
+  credentials, and secrets do not leave the trusted boundary.
+- Implementation: added forward-only migration
+  `20260818001040_phase5_finance_integrity_foundation.sql`, strict public/API
+  DTOs, capability parity, Finance/Director proof requests, Admin-only runtime
+  configuration, leased/idempotent anchoring worker, public safe verification,
+  immutable proof events, superseded/voided source validity, and role-specific
+  UI. Direct table access is denied behind explicit RPC-only RLS policies.
+- Runtime: `AGAPE_FINANCE_INTEGRITY_V1_ENABLED=false` and provider `disabled`
+  are the committed defaults; database mode defaults to `off`. No provider,
+  network, contract, wallet, external API, or production feature was enabled.
+- Commands/results: focused Finance-integrity and routing tests pass 12/12;
+  typecheck passes; lint passes without warnings; the 173-page production build
+  passes; migration inventory reports 51 timestamped migrations, zero unordered
+  SQL, and deterministic replay PASS.
+- Disposable database result: both clean full-chain replays pass; 32/32 base
+  database assertions, 223/223 seeded assertions (including the new 16-case
+  Finance-integrity catalog suite), 83/83 behavioral cases, and legacy seed
+  compatibility pass. Clean replay SHA-256 is
+  `64797b06ca48819f5b2cfa3113fd82f86c4bc23ca54b874cf57ebefae7f30dcf`.
+  This local console result is not release evidence.
+- Documentation: added the implementation boundary, ERD, DFD, and updated the
+  canonical scope, decision register, and research-facing scope. Proposal and
+  final report proof classes remain deferred.
+- Rollback: keep the server flag false and runtime off, stop the worker, and
+  retain all snapshots, hashes, receipts, validity changes, and immutable
+  events. Once applied anywhere, corrections use a later forward migration.
+- External decision still required for live use: provider, network, contract,
+  institutional wallet/custody, operating owner, and formal research claim.
+- Next exact action: checkpoint this completed local Phase 5 slice. Do not
+  configure or enable live anchoring until the external choices are approved.

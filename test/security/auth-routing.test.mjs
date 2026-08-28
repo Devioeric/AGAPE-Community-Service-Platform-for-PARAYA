@@ -38,6 +38,11 @@ test("application APIs are protected by default", () => {
   assert.equal(classifyApiAccess("/api/auth/signup"), "public");
   assert.equal(classifyApiAccess("/api/auth/signup/anything"), "protected");
   assert.equal(classifyApiAccess("/api/cron/profiling-reminder"), "public");
+  assert.equal(
+    classifyApiAccess("/api/v2/finance-integrity/verify/00000000-0000-4000-8000-000000000001"),
+    "public",
+  );
+  assert.equal(classifyApiAccess("/api/v2/finance-integrity/verify"), "protected");
   assert.equal(classifyApiAccess("/api/auth/accept-invite"), "invite_completion");
   assert.equal(classifyApiAccess("/api/auth/signout"), "protected");
   assert.equal(classifyApiAccess("/api/proposals"), "protected");

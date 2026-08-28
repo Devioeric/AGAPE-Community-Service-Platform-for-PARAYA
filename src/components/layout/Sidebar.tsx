@@ -60,6 +60,7 @@ const officerNav: NavItem[] = [
     children: [
       { label: "All Proposals",     href: "/officer/proposals" },
       { label: "Finance Clearance", href: "/officer/finance", roles: ["finance_officer", "paraya_director"] },
+      { label: "Structured Proposals & Finance", href: "/officer/phase-2", capabilities: ["proposal.read"] },
     ],
   },
 
@@ -224,6 +225,7 @@ const adminNav: NavItem[] = [
       { label: "Users",              href: "/admin/users" },
       { label: "Audit Logs",         href: "/admin/audit-logs" },
       { label: "Backup & Recovery",  href: "/admin/backup" },
+      { label: "Financial Integrity", href: "/admin/integrity", capabilities: ["integrity.provider.manage"] },
     ],
   },
 ];
@@ -240,6 +242,7 @@ const financeNav: NavItem[] = [
     children: [
       { label: "Finance Clearance", href: "/officer/finance" },
       { label: "All Proposals",     href: "/officer/proposals" },
+      { label: "Structured Finance", href: "/officer/phase-2", capabilities: ["budget.read"] },
     ],
   },
 ];

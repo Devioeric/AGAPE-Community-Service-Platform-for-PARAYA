@@ -1,5 +1,6 @@
 import { Phase2Workspace } from "@/components/phase2/Phase2Workspace";
 import { isPhase2ComponentEnabled } from "@/lib/phase2/feature";
+import { isFinanceIntegrityEnabled } from "@/lib/integrity/feature";
 import { headers } from "next/headers";
 
 export default async function Phase2Page() {
@@ -9,5 +10,6 @@ export default async function Phase2Page() {
     history: isPhase2ComponentEnabled("historical_programs"),
     proposals: isPhase2ComponentEnabled("proposals"),
     finance: isPhase2ComponentEnabled("program_finance"),
+    integrity: isFinanceIntegrityEnabled(),
   }} role={role} />;
 }

@@ -13,6 +13,7 @@ const PUBLIC_ROUTES = [
   "/accept-invite",
   "/reset-password",
   "/join",
+  "/verify/finance",
 ];
 
 function isPublicRoute(pathname: string): boolean {
@@ -85,6 +86,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicRoute(pathname);
   const apiAccess = classifyApiAccess(pathname);
+
+  // Finance integrity verification is deliberately public. It exposes only
+  // the stored commitment and anchoring receipt, never a budget, liquidation,
+  // document, contact, or authenticated application profile.
+  if (pathname === "/verify/finance" || pathname.startsWith("/verify/finance/")) {
+    return supabaseResponse;
+  }
 
   // API routes retain their own fine-grained RBAC, but this central gate makes
   // an active application profile a prerequisite. The only exceptions are

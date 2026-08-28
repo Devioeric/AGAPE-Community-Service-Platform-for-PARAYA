@@ -1,0 +1,37 @@
+erDiagram
+    PROPOSAL_BUDGET_REVISIONS ||--o{ FINANCE_INTEGRITY_PROOFS : "cleared revision proof"
+    LIQUIDATION_SUBMISSIONS ||--o{ FINANCE_INTEGRITY_PROOFS : "verified revision proof"
+    FINANCE_INTEGRITY_PROOFS ||--o{ FINANCE_INTEGRITY_EVENTS : records
+    PHASE5_INTEGRITY_RUNTIME ||--o{ FINANCE_INTEGRITY_PROOFS : gates
+
+    FINANCE_INTEGRITY_PROOFS {
+        uuid id PK
+        uuid verification_code UK
+        text source_type
+        uuid source_id
+        integer source_version
+        text canonical_schema
+        text canonical_hash
+        text source_validity
+        text anchor_status
+        text network_key
+        text transaction_hash
+        integer row_version
+    }
+
+    FINANCE_INTEGRITY_EVENTS {
+        uuid id PK
+        uuid proof_id FK
+        text action
+        jsonb metadata
+        timestamptz created_at
+    }
+
+    PHASE5_INTEGRITY_RUNTIME {
+        text component PK
+        text mode
+        text provider_key
+        text network_key
+        text contract_reference
+        integer row_version
+    }

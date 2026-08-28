@@ -23,6 +23,7 @@ export default async function BarangayPartnershipPage() {
         history: historicalProgramsEnabled,
         proposals: false,
         finance: false,
+        integrity: false,
       }} />}
     </div>
   );

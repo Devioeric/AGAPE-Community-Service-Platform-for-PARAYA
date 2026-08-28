@@ -8,7 +8,7 @@ import { PartnerOperations } from "./PartnerOperations";
 import { ProposalOperations } from "./ProposalOperations";
 import { Phase2Notice, StatusPill, phase2Api } from "./Phase2Ui";
 
-type Flags = { partners: boolean; history: boolean; proposals: boolean; finance: boolean };
+type Flags = { partners: boolean; history: boolean; proposals: boolean; finance: boolean; integrity: boolean };
 type Tab = "partners" | "history" | "proposals" | "finance";
 type Readiness = { mode?: string; readyForLive?: boolean; missingAttestations?: string[]; writeAuthority?: string | null };
 
@@ -33,6 +33,6 @@ export function Phase2Workspace({ flags, role }: { flags: Flags; role: string })
     {selected?.enabled && tab === "partners" && <PartnerOperations canManage={can("partnership.manage")} canContacts={can("partner.contact.manage")} canRenew={can("partner.renew")} canMap={can("partner.legacy_mapping.manage")} canDocuments={can("partner.document.manage")} canReviewDocuments={can("partner.policy.manage")} />}
     {selected?.enabled && tab === "history" && <HistoricalOperations canCreate={can("historical_program.create")} canImport={can("historical_program.import")} canReview={can("historical_program.review")} canDocuments={can("historical_program.create")} canReviewDocuments={can("partner.policy.manage")} />}
     {selected?.enabled && tab === "proposals" && <ProposalOperations canCreate={can("proposal.create")} canReview={can("proposal.review")} canEvidence={can("proposal.evidence.confirm")} canDecide={can("proposal.decide")} canSubmit={can("proposal.submit")} canHandoff={can("proposal.handoff")} />}
-    {selected?.enabled && tab === "finance" && <FinanceOperations canReviewProposal={can("budget.review")} canRecordActual={can("budget.actual.record")} canReviewActual={can("budget.review")} canReviewLiquidation={can("budget.liquidation.review")} canDocuments={can("budget.actual.record")} canReviewDocuments={can("partner.policy.manage")} />}
+    {selected?.enabled && tab === "finance" && <FinanceOperations canReviewProposal={can("budget.review")} canRecordActual={can("budget.actual.record")} canReviewActual={can("budget.review")} canReviewLiquidation={can("budget.liquidation.review")} canDocuments={can("budget.actual.record")} canReviewDocuments={can("partner.policy.manage")} integrityEnabled={flags.integrity} canIntegrityRead={can("integrity.finance.read")} canIntegrityRequest={can("integrity.finance.request")} />}
   </div>;
 }

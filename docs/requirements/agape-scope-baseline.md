@@ -1183,17 +1183,25 @@ When confirmed and default requirements conflict, the confirmed answer takes pre
 
 # 36. Blockchain Questions
 
+**Current development interpretation (2026-08-28):** The project team understands
+the panel request as integrity verification for project funds reviewed by Finance.
+The initial implementation is therefore limited to canonical hashes of a
+Finance-cleared proposal budget and a Finance-verified liquidation summary. It
+does not put individual transactions, receipts, payees, or complete documents
+on-chain and does not process payments. Provider, network, contract, and
+institutional wallet/custody choices still require confirmation before live use.
+
 1. **What exact research problem should blockchain solve?**  
-   **Default adopted pending Sir Paul confirmation:** Provide independently verifiable tamper evidence for finalized approval, finance-clearance, and final-report records. It does not replace access control, privacy safeguards, backups, or the operational database.
+   **Provisional development decision pending Sir Paul confirmation:** Provide independently verifiable tamper evidence for Finance-cleared budget snapshots and Finance-verified liquidation summaries. It does not replace access control, privacy safeguards, backups, payment processing, accounting, or the operational database.
 
 2. **What did Sir Paul specifically say blockchain should be used for?**  
-   **Needs confirmation; default adopted:** Approved proposals, their finance-clearance proof, and finalized program/impact reports.
+   **Project-team interpretation; panel confirmation still required:** Project funds reviewed by Finance. The initial technical boundary is the cleared budget and verified liquidation proof; proposal and final program/impact-report proofs are deferred.
 
 3. **Proposal approvals?**  
-   **Default adopted:** Yes, hash the finalized approved version.
+   **Deferred:** The initial implementation does not create a separate proposal-approval proof. The cleared budget snapshot remains tied to its proposal and exact revision.
 
 4. **Budget transactions?**  
-   **Default adopted:** Do not put individual transactions on-chain. Anchor the finalized finance-clearance/budget-summary hash.
+   **Provisional development decision:** Do not put individual transactions on-chain. Anchor the finalized Finance-cleared budget snapshot and Finance-verified liquidation-summary hashes only.
 
 5. **Donations?**  
    **Default adopted:** Keep donation records in the operational database; blockchain anchoring is outside the initial scope unless Sir Paul explicitly requires it.
@@ -1202,7 +1210,7 @@ When confirmed and default requirements conflict, the confirmed answer takes pre
    **Default adopted:** No individual service records on-chain. A finalized aggregate report may be included in a report hash.
 
 7. **Impact reports?**  
-   **Default adopted:** Yes, finalized reports only.
+   **Deferred:** Not part of the initial Finance Integrity implementation.
 
 8. **Audit logs?**  
    **Default adopted:** Keep full logs in the database; optionally anchor periodic audit-log batch hashes, not every log entry.
@@ -1244,7 +1252,7 @@ When confirmed and default requirements conflict, the confirmed answer takes pre
     **Default adopted:** Yes; only hashes and minimal non-personal verification metadata go on-chain.
 
 21. **Would the panel accept blockchain proof for approved proposals/reports only?**  
-    **Default adopted:** Yes; this is the recommended capstone boundary.
+    **Needs confirmation:** The current narrower development boundary uses Finance-cleared budgets and verified liquidations; other finalized proposal/report proof classes remain deferred.
 
 22. **What must never be placed on-chain?**  
     **Default adopted:** Resident data, names, contact details, exact addresses, IDs, medical data, full proposal/report documents, receipts containing personal data, passwords, and secrets.

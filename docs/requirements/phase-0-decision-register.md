@@ -27,11 +27,25 @@ It does not replace the canonical scope baseline.
 - Personal data and complete documents never go on a blockchain. The AGAPE
   database remains the operational source of truth.
 
-## Needs confirmation: blockchain
+## Provisional implementation decision: Finance integrity proofs
 
 **Owner:** Sir Paul / panel  
-**Blocks:** Blockchain provider, network, contract, wallet, proof records, and
-research claims. It does not block Phases 0–7.
+**Confirmed by the project team for development:** The initial integrity proof
+applies to a Finance-cleared proposal budget snapshot and a Finance-verified
+liquidation summary. The purpose is to demonstrate that the finalized financial
+record has not been silently altered after Finance review.
+
+This implementation does not process or transfer funds. AGAPE remains the
+operational source of truth and continues to hold the complete financial record.
+Only a SHA-256 commitment and minimal non-personal proof metadata may leave the
+trusted database boundary. Individual expenditures, payees, descriptions,
+contacts, receipts, attachments, resident data, and complete documents are never
+sent to an anchoring provider.
+
+**Still needs confirmation:** The external provider, network, contract, system
+wallet/custody procedure, operating owner, and the exact research claim. Until
+those choices are approved, live anchoring stays disabled and the provider-neutral
+implementation may run only with synthetic data in a disposable environment.
 
 Ask Question 329 exactly:
 
@@ -39,18 +53,19 @@ Ask Question 329 exactly:
 > finalized record requires blockchain proof that cannot be sufficiently
 > protected by the existing audit log?
 
-The following baseline defaults remain provisional until that answer is
-recorded:
+The following broader candidates remain deferred until that answer is recorded:
 
-- finalized approved proposals, finance-clearance/budget summaries, and final
-  program/impact reports are the only candidate record classes;
+- finalized approved proposals and final program/impact reports;
 - only a canonical hash plus minimal non-personal verification metadata is
   anchored;
 - a test network and one system-managed institutional wallet are used;
 - no tokens, cryptocurrency feature, user wallets, resident data, contact data,
   receipts, or complete documents are placed on-chain.
 
-No blockchain dependency or schema should be selected before confirmation.
+The application uses a provider-neutral relay contract and stores proof state in
+AGAPE. No blockchain SDK, network, contract, wallet secret, or vendor dependency
+is selected before confirmation. Disabling the feature stops new submissions but
+retains all local proof and audit history.
 
 ## Operational confirmation: reduced-account cutover
 

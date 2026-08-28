@@ -12,6 +12,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, Flag, BarChart3,
 } from "lucide-react";
 import { ActivityPhotos } from "@/components/shared/ActivityPhotos";
+import { ProgramVolunteerMatchingPanel } from "@/components/volunteers/ProgramVolunteerMatchingPanel";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1108,6 +1109,13 @@ export default function OfficerProgramsPage() {
                 {/* Volunteers */}
                 {detailTab === "volunteers" && (
                   <div className="space-y-3">
+                    <ProgramVolunteerMatchingPanel
+                      programId={detailProg.id}
+                      barangayId={detailProg.barangay_id}
+                      enrolledVolunteerIds={detailProg.signups.filter((signup) => signup.status !== "withdrawn").map((signup) => signup.volunteer_id)}
+                      onChanged={() => { void fetchDetail(detailProg.id); void fetchPrograms(); }}
+                    />
+                    <div className="border-t border-border pt-4" />
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground">
                         {detailProg.signups.filter((s) => s.status !== "withdrawn").length} Enrolled {detailProg.signups.filter((s) => s.status !== "withdrawn").length === 1 ? "Volunteer" : "Volunteers"}

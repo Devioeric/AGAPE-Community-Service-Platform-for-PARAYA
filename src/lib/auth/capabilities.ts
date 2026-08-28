@@ -12,6 +12,7 @@ export const CAPABILITIES = [
   "program.read", "program.manage",
   "budget.read", "budget.prepare", "budget.review", "budget.actual.record", "budget.liquidation.review", "budget.category.manage",
   "volunteer.self", "volunteer.directory.read", "volunteer.manage",
+  "volunteer.match.read", "volunteer.preferences.manage", "volunteer.invitation.manage", "volunteer.waitlist.review",
   "survey.read", "survey.respond", "survey.manage", "survey.analyze",
   "community_need.read", "community_need.submit", "community_need.validate", "community_need.manage",
   "observation.read", "observation.manage",
@@ -77,6 +78,8 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
   "budget.read": "budgets", "budget.prepare": "budgets", "budget.review": "budgets",
   "budget.actual.record": "budgets", "budget.liquidation.review": "budgets", "budget.category.manage": "budgets",
   "volunteer.self": "volunteers", "volunteer.directory.read": "volunteers", "volunteer.manage": "volunteers",
+  "volunteer.match.read": "volunteers", "volunteer.preferences.manage": "volunteers",
+  "volunteer.invitation.manage": "volunteers", "volunteer.waitlist.review": "volunteers",
   "survey.read": "surveys", "survey.respond": "surveys", "survey.manage": "surveys", "survey.analyze": "surveys",
   "community_need.read": "community_needs", "community_need.submit": "community_needs",
   "community_need.validate": "community_needs", "community_need.manage": "community_needs",
@@ -97,6 +100,7 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
 
 const PARAYA_READ: Capability[] = [
   "partnership.read", "proposal.read", "program.read", "volunteer.directory.read", "volunteer.manage",
+  "volunteer.match.read", "volunteer.invitation.manage", "volunteer.waitlist.review",
   "survey.read", "survey.analyze", "community_need.read", "observation.read", "skill_asset.read",
   "attendance.manage", "activity_log.manage", "donation.read", "impact.read", "analytics.aggregate.read",
   "report.read", "communication.read", "ai.assist", "profiling.aggregate.read",
@@ -129,7 +133,7 @@ export const ROLE_CAPABILITIES: Readonly<Partial<Record<Role, readonly Capabilit
   barangay_captain: ["partnership.read", "historical_program.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "community_need.validate", "observation.read", "skill_asset.read", "report.read", "communication.read", "communication.write", "ai.assist", "profiling.detail.read", "profiling.aggregate.read", "profiling.endorse"],
   barangay_secretary: ["partnership.read", "historical_program.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "report.read", "communication.read", "communication.write", "ai.assist", "profiling.detail.read", "profiling.aggregate.read", "profiling.validate"],
   barangay_mother_leader: ["partnership.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "skill_asset.manage", "communication.read", "communication.write", "ai.assist", "profiling.collect"],
-  volunteer: ["program.read", "volunteer.self", "survey.read", "survey.respond", "attendance.self", "activity_log.self", "communication.read", "communication.write", "ai.assist"],
+  volunteer: ["program.read", "volunteer.self", "volunteer.preferences.manage", "survey.read", "survey.respond", "attendance.self", "activity_log.self", "communication.read", "communication.write", "ai.assist"],
   office: ["legacy_partner.history.read"], student_org: ["legacy_partner.history.read"], department: ["legacy_partner.history.read"],
   admin: ["admin.users.manage", "admin.audit.read", "admin.recovery.read"],
   paraya_officer: [], barangay_official: [],

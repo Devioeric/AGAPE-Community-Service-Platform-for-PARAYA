@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
   "/accept-invite",
   "/reset-password",
+  "/join",
 ];
 
 function isPublicRoute(pathname: string): boolean {

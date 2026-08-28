@@ -88,7 +88,8 @@
         "20260818000970_phase3_recommendation_settings.sql",
         "20260818000980_phase3_advisory_provenance_boundary.sql",
         "20260818000990_phase3_atomic_proposal_validation.sql",
-        "20260818001000_phase3_atomic_proposal_creation.sql"
+        "20260818001000_phase3_atomic_proposal_creation.sql",
+        "20260818001010_phase4_volunteer_matching_invitations.sql"
       ],
       "databaseTestPaths": [
         "tests/database/00_catalog_grants_rls.sql",

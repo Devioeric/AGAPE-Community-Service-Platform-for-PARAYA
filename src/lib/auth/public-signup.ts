@@ -4,6 +4,7 @@ export type PublicSignupInput = {
   fullName: string;
   email: string;
   password: string;
+  programInvitationToken: string | null;
 };
 
 export type PublicSignupParseResult =
@@ -23,6 +24,10 @@ export function parsePublicSignupBody(input: unknown): PublicSignupParseResult {
   }
 
   const body = input as Record<string, unknown>;
+  const allowed = new Set(["fullName", "email", "password", "role", "programInvitationToken"]);
+  if (Object.keys(body).some((key) => !allowed.has(key))) {
+    return { ok: false, error: "Invalid registration request." };
+  }
 
   // Accept an explicit volunteer value for backwards-compatible clients, but
   // reject every attempt to select another role. New clients omit this field.
@@ -40,6 +45,8 @@ export function parsePublicSignupBody(input: unknown): PublicSignupParseResult {
   const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const programInvitationToken =
+    typeof body.programInvitationToken === "string" ? body.programInvitationToken.trim() : null;
 
   if (fullName.length < 2 || fullName.length > 150) {
     return { ok: false, error: "Full name must be between 2 and 150 characters." };
@@ -50,6 +57,9 @@ export function parsePublicSignupBody(input: unknown): PublicSignupParseResult {
   if (password.length < 8 || password.length > 128) {
     return { ok: false, error: "Password must be between 8 and 128 characters." };
   }
+  if (programInvitationToken && !/^[A-Za-z0-9_-]{43}$/.test(programInvitationToken)) {
+    return { ok: false, error: "The program invitation is invalid." };
+  }
 
-  return { ok: true, value: { fullName, email, password } };
+  return { ok: true, value: { fullName, email, password, programInvitationToken } };
 }

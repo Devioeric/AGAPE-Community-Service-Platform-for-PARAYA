@@ -16,7 +16,9 @@ type ApplicationAccountState = {
  */
 export function classifyApiAccess(pathname: string): ApiAccessClass {
   if (!pathname.startsWith("/api/")) return "not_api";
-  if (pathname === "/api/auth/signup" || pathname.startsWith("/api/cron/")) {
+  if (pathname === "/api/auth/signup"
+      || pathname === "/api/v2/program-invitations/resolve"
+      || pathname.startsWith("/api/cron/")) {
     return "public";
   }
   if (pathname === "/api/auth/accept-invite") {

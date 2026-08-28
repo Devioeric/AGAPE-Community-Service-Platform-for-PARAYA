@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +26,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
@@ -70,7 +71,10 @@ export default function LoginPage() {
     }
 
     const home = ROLE_HOME[profile?.role ?? "volunteer"] ?? "/volunteer";
-    router.replace(home);
+    const requested = searchParams.get("next");
+    const destination =
+      requested?.startsWith("/join/") && !requested.startsWith("//") ? requested : home;
+    router.replace(destination);
     router.refresh();
   }
 

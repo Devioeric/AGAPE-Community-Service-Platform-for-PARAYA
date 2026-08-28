@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-type ProgramStatus = "planning" | "active" | "completed" | "cancelled";
-type SignupStatus  = "pending" | "approved" | "withdrawn";
+type ProgramStatus = "planning" | "upcoming" | "active" | "completed" | "cancelled";
+type SignupStatus  = "pending" | "confirmed" | "withdrawn";
 
 interface Program {
   id: string;
@@ -22,10 +22,19 @@ interface Program {
   signup_count: number;
   my_signup: { id: string; status: SignupStatus } | null;
   barangays: { name: string } | null;
+  match?: {
+    eligible: boolean;
+    matchedSkillCount: number;
+    requiredSkillCount: number;
+    availability: string;
+    withinRadius: boolean | null;
+    distanceBand: string;
+  };
 }
 
 const STATUS_BADGE: Record<ProgramStatus, string> = {
   planning:  "bg-info/10 text-info border-info/20 border",
+  upcoming:  "bg-info/10 text-info border-info/20 border",
   active:    "bg-success/10 text-success border-success/20 border",
   completed: "bg-muted text-muted-foreground border",
   cancelled: "bg-danger/10 text-danger border-danger/20 border",
@@ -45,7 +54,8 @@ export default function VolunteerProgramsPage() {
 
   const fetchPrograms = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/programs");
+    let res = await fetch("/api/v2/volunteers/programs");
+    if (res.status === 404) res = await fetch("/api/programs");
     if (res.ok) { const j = await res.json(); setPrograms(j.data ?? []); }
     else toast.error("Failed to load programs.");
     setLoading(false);
@@ -156,6 +166,13 @@ export default function VolunteerProgramsPage() {
                       {p.signup_count}{p.max_volunteers ? ` / ${p.max_volunteers}` : ""} volunteers
                       {isFull && <span className="text-danger font-medium">(Full)</span>}
                     </p>
+                    {p.match && <div className="flex flex-wrap gap-1.5 pt-1">
+                      <Badge variant="outline" className={p.match.eligible ? "text-success" : "text-danger"}>{p.match.eligible ? "Eligible" : "Eligibility review"}</Badge>
+                      <Badge variant="outline">{p.match.matchedSkillCount}/{p.match.requiredSkillCount} skills</Badge>
+                      <Badge variant="outline">{p.match.availability.replace("_", " ")}</Badge>
+                      <Badge variant="outline">{p.match.distanceBand === "not_available" ? "Location not provided" : p.match.distanceBand.replaceAll("_", " ")}</Badge>
+                      {p.match.withinRadius !== null && <Badge variant="outline">{p.match.withinRadius ? "Within radius" : "Outside radius"}</Badge>}
+                    </div>}
                   </div>
 
                   <div className="mt-auto pt-2">

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProfileSettings } from "@/components/shared/ProfileSettings";
+import { VolunteerMatchingPreferences } from "@/components/volunteers/VolunteerMatchingPreferences";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -14,10 +15,13 @@ export default async function ProfilePage() {
     .single();
 
   return (
-    <ProfileSettings
-      userName={profile?.full_name ?? user.email ?? "User"}
-      userEmail={user.email ?? ""}
-      userRole={profile?.role ?? "volunteer"}
-    />
+    <div className="space-y-6">
+      <ProfileSettings
+        userName={profile?.full_name ?? user.email ?? "User"}
+        userEmail={user.email ?? ""}
+        userRole={profile?.role ?? "volunteer"}
+      />
+      <VolunteerMatchingPreferences />
+    </div>
   );
 }

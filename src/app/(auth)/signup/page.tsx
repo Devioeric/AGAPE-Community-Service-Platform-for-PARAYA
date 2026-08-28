@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,8 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 export default function SignupPage() {
+  const searchParams = useSearchParams();
+  const programInvitationToken = searchParams.get("programInvitationToken");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -43,6 +46,7 @@ export default function SignupPage() {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
+        ...(programInvitationToken ? { programInvitationToken } : {}),
         fullName: data.fullName,
         email:    data.email,
         password: data.password,
@@ -68,11 +72,12 @@ export default function SignupPage() {
           Account Submitted
         </h2>
         <p className="text-muted-foreground mb-6">
-          Your registration is pending admin approval. You&apos;ll receive an
-          email once your account is activated.
+          {programInvitationToken
+            ? "Your volunteer account is ready and your program invitation was processed."
+            : "Your registration is pending admin approval. You’ll receive an email once your account is activated."}
         </p>
         <Link
-          href="/login"
+          href={programInvitationToken ? `/login?next=${encodeURIComponent(`/join/${programInvitationToken}`)}` : "/login"}
           className="text-primary hover:text-primary-dark font-medium transition-colors"
         >
           Return to Sign In

@@ -1626,3 +1626,50 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   runtime, feature flag, account, worker, or AI provider was changed.
 - Next exact action: create the reviewed Phase 3 development checkpoint. Phase 4
   remains a separate decision.
+
+## Phase 4 volunteer matching and secure invitations
+
+- Status: `locally_complete`. The complete local vertical slice, executable
+  migration replay, focused security checks, and production compile pass.
+- Matching: officers configure the program site, schedule, radius, course/year
+  eligibility, and controlled skills. Ranking is deterministic in the approved
+  order: eligibility, skill match, availability, then Haversine proximity.
+  Officers receive only a distance band and within/outside-radius result, never
+  volunteer coordinates.
+- Volunteer privacy: volunteers manage controlled skills, bounded availability
+  windows, and optional rounded approximate location under explicit consent.
+  Withdrawal clears all location fields. The self-only preferences response can
+  restore the volunteer's rounded value without exposing it to officer DTOs.
+- Invitations: links use a 256-bit random token while the database stores only
+  its SHA-256 hash. Links are domain-bound by default, expire within seven days
+  or the signup deadline, respect remaining capacity, are revocable, and are
+  consumed atomically into a confirmed signup or an idempotent waitlist entry.
+  Existing-account login and invited signup preserve the join token.
+- Operations: officers can assign matched volunteers, designate up to ten
+  active assigned program leaders, create/revoke links, and approve or decline
+  waitlist entries. Invitation and waitlist transitions append immutable events
+  and metadata-only audits.
+- Runtime/security: added forward migration
+  `20260818001010_phase4_volunteer_matching_invitations.sql`, explicit
+  capability parity, restrictive RPC-only RLS, fixed search paths, reviewed
+  grants, and independent `off | synthetic | live` modes. Both new application
+  flags default to `false`; both database modes default to `off`.
+- Commands/results: Phase 4 focused tests pass 9/9; adjacent
+  migration/advisory checks pass 50/50; typecheck passes; lint passes with zero
+  warnings; migration inventory reports 48 timestamped migrations, zero
+  unordered SQL, and PASS. The 172-route production build passes. Volunteer-
+  specific and token-specific GET handlers are explicitly dynamic and cannot
+  be statically shared between callers.
+- Disposable database result: two clean Phase 2/full-chain replays, 32/32
+  unseeded pgTAP assertions, 207/207 seeded assertions, 83/83 Auth/PostgREST/
+  RPC/Storage/concurrency cases, and the legacy development seed compatibility
+  check pass. The clean replay SHA-256 is
+  `686aec350fed12123e4ff3e6e4df9f4099fd1ade24f3692b2f9cefa89d0b518f`.
+  This local console result is not release evidence.
+- Rollback: keep both flags false and both runtime rows `off`; remove the
+  Phase 4 routes/components and the new unapplied migration if abandoning this
+  local slice. Once applied anywhere, correct it only with a later forward
+  migration.
+- Next exact action: create a normal reviewed Phase 4 development checkpoint.
+  A later synthetic activation may perform one authenticated browser smoke
+  test; do not enable a shared or production environment.

@@ -1801,3 +1801,44 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Final state: all new server defaults remain false; profiling and component runtimes default off; V1 Partner/proposal write authority remains unchanged; no shared or production database was modified.
 - Evidence boundary: these are local development results, not independently approved release evidence and not authorization for production activation.
 - Next exact action: checkpoint the Phase 6/7 implementation. Any real deployment still requires the external release evidence/approval lane already recorded above.
+
+## Staging integration checkpoint — 2026-08-28
+
+- Status: `locally_complete` for the sole AGAPE staging backend. This is a
+  development/staging checkpoint, not production activation or independently
+  approved release evidence.
+- Target: Supabase project `jirdawzjdbojzmnxnaad`, PostgreSQL 17. The prior
+  authoritative capture proved that no timestamped migration was applied and
+  that the deployed application schema represented the promoted canonical
+  baseline.
+- Recovery: created and verified a Git bundle for commit `7bf40f0`; captured
+  the 16 existing application identities, 16 Auth identities, and 23 audit
+  rows in a Windows-DPAPI-encrypted private bundle before database changes.
+  No raw identity, password, token, or row content entered Git.
+- Ledger reconciliation: recorded only canonical baseline version
+  `20260815000000` as already represented, then applied the 52 reviewed
+  forward migrations through `20260818001060`. A subsequent dry run reports
+  the remote database is up to date with 53 versions.
+- Preservation: all 16 original application user UUIDs and all 16 Auth
+  identities remained present. No existing account was removed, suspended,
+  or rewritten.
+- Synthetic smoke data: added nine isolated `.invalid` role identities and one
+  synthetic staging barangay. Their random password and UUID map remain in the
+  encrypted private staging bundle. All nine identities authenticate.
+- Runtime result: profiling is `off`; all five Phase 2 components are `off`;
+  both Phase 4 components are `off`; Finance integrity, email, and SMS are
+  `off`; Partner and proposal mutation authority remain `v1`; Storage contains
+  zero objects.
+- Staging smoke result: all nine role-scoped dashboard RPCs returned their
+  allowlisted DTOs; Admin readiness returned `agape.system.readiness.v1`; all
+  nine authenticated dashboard pages returned HTTP 200; Admin was redirected
+  from `/officer` to `/admin`, and Volunteer was redirected from `/admin` to
+  `/volunteer`.
+- Tool limitation: linked `db lint` and database advisors still require the
+  database password and were not executed. This does not invalidate the
+  successful migration push, Management-API verification, or existing
+  disposable full-chain gate results, but it remains an explicit release-
+  evidence gap.
+- Final boundary: all committed server flags remain false, all database modes
+  remain off, V1 remains authoritative, workers remain no-op, and no external
+  AI, email/SMS, blockchain, or production service was enabled.

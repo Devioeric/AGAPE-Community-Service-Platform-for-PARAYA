@@ -1,7 +1,7 @@
 {
   "schema": "agape.release-inclusion-manifest.v1",
   "branch": "release/phase1-phase2-gate-closure",
-  "head": "355736c598c7a4d7331a8470fbd822e47924af45",
+  "head": "99b31d131e3005c216723655a1f7e4ba01e0e8c1",
   "policy": {
     "staging": "explicit-paths-only",
     "blindBulkStagingAllowed": false,
@@ -14,25 +14,16 @@
     "approvalSource": "Conversation approval on 2026-08-23"
   },
   "summary": {
-    "total": 34,
-    "include": 34,
+    "total": 10,
+    "include": 10,
     "exclude-generated": 0,
     "exclude-private": 0,
     "exclude-ignored": 0,
     "ambiguous-needs-owner-review": 0,
     "secretFindings": 0,
-    "acknowledgedSyntheticSecretFindings": 2
+    "acknowledgedSyntheticSecretFindings": 0
   },
   "entries": [
-    {
-      "path": ".env.example",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
     {
       "path": "docs/implementation/phase-1-2-release-gate-execution-status.md",
       "state": " M",
@@ -52,43 +43,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/(auth)/join/[token]/page.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/(auth)/login/page.tsx",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/(auth)/signup/page.tsx",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
       "path": "src/app/(dashboard)/officer/programs/page.tsx",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/(dashboard)/volunteer/profile/page.tsx",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -106,106 +61,7 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/app/api/auth/signup/route.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/program-invitations/join/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/program-invitations/resolve/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/invitations/[invitationId]/revoke/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/invitations/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/volunteer-leaders/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/volunteer-matches/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/volunteer-matching/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/waitlist/[waitlistId]/decision/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/programs/[id]/waitlist/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/volunteers/preferences/route.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/app/api/v2/volunteers/programs/route.ts",
+      "path": "src/app/api/v2/volunteers/leader-programs/route.ts",
       "state": "??",
       "tracked": false,
       "classification": "include",
@@ -215,24 +71,6 @@
     },
     {
       "path": "src/components/volunteers/ProgramVolunteerMatchingPanel.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/components/volunteers/VolunteerMatchingPreferences.tsx",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/auth/capabilities.ts",
       "state": " M",
       "tracked": true,
       "classification": "include",
@@ -241,45 +79,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "src/lib/auth/public-signup.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/auth/request-access.ts",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/volunteers/phase4-contracts.ts",
+      "path": "src/components/volunteers/VolunteerLeaderInvitationPanel.tsx",
       "state": "??",
       "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/lib/volunteers/phase4-server.ts",
-      "state": "??",
-      "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "src/middleware.ts",
-      "state": " M",
-      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -295,30 +97,9 @@
       "acknowledgedSecretRuleIds": []
     },
     {
-      "path": "supabase/migrations/20260818001010_phase4_volunteer_matching_invitations.sql",
+      "path": "supabase/migrations/20260818001020_phase4_leader_invitation_workspace.sql",
       "state": "??",
       "tracked": false,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": []
-    },
-    {
-      "path": "test/security/local-database-gate.test.mjs",
-      "state": " M",
-      "tracked": true,
-      "classification": "include",
-      "reason": "recognized-repository-content",
-      "secretRuleIds": [],
-      "acknowledgedSecretRuleIds": [
-        "jwt-token",
-        "postgres-credential-url"
-      ]
-    },
-    {
-      "path": "test/security/phase3-advisory-recommendations.test.mjs",
-      "state": " M",
-      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],
@@ -326,8 +107,8 @@
     },
     {
       "path": "test/security/phase4-volunteer-matching.test.mjs",
-      "state": "??",
-      "tracked": false,
+      "state": " M",
+      "tracked": true,
       "classification": "include",
       "reason": "recognized-repository-content",
       "secretRuleIds": [],

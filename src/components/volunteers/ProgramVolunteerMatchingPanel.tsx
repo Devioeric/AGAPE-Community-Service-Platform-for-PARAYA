@@ -35,8 +35,8 @@ const distanceLabel: Record<string, string> = {
 };
 
 export function ProgramVolunteerMatchingPanel({
-  programId, barangayId, enrolledVolunteerIds, onChanged,
-}: { programId: string; barangayId: string | null; enrolledVolunteerIds: string[]; onChanged: () => void }) {
+  programId, barangayId, maxVolunteers, enrolledVolunteerIds, onChanged,
+}: { programId: string; barangayId: string | null; maxVolunteers: number | null; enrolledVolunteerIds: string[]; onChanged: () => void }) {
   const [enabled, setEnabled] = useState(true);
   const [invitationsEnabled, setInvitationsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -68,6 +68,11 @@ export function ProgramVolunteerMatchingPanel({
     return value.toISOString().slice(0, 16);
   });
 
+  useEffect(() => {
+    const remaining = maxVolunteers == null ? 1 : Math.max(1, maxVolunteers - enrolledVolunteerIds.length);
+    setInviteUses(String(remaining));
+  }, [programId, maxVolunteers, enrolledVolunteerIds.length]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -85,6 +90,9 @@ export function ProgramVolunteerMatchingPanel({
       setMinimumYear(next.minimumYearLevel?.toString() ?? "");
       setMaximumYear(next.maximumYearLevel?.toString() ?? "");
       setSignupDeadline(next.signupDeadline?.slice(0, 16) ?? "");
+      const sevenDays = Date.now() + (7 * 24 * 60 * 60 * 1000) - 60_000;
+      const deadline = next.signupDeadline ? new Date(next.signupDeadline).getTime() : Number.POSITIVE_INFINITY;
+      setInviteExpires(new Date(Math.min(sevenDays, deadline)).toISOString().slice(0, 16));
       if (!next.site) {
         setMatches([]); setInvitations([]); setLeaders([]); setWaitlist([]);
         return;

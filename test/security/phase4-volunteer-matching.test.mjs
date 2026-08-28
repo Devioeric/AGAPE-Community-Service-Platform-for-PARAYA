@@ -12,6 +12,10 @@ const migration = readFileSync(
   "supabase/migrations/20260818001010_phase4_volunteer_matching_invitations.sql",
   "utf8"
 );
+const leaderWorkspaceMigration = readFileSync(
+  "supabase/migrations/20260818001020_phase4_leader_invitation_workspace.sql",
+  "utf8"
+);
 
 test("volunteer preferences reject unknown fields, invalid windows, and unconsented location", () => {
   const valid = {
@@ -143,8 +147,19 @@ test("volunteer-specific and token-specific GET responses cannot be statically c
   for (const route of [
     "src/app/api/v2/volunteers/preferences/route.ts",
     "src/app/api/v2/volunteers/programs/route.ts",
+    "src/app/api/v2/volunteers/leader-programs/route.ts",
     "src/app/api/v2/program-invitations/resolve/route.ts",
   ]) {
     assert.match(readFileSync(route, "utf8"), /export const dynamic = "force-dynamic"/);
   }
+});
+
+test("designated volunteer leaders receive only their scoped invitation workspace", () => {
+  assert.match(leaderWorkspaceMigration, /phase4_assert_actor_runtime\('program_invitations'\)/);
+  assert.match(leaderWorkspaceMigration, /phase2_current_has_capability\('volunteer\.self'\)/);
+  assert.match(leaderWorkspaceMigration, /leader\.volunteer_id=auth\.uid\(\)/);
+  assert.match(leaderWorkspaceMigration, /p\.phase2_data_mode=runtime\.mode/);
+  assert.match(leaderWorkspaceMigration, /p\.id=ANY\(runtime\.synthetic_program_ids\)/);
+  assert.match(leaderWorkspaceMigration, /REVOKE ALL ON FUNCTION public\.phase4_list_my_leader_programs\(\) FROM PUBLIC,anon/);
+  assert.doesNotMatch(leaderWorkspaceMigration, /token_hash|approximate_latitude|approximate_longitude/);
 });

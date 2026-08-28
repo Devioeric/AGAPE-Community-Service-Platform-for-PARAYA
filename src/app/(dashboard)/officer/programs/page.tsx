@@ -1112,6 +1112,7 @@ export default function OfficerProgramsPage() {
                     <ProgramVolunteerMatchingPanel
                       programId={detailProg.id}
                       barangayId={detailProg.barangay_id}
+                      maxVolunteers={detailProg.max_volunteers}
                       enrolledVolunteerIds={detailProg.signups.filter((signup) => signup.status !== "withdrawn").map((signup) => signup.volunteer_id)}
                       onChanged={() => { void fetchDetail(detailProg.id); void fetchPrograms(); }}
                     />

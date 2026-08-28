@@ -1670,6 +1670,28 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
   Phase 4 routes/components and the new unapplied migration if abandoning this
   local slice. Once applied anywhere, correct it only with a later forward
   migration.
-- Next exact action: create a normal reviewed Phase 4 development checkpoint.
-  A later synthetic activation may perform one authenticated browser smoke
-  test; do not enable a shared or production environment.
+- Development checkpoint: committed as `99b31d1` (`feat: complete phase 4
+  volunteer matching`).
+- Follow-on status: `locally_complete`. The designated volunteer leader
+  workspace now lists only programs where the authenticated volunteer has an
+  active leader assignment. It provides browser-operable creation, one-time
+  link copying, capacity/expiry guidance, history, and revocation while all
+  state changes continue through the existing locked and audited invitation
+  operations.
+- Migration scope: added forward-only migration
+  `20260818001020_phase4_leader_invitation_workspace.sql` to the Phase 2/full
+  replay manifest. The new read operation independently verifies component
+  runtime, `volunteer.self`, active leader ownership, data mode, and the
+  synthetic program allowlist; it returns no invitation token, volunteer
+  location, or unrelated program data.
+- Commands/results: focused Phase 4 tests pass 10/10; typecheck passes; targeted
+  lint for the changed application surface passes. The previously completed
+  full-chain database replay remains the executable basis for migration
+  `01010`; migration `01020` still needs inclusion in the next bundled
+  disposable replay rather than repeating the full gate immediately.
+- Rollback: keep the invitation flag false and runtime off. If correction is
+  required, retain the migrations and disable the new route/component pending
+  a later forward migration.
+- Next exact action: checkpoint the leader workspace, then continue only with
+  approved Phase 4 documentation and authenticated UI smoke coverage. Do not
+  begin blockchain design until Question 329 is answered.

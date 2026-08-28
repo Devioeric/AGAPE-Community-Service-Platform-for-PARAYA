@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { VolunteerLeaderInvitationPanel } from "@/components/volunteers/VolunteerLeaderInvitationPanel";
 
 type ProgramStatus = "planning" | "upcoming" | "active" | "completed" | "cancelled";
 type SignupStatus  = "pending" | "confirmed" | "withdrawn";
@@ -97,6 +98,8 @@ export default function VolunteerProgramsPage() {
 
   return (
     <div className="space-y-6">
+      <VolunteerLeaderInvitationPanel />
+
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">

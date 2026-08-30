@@ -46,5 +46,8 @@ test("Phase 7 dashboards and readiness are role-scoped aggregate-only interfaces
   assert.match(dashboard, /dashboardSummarySchema/);
   assert.match(readiness, /authorizeCapability\("admin\.audit\.read"\)/);
   assert.match(readiness, /process\.env\[key\] === "true"/);
+  assert.match(readiness, /AGAPE_VOLUNTEER_MATCHING_V2_ENABLED/);
+  assert.match(readiness, /AGAPE_PROGRAM_INVITATIONS_V2_ENABLED/);
+  assert.doesNotMatch(readiness, /AGAPE_VOLUNTEER_MATCHING_V1_ENABLED|AGAPE_PROGRAM_INVITATIONS_V1_ENABLED/);
   assert.doesNotMatch(readiness, /API_KEY|SECRET|ENDPOINT/);
 });

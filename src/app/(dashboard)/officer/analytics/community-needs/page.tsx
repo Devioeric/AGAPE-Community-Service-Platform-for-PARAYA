@@ -16,6 +16,7 @@ interface NeedRow {
   id:          string;
   barangay:    string;
   category:    string;
+  title:       string;
   description: string;
   priority:    string;
   created_at:  string;
@@ -367,8 +368,9 @@ export default function CommunityNeedsAnalyticsPage() {
                             {need.category}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-muted-foreground max-w-xs">
-                          {truncate(need.description)}
+                        <td className="py-3 px-4 max-w-xs">
+                          <p className="font-medium text-foreground">{need.title}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{truncate(need.description)}</p>
                         </td>
                         <td className="py-3 px-4 text-muted-foreground whitespace-nowrap hidden md:table-cell">
                           {fmtDate(need.created_at)}

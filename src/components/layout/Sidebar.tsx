@@ -59,7 +59,7 @@ const officerNav: NavItem[] = [
     moduleKey: "proposals",
     children: [
       { label: "All Proposals",     href: "/officer/proposals" },
-      { label: "Finance Clearance", href: "/officer/finance", roles: ["finance_officer", "paraya_director"] },
+      { label: "Finance Clearance", href: "/officer/finance", roles: ["finance_officer"] },
       { label: "Structured Proposals & Finance", href: "/officer/phase-2", capabilities: ["proposal.read"] },
     ],
   },

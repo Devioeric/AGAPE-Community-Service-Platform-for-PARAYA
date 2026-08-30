@@ -451,7 +451,8 @@ test("scheduled recommendation notices are disabled, mode-bound, deduplicated, a
   assert.match(route, /phase3_sync_recommendation_notifications/);
   assert.match(route, /filter\(\(recommendation\) => recommendation\.automation\.eligible\)/);
   assert.match(route, /recommendationFingerprint/);
-  assert.match(vercel, /\/api\/ai\/recommendations\?scheduled=true/);
+  const vercelConfig = JSON.parse(vercel);
+  assert.deepEqual(vercelConfig.crons ?? [], []);
   assert.match(migration, /UNIQUE\(need_id,recommendation_fingerprint,recipient_user_id\)/);
   assert.match(migration, /current_review_action='dismissed'/);
   assert.match(migration, /expected_priority='critical' OR current_review_action='endorsed'/);
@@ -892,7 +893,7 @@ test("proposal validation events are created atomically through an authenticated
   assert.match(route, /auth\.supabase\.rpc\("proposal_create_validation_event"/);
   assert.doesNotMatch(route.slice(route.indexOf("export async function POST")), /\.from\("proposal_validations"\)|\.delete\(\)|error\.message/);
   assert.equal(scopes.scopes.phase1.migrationNames.at(-1), "20260818000990_phase3_atomic_proposal_validation.sql");
-  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818001060_phase7_dashboard_readiness.sql");
+  assert.equal(scopes.scopes.phase2.migrationNames.at(-1), "20260818001070_community_needs_application_contract.sql");
 });
 
 test("proposal validation evidence reads and uploads use a bounded private DTO", () => {

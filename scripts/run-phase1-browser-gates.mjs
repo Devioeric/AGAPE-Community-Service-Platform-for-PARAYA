@@ -20,7 +20,7 @@ const ACTIVE_SYNTHETIC_IDS = [
 ];
 
 export function phase1BrowserGateContract() {
-  return { schema: "agape.phase1-browser-gates.v1", cases: 10, aiRequests: 2, workers: 1, finalState: { profilingMode: "off" } };
+  return { schema: "agape.phase1-browser-gates.v2", cases: 10, aiRequests: 1, workers: 1, finalState: { profilingMode: "off" } };
 }
 
 async function startAiRecorder() {

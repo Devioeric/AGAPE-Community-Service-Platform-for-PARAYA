@@ -17,13 +17,14 @@ import { Badge } from "@/components/ui/badge";
 
 const CATEGORIES = [
   { value: "health",        label: "Health",        desc: "Medical access, sanitation, nutrition" },
-  { value: "economic",      label: "Economic",      desc: "Livelihood, employment, poverty" },
-  { value: "environmental", label: "Environmental", desc: "Waste, flooding, pollution" },
-  { value: "social",        label: "Social",        desc: "Education, safety, community services" },
+  { value: "livelihood",    label: "Livelihood",    desc: "Employment, income, and household livelihoods" },
+  { value: "education",     label: "Education",     desc: "Learning access and educational support" },
+  { value: "infrastructure", label: "Infrastructure", desc: "Roads, water, facilities, and public utilities" },
+  { value: "environment",   label: "Environment",   desc: "Waste, flooding, pollution, and resilience" },
 ];
 
 const schema = z.object({
-  category:      z.enum(["health", "economic", "environmental", "social"], { error: "Select a category" }),
+  category:      z.enum(["health", "livelihood", "education", "infrastructure", "environment"], { error: "Select a category" }),
   title:         z.string().min(3, "Title must be at least 3 characters"),
   description:   z.string().min(10, "Please describe the need in more detail"),
   priority:      z.enum(["high", "medium", "low"]),

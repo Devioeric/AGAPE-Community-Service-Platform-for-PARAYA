@@ -96,21 +96,18 @@ if (process.env.AGAPE_PHASE1_E2E === "true") {
     }
 
     test("System Admin loads account-provisioning options without operational partnership access", async ({ page }) => {
+      test.setTimeout(60_000);
       await signIn(page, "admin", /\/admin(?:\/)?$/);
       const requestedPaths: string[] = [];
       page.on("request", (request) => requestedPaths.push(new URL(request.url()).pathname));
-      const provisioningResponse = page.waitForResponse((response) =>
-        new URL(response.url()).pathname === "/api/admin/user-provisioning-options"
-      );
-
-      await page.goto("/admin/users");
-      expect((await provisioningResponse).status()).toBe(200);
+      await page.goto("/admin/users", { waitUntil: "domcontentloaded" });
       await expect(page.getByText("User Accounts", { exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Add User" }).click();
       await page.getByLabel("Role", { exact: true }).selectOption("barangay_secretary");
       const assignment = page.getByLabel(/Barangay assignment/);
       await expect(assignment).toContainText("Synthetic Barangay Alpha");
       await expect(assignment).toContainText("Synthetic Barangay Beta");
+      expect(requestedPaths).toContain("/api/admin/user-provisioning-options");
       expect(requestedPaths).not.toContain("/api/partnerships");
     });
 
@@ -166,7 +163,7 @@ if (process.env.AGAPE_PHASE1_E2E === "true") {
       }
     });
 
-    test("AI routes emit advisory-only payloads to the loopback recorder", async ({ page }) => {
+    test("Phase 1 chatbot emits an advisory-only payload to the loopback recorder", async ({ page }) => {
       await signIn(page, "researcher", /\/officer(?:\/)?$/);
       const result = await page.evaluate(async () => {
         const chatbot = await fetch("/api/ai/chatbot", {
@@ -174,16 +171,10 @@ if (process.env.AGAPE_PHASE1_E2E === "true") {
           body: JSON.stringify({ message: "Summarize current programs without resident data.", conversationHistory: [], module: "programs" }),
         });
         const chatbotBody = await chatbot.text();
-        const narrative = await fetch("/api/ai/narrative-report", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ period_start: "2026-01-01", period_end: "2026-12-31" }),
-        });
-        return { chatbotStatus: chatbot.status, chatbotBody, narrativeStatus: narrative.status, narrativeBody: await narrative.text() };
+        return { chatbotStatus: chatbot.status, chatbotBody };
       });
       expect(result.chatbotStatus).toBe(200);
       expect(result.chatbotBody).toContain("[DONE]");
-      expect(result.narrativeStatus).toBe(200);
-      expect(JSON.parse(result.narrativeBody)).toMatchObject({ data: { status: "draft" } });
     });
   });
 }

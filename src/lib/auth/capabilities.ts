@@ -153,6 +153,55 @@ export function hasCapability(role: string | null | undefined, overrides: Permis
   return overrides?.[CAPABILITY_MODULE[capability]] !== false;
 }
 
+type PageAccessRule = { prefix: string; any: readonly Capability[] };
+
+// Same-portal pages still need capability checks. The middleware's top-level
+// role prefix prevents cross-portal access; these rules prevent a role from
+// typing the URL of a hidden page inside its shared portal.
+export const PAGE_ACCESS_RULES: readonly PageAccessRule[] = [
+  { prefix: "/officer/analytics/recommendations", any: ["analytics.aggregate.read", "ai.assist"] },
+  { prefix: "/officer/analytics", any: ["analytics.aggregate.read"] },
+  { prefix: "/officer/partnerships", any: ["partnership.read"] },
+  { prefix: "/officer/proposals", any: ["proposal.read"] },
+  { prefix: "/officer/finance", any: ["budget.review"] },
+  { prefix: "/officer/phase-2", any: ["partnership.read", "historical_program.read", "proposal.read", "budget.read"] },
+  { prefix: "/officer/community-profile", any: ["profiling.detail.read"] },
+  { prefix: "/officer/profiling", any: ["profiling.aggregate.read", "profiling.detail.read", "profiling.collect", "profiling.validate"] },
+  { prefix: "/officer/surveys", any: ["survey.read"] },
+  { prefix: "/officer/observations", any: ["observation.read"] },
+  { prefix: "/officer/volunteers", any: ["volunteer.directory.read"] },
+  { prefix: "/officer/attendance", any: ["attendance.manage"] },
+  { prefix: "/officer/skills-assets", any: ["skill_asset.read"] },
+  { prefix: "/officer/programs", any: ["program.read"] },
+  { prefix: "/officer/donations", any: ["donation.read"] },
+  { prefix: "/officer/impact", any: ["impact.read"] },
+  { prefix: "/officer/reports", any: ["report.read"] },
+  { prefix: "/officer/forum", any: ["communication.read"] },
+  { prefix: "/officer/notifications", any: ["communication.read"] },
+  { prefix: "/officer/chatbot", any: ["ai.assist"] },
+  { prefix: "/barangay/approvals", any: ["community_need.validate"] },
+  { prefix: "/barangay/reports", any: ["report.read"] },
+  { prefix: "/barangay/partnership", any: ["partnership.read"] },
+  { prefix: "/barangay/profiling", any: ["profiling.aggregate.read", "profiling.detail.read", "profiling.collect", "profiling.validate"] },
+  { prefix: "/barangay/submit-needs", any: ["community_need.submit"] },
+  { prefix: "/barangay/surveys", any: ["survey.read"] },
+  { prefix: "/barangay/forum", any: ["communication.read"] },
+  { prefix: "/barangay/notifications", any: ["communication.read"] },
+  { prefix: "/barangay/chatbot", any: ["ai.assist"] },
+  { prefix: "/partner/volunteers", any: ["volunteer.directory.read"] },
+  { prefix: "/partner/proposals", any: ["legacy_partner.history.read"] },
+  { prefix: "/partner/programs", any: ["legacy_partner.history.read"] },
+];
+
+function pagePathMatches(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+export function canAccessPage(role: string, permissions: PermissionOverrides, pathname: string): boolean {
+  const rule = PAGE_ACCESS_RULES.find((candidate) => pagePathMatches(pathname, candidate.prefix));
+  return !rule || rule.any.some((capability) => hasCapability(role, permissions, capability));
+}
+
 export function allowedPermissionModules(role: string): string[] {
   return Array.from(new Set((ROLE_CAPABILITIES[role as Role] ?? []).map((capability) => CAPABILITY_MODULE[capability]))).sort();
 }

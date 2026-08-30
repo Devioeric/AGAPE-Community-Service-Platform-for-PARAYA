@@ -232,7 +232,7 @@ export async function GET(request: Request) {
   // community-needs: recent submissions + surveys completed count
   type NeedRow = {
     id: string; barangay: string; category: string;
-    description: string; priority: string; created_at: string;
+    title: string; description: string; priority: string; created_at: string;
   };
 
   let recentNeeds: NeedRow[]       = [];
@@ -251,6 +251,7 @@ export async function GET(request: Request) {
       id:          n.id,
       barangay:    (n.barangays as unknown as { name: string } | null)?.name ?? "—",
       category:    n.category ?? "—",
+      title:       (n.title ?? "Community need") as string,
       description: (n.description ?? n.title ?? "—") as string,
       priority:    (n.priority ?? "medium") as string,
       created_at:  n.created_at,

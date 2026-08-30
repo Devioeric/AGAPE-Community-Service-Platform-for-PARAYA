@@ -21,7 +21,7 @@ const PARTNERS = [
 const COMPONENTS = ["partners", "historical_programs", "proposals", "program_finance", "external_contact_email"];
 
 export function phase2BrowserGateContract() {
-  return { schema: "agape.phase2-browser-gates.v1", cases: 10, aiRequests: 3, finalState: { phase2Modes: "off", recommendationAutomation: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
+  return { schema: "agape.phase2-browser-gates.v3", cases: 26, aiRequests: 3, finalState: { phase2Modes: "off", recommendationAutomation: "off", partnerMutationAuthority: "v1", proposalMutationAuthority: "v1" } };
 }
 
 async function startAiRecorder() {
@@ -87,7 +87,7 @@ async function stopServer(server) {
   ]);
 }
 
-export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRoleKey, readWorkflowFingerprint, expectedPort = 54321 }) {
+export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRoleKey, readWorkflowFingerprint, expectedPort = 54321, scenarioFilter = null }) {
   assert.ok(typeof serviceRoleKey === "string" && serviceRoleKey.length >= 20, "local disposable service-role key is unavailable");
   assert.equal(typeof readWorkflowFingerprint, "function", "a fixed workflow fingerprint reader is required");
   const client = createReleaseGateHttpClient({ apiUrl, anonKey, expectedPort });
@@ -136,12 +136,33 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
     { name: "proposal_alignment", modes: [], flags: {} },
     { name: "recommendation_automation", modes: [], flags: { AGAPE_AI_RECOMMENDATION_AUTOMATION_ENABLED: "true", AGAPE_AI_RECOMMENDATION_AUTOMATION_MODE: "synthetic" } },
     { name: "ai_privacy", modes: [], flags: {} },
+    {
+      name: "role_surfaces",
+      modes: [],
+      flags: { AGAPE_ROLE_SURFACE_E2E: "true" },
+      spec: "e2e/role-surface-access.spec.ts",
+      expectedCases: 15,
+    },
+    {
+      name: "community_needs_workflow",
+      modes: [],
+      flags: { AGAPE_COMMUNITY_NEEDS_E2E: "true" },
+      spec: "e2e/community-needs-workflow.spec.ts",
+      expectedCases: 1,
+    },
   ];
+  const selectedScenarios = scenarioFilter
+    ? scenarios.filter((scenario) => scenarioFilter.includes(scenario.name))
+    : scenarios;
+  if (scenarioFilter && selectedScenarios.length !== scenarioFilter.length) {
+    throw new Error("Unknown Phase 2 browser scenario filter");
+  }
+  const expectedPassed = selectedScenarios.reduce((sum, scenario) => sum + (scenario.expectedCases ?? 1), 0);
 
   let passed = 0; let workflowBefore; let operationError;
   try {
     workflowBefore = await readWorkflowFingerprint();
-    for (const scenario of scenarios) {
+    for (const scenario of selectedScenarios) {
       for (const [component, entities, implementationDate] of scenario.modes) await configure(component, "synthetic", entities, implementationDate ?? null);
       const env = { ...baseEnv, ...scenario.flags, AGAPE_PHASE2_E2E_COMPONENT: scenario.name };
       let server; let serverOutput = ""; let scenarioError;
@@ -150,11 +171,12 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
         server.stdout.on("data", (chunk) => { serverOutput = `${serverOutput}${chunk}`.slice(-32_768); });
         server.stderr.on("data", (chunk) => { serverOutput = `${serverOutput}${chunk}`.slice(-32_768); });
         await waitForServer(baseUrl, server);
-        const browser = await runProcess(process.execPath, [playwright, "test", "e2e/phase2-authenticated.spec.ts", "--project=chromium", "--workers=1", "--reporter=line"], { cwd: root, env, timeoutMs: 240_000 });
+        const browser = await runProcess(process.execPath, [playwright, "test", scenario.spec ?? "e2e/phase2-authenticated.spec.ts", "--project=chromium", "--workers=1", "--reporter=line"], { cwd: root, env, timeoutMs: 360_000 });
         if (browser.code !== 0 || browser.truncated) throw new Error(`Phase 2 ${scenario.name} browser gate failed:\n${browser.stdout}\n${browser.stderr}\n${redactProcessOutput(serverOutput)}`);
         const passedMatch = browser.stdout.match(/(\d+) passed/);
-        assert.equal(Number(passedMatch?.[1] ?? 0), 1, `${scenario.name} browser case count drifted`);
-        passed += 1;
+        const expectedCases = scenario.expectedCases ?? 1;
+        assert.equal(Number(passedMatch?.[1] ?? 0), expectedCases, `${scenario.name} browser case count drifted`);
+        passed += expectedCases;
       } catch (error) { scenarioError = error; throw error; }
       finally {
         try { await stopServer(server); }
@@ -162,10 +184,11 @@ export async function runPhase2BrowserGates({ root, apiUrl, anonKey, serviceRole
         for (const [component] of [...scenario.modes].reverse()) await configure(component, "off");
       }
     }
-    assertPhase2SafeAiPayloads(aiRecorder.requests);
+    if (scenarioFilter) assert.equal(aiRecorder.requests.length, 0, "filtered role-surface diagnostics must not call AI");
+    else assertPhase2SafeAiPayloads(aiRecorder.requests);
     assert.deepEqual(await readWorkflowFingerprint(), workflowBefore, "Phase 2 browser/AI execution changed proposal or program workflow state");
-    const contract = phase2BrowserGateContract(); assert.equal(passed, contract.cases);
-    return { schema: contract.schema, passed, failed: 0, skipped: 0, finalState: contract.finalState };
+    const contract = phase2BrowserGateContract(); assert.equal(passed, expectedPassed);
+    return { schema: scenarioFilter ? "agape.phase2-role-surface-diagnostic.v1" : contract.schema, passed, failed: 0, skipped: 0, finalState: contract.finalState };
   } catch (error) { operationError = error; throw error; }
   finally {
     for (const component of COMPONENTS) { try { await configure(component, "off"); } catch { /* preserve original error */ } }

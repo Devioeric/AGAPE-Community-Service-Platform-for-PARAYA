@@ -22,7 +22,7 @@ const root = resolve(import.meta.dirname, "..");
 const cli = resolve(root, "node_modules", "supabase", "dist", "supabase.js");
 
 function usage() {
-  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--fixture-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--phase2-behavior-only|--phase2-e2e-only|--all]
+  console.log(`Usage: node scripts/run-local-database-gates.mjs [--preflight|--replay-only|--fixture-only|--legacy-seed-only|--phase1-behavior-only|--phase1-e2e-only|--phase2-behavior-only|--phase2-e2e-only|--phase2-role-e2e-only|--phase2-community-needs-e2e-only|--all]
   [--scope phase1|phase2|reconciliation-applied|reconciliation-full]
   [--baseline-candidate <private-sql> --capture-dir <private-capture>]
   [--reconciliation-configuration <private-sql>] [--candidate-mode]
@@ -33,7 +33,7 @@ function parse(argv) {
   const options = { mode: "--all", scope: "phase2", baselineCandidate: null, captureDirectory: null, reconciliationConfiguration: null, artifactDirectory: null, candidateMode: false };
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
-    if (["--preflight", "--replay-only", "--fixture-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--phase2-behavior-only", "--phase2-e2e-only", "--all"].includes(key)) options.mode = key;
+    if (["--preflight", "--replay-only", "--fixture-only", "--legacy-seed-only", "--phase1-behavior-only", "--phase1-e2e-only", "--phase2-behavior-only", "--phase2-e2e-only", "--phase2-role-e2e-only", "--phase2-community-needs-e2e-only", "--all"].includes(key)) options.mode = key;
     else if (key === "--candidate-mode") options.candidateMode = true;
     else if (["--scope", "--baseline-candidate", "--capture-dir", "--reconciliation-configuration", "--artifact-dir"].includes(key)) {
       const value = argv[++index];
@@ -353,7 +353,7 @@ async function configureSeed(isolated, sqlPaths) {
   await writeFile(isolated.configPath, config, "utf8");
 }
 
-async function seededCompatibilityCycle({ label, seedPaths, assertions = [], behavioralPhase1 = false, behavioralPhase2 = false, browserPhase1 = false, browserPhase2 = false }) {
+async function seededCompatibilityCycle({ label, seedPaths, assertions = [], behavioralPhase1 = false, behavioralPhase2 = false, browserPhase1 = false, browserPhase2 = false, browserPhase2Scenarios = null }) {
   const isolated = await newIsolatedProject();
   let attemptedStart = false;
   let operationError = null;
@@ -418,6 +418,7 @@ async function seededCompatibilityCycle({ label, seedPaths, assertions = [], beh
         anonKey: localStatus.ANON_KEY,
         serviceRoleKey: localStatus.SERVICE_ROLE_KEY ?? localStatus.SECRET_KEY,
         readWorkflowFingerprint: () => readWorkflowFingerprintFromDisposableDatabase(isolated),
+        scenarioFilter: browserPhase2Scenarios,
       });
       caseCounts.passed += result.passed;
       caseCounts.failed += result.failed;
@@ -532,6 +533,30 @@ try {
       browserPhase2: true,
     });
     console.log("Phase 2 authenticated browser diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
+  if (options.mode === "--phase2-role-e2e-only") {
+    if (options.scope !== "phase2") throw new Error("--phase2-role-e2e-only requires --scope phase2");
+    await seededCompatibilityCycle({
+      label: "Phase 2 role-surface browser fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      browserPhase2: true,
+      browserPhase2Scenarios: ["role_surfaces", "community_needs_workflow"],
+    });
+    console.log("Phase 2 role-surface browser diagnostic passed. This diagnostic is not release evidence by itself.");
+    process.exit(0);
+  }
+  if (options.mode === "--phase2-community-needs-e2e-only") {
+    if (options.scope !== "phase2") throw new Error("--phase2-community-needs-e2e-only requires --scope phase2");
+    await seededCompatibilityCycle({
+      label: "Phase 2 community-needs browser fixture",
+      seedPaths: configuredScope.fixtureSeedPaths,
+      assertions: configuredScope.seededTestPaths,
+      browserPhase2: true,
+      browserPhase2Scenarios: ["community_needs_workflow"],
+    });
+    console.log("Phase 2 community-needs browser diagnostic passed. This diagnostic is not release evidence by itself.");
     process.exit(0);
   }
   if (options.mode === "--legacy-seed-only") {

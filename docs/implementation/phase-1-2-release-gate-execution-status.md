@@ -1842,3 +1842,50 @@ This is a non-authoritative execution ledger. It cannot satisfy either release g
 - Final boundary: all committed server flags remain false, all database modes
   remain off, V1 remains authoritative, workers remain no-op, and no external
   AI, email/SMS, blockchain, or production service was enabled.
+
+## Complete role/account functional validation — 2026-08-30
+
+- Status: `locally_complete` for the technical validation packet. This is
+  disposable local development evidence only; it is not independent release
+  approval and does not authorize production activation.
+- Coverage inventory: the canonical catalog maps all 83 application
+  capabilities to existing API handlers and generates 238 positive
+  role/capability cases for the nine approved login roles plus the three
+  retained historical compatibility identities. Fifteen authenticated browser
+  cases cover permitted pages, cross-portal isolation, same-portal capability
+  isolation, pending users, inactive users, and suspended users.
+- Phase 1 browser result: 22/22 seeded fixture assertions and 10/10
+  authenticated workflow cases pass after the middleware changes. Profiling
+  returns to `off` and the application process is stopped during cleanup.
+- Phase 2 browser result: 26/26 authenticated component, role-surface,
+  cross-role Community Needs, and AI interception cases pass. The Community
+  Needs case proves Secretary submission, Captain approval, and PARAYA
+  aggregate visibility. All component modes return to `off`, both mutation
+  authorities return to `v1`, and the AI recommendation automation remains
+  `off`.
+- Full-chain database result: both clean Phase 2 schema replays match; 32/32
+  unseeded catalog/RLS/runtime/Storage assertions, 253/253 seeded assertions,
+  83/83 Auth/PostgREST/RPC/Storage/concurrency cases, and the legacy seed
+  compatibility check pass. Replay SHA-256:
+  `7ef458fa602326e85b456776ebd6d02df0b8900f74b8eaf9af6381676bfd7ffc`.
+- Static result: 282/282 Node tests pass; TypeScript passes; ESLint reports no
+  warnings or errors; the production build successfully generates 180 pages;
+  migration inventory reports 54 timestamped SQL migrations, zero unordered
+  active SQL, and deterministic replay preflight PASS.
+- Corrections made from executable failures: capability-based same-portal page
+  authorization; Finance/Admin navigation isolation; strict readiness flag
+  names; Phase 1 browser scope stability; complete delivery-runtime DTO;
+  forward migration `20260818001070_community_needs_application_contract.sql`;
+  canonical Community Needs categories and synchronized application fields;
+  bounded title/description analytics; and a filtered browser diagnostic
+  runner.
+- Safety/final state: committed example flags remain explicitly `false`;
+  `vercel.json` contains no scheduled jobs; the disposable stack was removed;
+  no remote database, staging account, real resident/contact/document/receipt/
+  finance row, external AI provider, email/SMS provider, or production runtime
+  was changed by this validation.
+- Rollback: keep every flag false, all database modes off, both mutation
+  authorities at V1, and workers stopped/no-op. If the new migration is applied
+  anywhere, correct it only with a later forward migration; do not rewrite it.
+- Remaining external gate: authoritative private evidence, independent review,
+  and explicit release authorization remain outside this local test packet.

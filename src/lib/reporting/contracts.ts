@@ -33,6 +33,7 @@ export const deliveryRuntimeSchema = z.object({
   mode: z.enum(["off", "synthetic", "live"]),
   providerKey: z.string(),
   rowVersion: z.number().int().positive(),
+  syntheticUserCount: z.number().int().nonnegative(),
   queuedCount: z.number().int().nonnegative(),
   failedCount: z.number().int().nonnegative(),
   suppressedCount: z.number().int().nonnegative(),

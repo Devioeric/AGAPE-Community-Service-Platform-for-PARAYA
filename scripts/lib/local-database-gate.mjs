@@ -195,7 +195,17 @@ export async function findForbiddenSupabaseLinkMetadata(root) {
   ];
   const found = [];
   for (const candidate of candidates) {
-    try { await stat(resolve(root, candidate)); found.push(candidate); } catch { /* absent is safe */ }
+    try {
+      const path = resolve(root, candidate);
+      const metadata = await stat(path);
+      if (metadata.isDirectory()) {
+        // The repository-local CLI may leave an empty `.temp` cache directory
+        // after version/help checks. Only actual link metadata is forbidden.
+        if ((await readdir(path)).length > 0) found.push(candidate);
+      } else {
+        found.push(candidate);
+      }
+    } catch { /* absent is safe */ }
   }
   return found;
 }

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isActiveAccount } from "@/lib/auth/account-status";
 import { classifyApiAccess } from "@/lib/auth/request-access";
 import { isRecentPasswordRecovery } from "@/lib/auth/redirects";
+import { canAccessPage } from "@/lib/auth/capabilities";
 import { ROLE_HOME } from "@/lib/auth/roles";
 
 const PUBLIC_ROUTES = [
@@ -207,6 +208,10 @@ export async function middleware(request: NextRequest) {
       (pathname === allowedPrefix || pathname.startsWith(`${allowedPrefix}/`));
 
     if (!isAllowed && pathname !== "/") {
+      return redirectWithCookies(request, supabaseResponse, home);
+    }
+
+    if (isAllowed && !canAccessPage(role, profile.permissions, pathname)) {
       return redirectWithCookies(request, supabaseResponse, home);
     }
 

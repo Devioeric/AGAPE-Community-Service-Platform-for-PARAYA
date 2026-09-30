@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { hasCapability, type Capability } from "@/lib/auth/capabilities";
 import { isActiveAccount } from "@/lib/auth/account-status";
+import { isRoleEnabled } from "@/lib/auth/roles";
 
 export type AuthorizedActor = {
   id: string;
@@ -28,7 +29,7 @@ export async function authorizeAnyCapability(capabilities: readonly Capability[]
     .select("role, barangay_id, permissions, status, is_active")
     .eq("id", user.id)
     .single();
-  if (!profile || !isActiveAccount(profile) || !capabilities.some((capability) => hasCapability(profile.role, profile.permissions, capability))) {
+  if (!profile || !isActiveAccount(profile) || !isRoleEnabled(profile.role) || !capabilities.some((capability) => hasCapability(profile.role, profile.permissions, capability))) {
     return { ok: false, status: 403, error: "Forbidden" };
   }
   const activeProfile = profile;

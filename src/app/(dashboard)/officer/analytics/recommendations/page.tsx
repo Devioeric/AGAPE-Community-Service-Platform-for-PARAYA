@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, Bot, Building2, CalendarClock, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, CalendarClock, CheckCircle2, ClipboardCheck, Loader2, RefreshCw, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -169,16 +169,7 @@ export default function AdvisoryRecommendationsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in" data-testid="advisory-recommendations-page">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div>
-          <h1 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
-            <Bot className="h-6 w-6 text-primary" />
-            Advisory Recommendations
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Rules-based planning suggestions generated from approved community needs and linked proposal/program coverage.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button variant="outline" onClick={() => void load()} disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Refresh
@@ -373,7 +364,7 @@ export default function AdvisoryRecommendationsPage() {
                           {recommendation.alternatives.map((alternative, index) => (
                             <li key={alternative.code}>
                               <span className="font-medium text-foreground">{index + 1}. {alternative.title}</span>
-                              <span className="mt-0.5 block text-xs text-muted-foreground">SDG {alternative.suggestedSdgs.join(", ")}</span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">{alternative.suggestedSdgs.length ? `Focus SDG ${alternative.suggestedSdgs.join(", ")}` : "Focus SDG alignment requires human review; none suggested yet."}</span>
                             </li>
                           ))}
                         </ol>
@@ -566,6 +557,7 @@ export default function AdvisoryRecommendationsPage() {
                       </div>
                       <div className="flex flex-wrap gap-1.5" aria-label="Suggested Sustainable Development Goals">
                         {recommendation.suggestedSdgs.map((sdg) => <Badge key={sdg} variant="outline">SDG {sdg}</Badge>)}
+                        {recommendation.suggestedSdgs.length === 0 && <span className="text-xs text-muted-foreground">Focus SDG alignment requires human review; none suggested yet.</span>}
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -592,7 +584,7 @@ export default function AdvisoryRecommendationsPage() {
                     )}
                     {data.scope.canReview && (
                       <div className="space-y-2 rounded-md border border-border p-3" data-testid="recommendation-review-controls">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Researcher or Director review</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">PARAYA Officer review</p>
                         <div className="flex flex-col gap-2 sm:flex-row">
                           <select
                             aria-label={`Dismissal reason for ${recommendation.intervention.title}`}

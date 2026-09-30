@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ScanLine, CheckCircle2, Loader2, AlertCircle, Calendar, ArrowLeft,
+  CheckCircle2, Loader2, AlertCircle, Calendar, ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -106,19 +106,10 @@ export default function VolunteerCheckInPage() {
 
   return (
     <div className="max-w-md mx-auto space-y-4">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-3">
-          <ScanLine className="w-7 h-7 text-primary" />
-        </div>
-        <h1 className="font-heading text-xl font-bold text-foreground">Check In</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Scan the QR code at the venue or enter the 6-character code below.
-        </p>
-      </div>
-
       <Card className="border-border shadow-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-heading text-base">Attendance Code</CardTitle>
+          <p className="text-xs text-muted-foreground">Scan the QR code at the venue or enter the 6-character code below.</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmitForm} className="space-y-4">

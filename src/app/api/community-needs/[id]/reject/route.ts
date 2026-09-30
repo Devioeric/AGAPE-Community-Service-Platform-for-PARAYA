@@ -9,8 +9,8 @@ type Ctx = { params: Promise<{ id: string }> };
 // POST /api/community-needs/[id]/reject
 // Body: { notes: string, action?: "reject" | "needs_revision" }
 //
-// Only the Barangay Captain of the matching barangay may reject.
-// "needs_revision" lets the Captain ask the submitter to revise without a hard reject.
+// Only the PARAYA Officer may decide a Secretary-submitted need.
+// "needs_revision" returns it for correction without a hard rejection.
 export async function POST(request: Request, { params }: Ctx) {
   const auth = await authorizeCapability("community_need.validate");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -30,20 +30,11 @@ export async function POST(request: Request, { params }: Ctx) {
 
   if (!need) return NextResponse.json({ error: "Need not found" }, { status: 404 });
 
-  if (!auth.actor.barangayId || auth.actor.barangayId !== need.barangay_id) {
-    return NextResponse.json({ error: "Only the Barangay Captain may take action on needs from this barangay" }, { status: 403 });
-  }
-
-  const { error } = await admin
-    .from("community_needs")
-    .update({
-      approval_status: status,
-      approved_by:     auth.actor.id,    // record who took the action
-      approved_at:     new Date().toISOString(),
-      approval_notes:  body.notes.trim(),
-      updated_at:      new Date().toISOString(),
-    })
-    .eq("id", id);
+  const { error } = await auth.supabase.rpc("phase1_decide_community_need", {
+    p_community_need_id: id,
+    p_decision: body.action,
+    p_notes: body.notes.trim(),
+  });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

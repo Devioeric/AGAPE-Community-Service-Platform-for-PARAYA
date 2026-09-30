@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
+import { localPreviewAuthOptions } from "@/lib/supabase/local-preview";
 import { NextResponse, type NextRequest } from "next/server";
 import { isActiveAccount } from "@/lib/auth/account-status";
 import { classifyApiAccess } from "@/lib/auth/request-access";
 import { isRecentPasswordRecovery } from "@/lib/auth/redirects";
 import { canAccessPage } from "@/lib/auth/capabilities";
-import { ROLE_HOME } from "@/lib/auth/roles";
+import { isActiveLoginRole, isRetiredBarangayRole, isRoleEnabled, ROLE_HOME } from "@/lib/auth/roles";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -29,7 +30,9 @@ function redirectWithCookies(
   pathname: string,
   reason?: string
 ) {
-  const url = request.nextUrl.clone();
+  // Use the original request origin, not NextURL's normalized loopback host.
+  // Destinations remain internal constants; never trust forwarded-host input.
+  const url = new URL(request.url);
   url.pathname = pathname;
   url.search = "";
   if (reason) url.searchParams.set("reason", reason);
@@ -50,6 +53,13 @@ function jsonErrorWithCookies(
 }
 
 export async function middleware(request: NextRequest) {
+  const started = performance.now();
+  const response = await authorizeRequest(request);
+  response.headers.set("X-AGAPE-Middleware-Ms", (performance.now() - started).toFixed(1));
+  return response;
+}
+
+async function authorizeRequest(request: NextRequest) {
   // Augment request headers so server components can read user profile
   // without making their own Supabase calls.
   const requestHeaders = new Headers(request.headers);
@@ -61,6 +71,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      ...localPreviewAuthOptions(),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -95,6 +106,15 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
+  async function loadAccount() {
+    // Independent fresh checks; no cross-request authorization cache.
+    const [{ data: profile }, { data: retired }] = await Promise.all([
+      supabase.from("users").select("role, full_name, permissions, status, is_active, must_change_password").eq("id", user!.id).single(),
+      supabase.rpc("phase0_current_account_has_retired_barangay_role"),
+    ]);
+    return { profile, hasRetiredBarangayRole: retired === true };
+  }
+
   // API routes retain their own fine-grained RBAC, but this central gate makes
   // an active application profile a prerequisite. The only exceptions are
   // public volunteer registration, independently authenticated cron jobs, and
@@ -115,15 +135,16 @@ export async function middleware(request: NextRequest) {
         : jsonErrorWithCookies(supabaseResponse, 403, "Forbidden");
     }
 
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role, status, is_active")
-      .eq("id", user.id)
-      .single();
+    const { profile, hasRetiredBarangayRole } = await loadAccount();
 
-    if (!isActiveAccount(profile) || !profile?.role || !ROLE_HOME[profile.role]) {
+    if (hasRetiredBarangayRole || isRetiredBarangayRole(profile?.role)) {
       await supabase.auth.signOut();
-      return jsonErrorWithCookies(supabaseResponse, 403, "Account is inactive");
+      return jsonErrorWithCookies(supabaseResponse, 403, "This barangay role has been retired; contact the administrator");
+    }
+
+    if (!isActiveAccount(profile) || !isActiveLoginRole(profile?.role) || !ROLE_HOME[profile.role] || !isRoleEnabled(profile?.role)) {
+      await supabase.auth.signOut();
+      return jsonErrorWithCookies(supabaseResponse, 403, profile?.role === "contributor" ? "Contributor access is disabled" : "Account is inactive");
     }
 
     return supabaseResponse;
@@ -151,20 +172,21 @@ export async function middleware(request: NextRequest) {
       if (!error && mayCompleteInvite === true) return supabaseResponse;
     }
 
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role, status, is_active")
-      .eq("id", user.id)
-      .single();
+    const { profile, hasRetiredBarangayRole } = await loadAccount();
 
     const mayResetPassword =
       pathname.startsWith("/reset-password") &&
       isActiveAccount(profile) &&
-      isRecentPasswordRecovery(user.recovery_sent_at);
+      (isRecentPasswordRecovery(user.recovery_sent_at) || profile?.must_change_password === true);
 
     if (mayResetPassword) return supabaseResponse;
 
-    if (!isActiveAccount(profile) || !profile?.role || !ROLE_HOME[profile.role]) {
+    if (hasRetiredBarangayRole || isRetiredBarangayRole(profile?.role)) {
+      await supabase.auth.signOut();
+      return redirectWithCookies(request, supabaseResponse, "/login", "role_retired");
+    }
+
+    if (!isActiveAccount(profile) || !isActiveLoginRole(profile?.role) || !ROLE_HOME[profile.role]) {
       await supabase.auth.signOut();
       return redirectWithCookies(
         request,
@@ -172,6 +194,14 @@ export async function middleware(request: NextRequest) {
         "/login",
         "account_inactive"
       );
+    }
+
+    // Password recovery/reset remains available so an operator can repair an
+    // account while the Contributor rollout is disabled.  No protected route
+    // or API is reachable until the rollout flag is explicitly enabled.
+    if (!isRoleEnabled(profile?.role)) {
+      await supabase.auth.signOut();
+      return redirectWithCookies(request, supabaseResponse, "/login", "contributor_disabled");
     }
 
     return redirectWithCookies(
@@ -184,13 +214,14 @@ export async function middleware(request: NextRequest) {
   // Authenticated users: enforce both application-account state and the
   // role-specific dashboard boundary, then inject the trusted profile headers.
   if (user && !isPublic) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role, full_name, permissions, status, is_active")
-      .eq("id", user.id)
-      .single();
+    const { profile, hasRetiredBarangayRole } = await loadAccount();
 
-    if (!isActiveAccount(profile) || !profile?.role || !ROLE_HOME[profile.role]) {
+    if (hasRetiredBarangayRole || isRetiredBarangayRole(profile?.role)) {
+      await supabase.auth.signOut();
+      return redirectWithCookies(request, supabaseResponse, "/login", "role_retired");
+    }
+
+    if (!isActiveAccount(profile) || !isActiveLoginRole(profile?.role) || !ROLE_HOME[profile.role]) {
       await supabase.auth.signOut();
       return redirectWithCookies(
         request,
@@ -200,8 +231,25 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    if (!isRoleEnabled(profile?.role)) {
+      await supabase.auth.signOut();
+      return redirectWithCookies(request, supabaseResponse, "/login", "contributor_disabled");
+    }
+
+    if (profile.must_change_password === true && pathname !== "/reset-password") {
+      return redirectWithCookies(request, supabaseResponse, "/reset-password", "password_change_required");
+    }
+
     const role = profile.role;
     const home = ROLE_HOME[role];
+
+    // Compatibility redirect for bookmarks to the retired Captain queue.
+    if (role === "barangay_secretary" && pathname.startsWith("/barangay/approvals")) {
+      const destination = canAccessPage(role, profile.permissions, "/barangay/submit-needs")
+        ? "/barangay/submit-needs"
+        : home;
+      return redirectWithCookies(request, supabaseResponse, destination);
+    }
 
     const allowedPrefix = ROLE_HOME[role];
     const isAllowed = Boolean(allowedPrefix) &&

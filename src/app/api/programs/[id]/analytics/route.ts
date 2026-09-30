@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { parseProgramAnalytics, programAnalyticsBudgetLineSchema } from "@/lib/programs/analytics-contract";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,8 +16,12 @@ type Ctx = { params: Promise<{ id: string }> };
 // against the in-flight schema changes. All numbers are small (per program)
 // so the JS aggregation is cheap.
 export async function GET(_req: Request, { params }: Ctx) {
+  const json = (body: unknown, status = 200) => NextResponse.json(body, {
+    status, headers: { "Cache-Control": "private, no-store" },
+  });
+  try {
   const auth = await authorizeCapability("analytics.aggregate.read");
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!auth.ok) return json({ error: auth.error }, auth.status);
   const adminDb  = createAdminClient();
 
   const { id } = await params;
@@ -24,19 +29,19 @@ export async function GET(_req: Request, { params }: Ctx) {
   // ── Parallel fetch ────────────────────────────────────────────────────────
   const [
     { data: program, error: progErr },
-    { data: activities },
-    { data: signups },
-    { data: logs },
-    { data: indicators },
-    { data: qualitative },
-    { data: followups },
-    { data: budgets },
+    { data: activities, error: activitiesError },
+    { data: signups, error: signupsError },
+    { data: logs, error: logsError },
+    { data: indicators, error: indicatorsError },
+    { data: qualitative, error: qualitativeError },
+    { data: followups, error: followupsError },
+    { data: budgets, error: budgetsError },
   ] = await Promise.all([
     adminDb
       .from("programs")
       .select("id, title, description, status, start_date, end_date, budget_allocated, barangays(name)")
       .eq("id", id)
-      .single(),
+      .maybeSingle(),
     adminDb
       .from("program_activities")
       .select("id, title, date, status, attendance(count)")
@@ -73,8 +78,14 @@ export async function GET(_req: Request, { params }: Ctx) {
       .eq("program_id", id),
   ]);
 
-  if (progErr) return NextResponse.json({ error: progErr.message }, { status: 500 });
-  if (!program) return NextResponse.json({ error: "Program not found" }, { status: 404 });
+  if (progErr) throw new Error("Program query unavailable");
+  if (!program) return json({ error: "Program not found" }, 404);
+  if ([activitiesError, signupsError, logsError, indicatorsError, qualitativeError, followupsError, budgetsError].some(Boolean)) {
+    throw new Error("Program analytics dependency unavailable");
+  }
+  if (![activities, signups, logs, indicators, qualitative, followups, budgets].every(Array.isArray)) {
+    throw new Error("Invalid program analytics dependency");
+  }
 
   // ── Activity rollup ───────────────────────────────────────────────────────
   type ActivityRow = {
@@ -153,13 +164,11 @@ export async function GET(_req: Request, { params }: Ctx) {
   });
 
   // ── Budget rollup ─────────────────────────────────────────────────────────
-  type BudgetRow = {
-    id: string; category: string;
-    allocated: number | null; spent: number | null; notes: string | null;
-  };
-  const budgetRows = (budgets ?? []) as BudgetRow[];
-  const plannedTotal = budgetRows.reduce((s, b) => s + (b.allocated ?? 0), 0);
-  const actualTotal  = budgetRows.reduce((s, b) => s + (b.spent  ?? 0), 0);
+  const budgetRows = (budgets ?? []).map(row => programAnalyticsBudgetLineSchema.parse({
+    id: row.id, category: row.category, allocated: row.allocated, spent: row.spent, notes: row.notes,
+  }));
+  const plannedTotal = budgetRows.reduce((s, b) => s + b.allocated, 0);
+  const actualTotal  = budgetRows.reduce((s, b) => s + b.spent, 0);
 
   // ── Impact rollups ────────────────────────────────────────────────────────
   type IndicatorRow = {
@@ -187,8 +196,8 @@ export async function GET(_req: Request, { params }: Ctx) {
     return m;
   }, {});
 
-  return NextResponse.json({
-    data: {
+  return json({
+    data: parseProgramAnalytics({
       program: {
         id:                   program.id,
         title:                program.title,
@@ -226,6 +235,9 @@ export async function GET(_req: Request, { params }: Ctx) {
         qualitative:       qualRows,
         qualitative_by_type: qualByType,
       },
-    },
+    }),
   });
+  } catch {
+    return json({ error: "Program analytics is temporarily unavailable. Please retry." }, 503);
+  }
 }

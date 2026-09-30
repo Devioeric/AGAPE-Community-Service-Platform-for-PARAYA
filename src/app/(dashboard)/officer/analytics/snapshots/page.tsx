@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   History, Loader2, Plus, Calendar, Download, Clock, Bot, User,
@@ -14,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { exportToExcel } from "@/lib/export";
+import { focusSdgCounts } from "@/lib/sdg-focus.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -136,16 +139,7 @@ export default function SnapshotsPage() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" /> Report Snapshots
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Frozen aggregates per month / quarter / year. Generated automatically on the 1st of each period (Vercel Cron), or trigger one manually.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={() => setDlg(true)} className="bg-primary hover:bg-primary-dark text-white gap-1.5">
           <Plus className="w-4 h-4" /> Generate Snapshot
         </Button>
@@ -196,66 +190,70 @@ export default function SnapshotsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y border-border bg-surface-alt/50">
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Period</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Type</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Coverage</th>
-                    <th className="text-right py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Programs</th>
-                    <th className="text-right py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Hours</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Generated</th>
-                    <th className="py-3 px-4 w-24" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {snapshots.map((s, i) => (
-                    <tr key={s.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                      <td className="py-3 px-4 font-medium text-foreground">{s.data.period.label}</td>
-                      <td className="py-3 px-4">
-                        <Badge className="bg-muted text-muted-foreground border border-border capitalize text-[10px]">
-                          {s.period_type}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground text-xs hidden md:table-cell whitespace-nowrap">
-                        {fmtDate(s.period_start)} – {fmtDate(s.period_end)}
-                      </td>
-                      <td className="py-3 px-4 text-right tabular-nums hidden sm:table-cell">{s.data.totals.programs}</td>
-                      <td className="py-3 px-4 text-right tabular-nums hidden sm:table-cell">{s.data.totals.volunteerHours}</td>
-                      <td className="py-3 px-4 text-xs hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          {s.trigger === "cron" ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
-                          {fmtDateTime(s.created_at)}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setViewing(s)}
-                            className="text-xs px-2 py-1 rounded-md hover:bg-surface-alt text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => exportToExcelFlattened(s)}
-                            className="w-7 h-7 rounded-md hover:bg-success/10 flex items-center justify-center text-muted-foreground hover:text-success transition-colors"
-                            title="Download as Excel"
-                          >
-                            <FileSpreadsheet className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => downloadJson(s)}
-                            className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                            title="Download JSON"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={snapshots} label="Snapshots" resetKey={filter}>
+                {(pageRows) => (
+                  <table aria-label="Snapshots" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-y border-border bg-surface-alt/50">
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Period</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Type</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Coverage</th>
+                        <th className="text-right py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Programs</th>
+                        <th className="text-right py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Hours</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Generated</th>
+                        <th className="py-3 px-4 w-24" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((s, i) => (
+                        <tr key={s.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                          <td className="py-3 px-4 font-medium text-foreground">{s.data.period.label}</td>
+                          <td className="py-3 px-4">
+                            <Badge className="bg-muted text-muted-foreground border border-border capitalize text-[11px]">
+                              {s.period_type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground text-xs hidden md:table-cell whitespace-nowrap">
+                            {fmtDate(s.period_start)} – {fmtDate(s.period_end)}
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums hidden sm:table-cell">{s.data.totals.programs}</td>
+                          <td className="py-3 px-4 text-right tabular-nums hidden sm:table-cell">{s.data.totals.volunteerHours}</td>
+                          <td className="py-3 px-4 text-xs hidden lg:table-cell">
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              {s.trigger === "cron" ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                              {fmtDateTime(s.created_at)}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setViewing(s)}
+                                className="text-xs px-2 py-1 rounded-md hover:bg-surface-alt text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => exportToExcelFlattened(s)}
+                                className="w-7 h-7 rounded-md hover:bg-success/10 flex items-center justify-center text-muted-foreground hover:text-success transition-colors"
+                                title="Download as Excel"
+                              >
+                                <FileSpreadsheet className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => downloadJson(s)}
+                                className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                                title="Download original snapshot JSON (historical classifications retained)"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>
@@ -348,7 +346,7 @@ export default function SnapshotsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {Object.entries(viewing.data.totals).map(([k, v]) => (
                     <div key={k} className="p-2.5 rounded-lg border border-border/60 bg-surface-alt/30">
-                      <p className="text-[10px] text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}</p>
+                      <p className="text-[11px] text-muted-foreground capitalize">{k.replace(/([A-Z])/g, " $1")}</p>
                       <p className="text-lg font-bold font-heading text-foreground tabular-nums">{v.toLocaleString()}</p>
                     </div>
                   ))}
@@ -365,8 +363,8 @@ export default function SnapshotsPage() {
               {Object.keys(viewing.data.needsByCategory).length > 0 && (
                 <BreakdownSection title="Community Needs by Category" data={viewing.data.needsByCategory} />
               )}
-              {Object.values(viewing.data.sdgCounts).some((v) => v > 0) && (
-                <BreakdownSection title="SDG Alignment" data={viewing.data.sdgCounts as Record<string, number>} prefix="SDG " />
+              {Object.values(focusSdgCounts(viewing.data.sdgCounts)).some((v) => v > 0) && (
+                <BreakdownSection title="Focus SDG Alignment" data={focusSdgCounts(viewing.data.sdgCounts)} prefix="SDG " />
               )}
               {viewing.data.topBarangays.length > 0 && (
                 <div>
@@ -390,7 +388,7 @@ export default function SnapshotsPage() {
                   <FileSpreadsheet className="w-4 h-4" /> Excel
                 </Button>
                 <Button variant="outline" onClick={() => downloadJson(viewing)} className="gap-1.5">
-                  <Download className="w-4 h-4" /> JSON
+                  <Download className="w-4 h-4" /> Original snapshot JSON
                 </Button>
                 <Button onClick={() => setViewing(null)}>Close</Button>
               </>

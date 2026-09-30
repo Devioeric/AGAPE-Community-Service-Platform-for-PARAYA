@@ -1,7 +1,12 @@
 "use client";
 
+import { isFocusSdg } from "@/lib/sdg-focus.js";
+
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { BeneficiaryEvidenceOptionDTO, BeneficiaryPlanningResultDTO } from "@/lib/phase2/types";
+import type { ProposalDraftGraphInput } from "@/lib/phase2/contracts";
+import { ProposalDraftEditor } from "./ProposalDraftEditor";
+import { canAdvancePreScreening, canEditProposal, proposalDraftFromDetail, type EditableProposalDetail } from "./evidence-editing";
 import {
   Empty, Field, Panel, Phase2Notice, StatusPill, inputClass, jsonRequest,
   phase2Api, primaryButton, secondaryButton, textareaClass,
@@ -12,20 +17,7 @@ type ProposalRow = {
   rowVersion: number; leadBarangayId: string;
   budget: { id: string; status: string; cashTotal: string; inKindTotal: string; rowVersion: number } | null;
 };
-type ProposalDetail = ProposalRow & {
-  description: string; originatingPartnerId: string | null; responsibleOfficerId: string; projectCategoryId: string;
-  returnStage: string | null; requiredWarnings: string[];
-  targets: Array<{ id: string; barangayId: string; sitioId: string | null; isLead: boolean }>;
-  needs: Array<{ id: string; needId: string; coverage: string; plannedCount: number | null; snapshot: { title?: string } }>;
-  beneficiaryEstimates: Array<{ id: string; categoryCode: string; kind: string; calculatedCount: number | null; suppressed: boolean; finalCount: number; asOfDate: string }>;
-  sdgs: Array<{ number: number; indicator: string | null }>;
-  activeVersion: { id: string; versionNumber: number; canonicalHash: string } | null;
-  budget: ProposalRow["budget"] & {
-    zeroCash: boolean; zeroCashJustification: string | null;
-    items: Array<{ id: string; description: string; kind: string; amount: string }>;
-    fundingSources: Array<{ id: string; type: string; state: string; cashValue: string; inKindValue: string }>;
-  };
-};
+type ProposalDetail = EditableProposalDetail;
 type Catalog = {
   partners: Array<{ id: string; code: string; name: string; type: string }>;
   responsibleOfficers: Array<{ id: string; name: string; role: string }>;
@@ -38,13 +30,19 @@ type Catalog = {
 };
 type EstimateMode = "manual" | "planning_cube";
 
-export function ProposalOperations({ canCreate, canReview, canEvidence, canDecide, canSubmit, canHandoff }: {
+export function ProposalOperations({ canCreate, canReview, canEvidence, canDecide, canSubmit, canHandoff, canRevise = canCreate, contributorMode = false }: {
   canCreate: boolean; canReview: boolean; canEvidence: boolean; canDecide: boolean; canSubmit: boolean; canHandoff: boolean;
+  /** Existing proposals may be corrected even when new-draft creation was denied. */
+  canRevise?: boolean;
+  /** Contributor proposals attribute to a linked proponent; the server chooses the Officer reviewer. */
+  contributorMode?: boolean;
 }) {
   const [rows, setRows] = useState<ProposalRow[]>([]);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<ProposalDetail | null>(null);
+  const [editing, setEditing] = useState<ProposalDetail | null>(null);
+  const [handoffProgramId, setHandoffProgramId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [remarks, setRemarks] = useState("");
@@ -64,7 +62,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
     try {
       const [proposals, proposalCatalog] = await Promise.all([
         phase2Api<ProposalRow[]>("/api/v2/proposals"),
-        canCreate ? phase2Api<Catalog>("/api/v2/proposals/catalog") : Promise.resolve(null),
+        (canCreate || canRevise) ? phase2Api<Catalog>("/api/v2/proposals/catalog") : Promise.resolve(null),
       ]);
       setRows(proposals);
       setCatalog(proposalCatalog);
@@ -73,7 +71,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : "Unable to load proposals", tone: "error" });
     }
-  }, [canCreate]);
+  }, [canCreate, canRevise]);
   const loadDetail = useCallback(async (id: string) => {
     if (!id) return setDetail(null);
     try {
@@ -91,7 +89,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
     setTargetSitio("");
     setEvidenceSnapshotId("");
     setPlanningResult(null);
-    if (!canCreate || !targetBarangay) {
+    if (!(canCreate || canRevise) || !targetBarangay) {
       setEvidenceOptions([]);
       return;
     }
@@ -101,7 +99,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
       setEvidenceOptions([]);
       setMessage({ text: error instanceof Error ? error.message : "Unable to load approved profiling evidence", tone: "error" });
     });
-  }, [canCreate, targetBarangay]);
+  }, [canCreate, canRevise, targetBarangay]);
 
   const availableNeeds = useMemo(
     () => catalog?.approvedNeeds.filter((need) => need.barangayId === targetBarangay) ?? [],
@@ -187,8 +185,14 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
       ? manualSource.trim()
       : `Approved profiling evidence: ${selectedEvidence?.cycleName ?? evidenceSnapshotId} (${planningResult?.asOfDate}).`;
     const graph = {
-      title: form.get("title"), description: form.get("description"), originChannel: form.get("originChannel"),
-      originatingPartnerId: form.get("originatingPartnerId") || null, responsibleOfficerId: form.get("responsibleOfficerId"),
+      title: form.get("title"), description: form.get("description"), originChannel: contributorMode ? "partner_document" : form.get("originChannel"),
+      originatingPartnerId: form.get("originatingPartnerId") || null,
+      // Contributor requests are normalized again by the API/RPC. The sentinel
+      // keeps the shared strict graph contract while preventing the browser
+      // from selecting the reviewer.
+      responsibleOfficerId: contributorMode
+        ? (catalog.responsibleOfficers[0]?.id ?? "00000000-0000-0000-0000-000000000000")
+        : form.get("responsibleOfficerId"),
       projectCategoryId: form.get("projectCategoryId"), startsOn: form.get("startsOn"), endsOn: form.get("endsOn"),
       targets: [{ barangayId, sitioId: sitioId || null, isLead: true }],
       needs: [{ needId: form.get("needId"), targetAreaKey, intendedCoverage: form.get("coverage"), plannedBeneficiaryCount: finalCount, plannedBeneficiaryPercentage: null, notes: null }],
@@ -215,26 +219,40 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
   }
 
   async function workflow(action: string) {
-    if (!detail) return;
+    if (!detail || busy) return;
     await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/workflow`, jsonRequest("POST", {
-      action, expectedVersion: detail.rowVersion, remarks: remarks || undefined, acknowledgedWarningCodes: acknowledged,
+      action, expectedVersion: detail.rowVersion, remarks: remarks || undefined, acknowledgedWarningCodes: action === "submit" ? acknowledged : [],
     })), `Proposal action “${action.replaceAll("_", " ")}” recorded.`);
     setRemarks("");
   }
   async function handoff() {
-    if (!detail) return;
-    await mutate(() => phase2Api(`/api/v2/proposals/${detail.id}/handoff`, jsonRequest("POST", { expectedVersion: detail.rowVersion })), "Approved proposal handed off to one operational program.");
+    if (!detail || busy) return;
+    const result = await mutate(() => phase2Api<{ programId: string }>(`/api/v2/proposals/${detail.id}/handoff`, jsonRequest("POST", { expectedVersion: detail.rowVersion })), "Approved proposal handed off to one operational program.");
+    if (result) setHandoffProgramId(result.programId);
+  }
+  function startEditing() {
+    if (!detail || !canRevise) return;
+    try { proposalDraftFromDetail(detail); setEditing(detail); setMessage(null); }
+    catch (error) { setMessage({ text: error instanceof Error ? error.message : "Unable to edit this proposal", tone: "error" }); }
+  }
+  async function saveCorrections(draft: ProposalDraftGraphInput): Promise<boolean> {
+    if (!editing || !canRevise) return false;
+    const result = await mutate(() => phase2Api<{ id: string }>(`/api/v2/proposals/${editing.id}`, jsonRequest("PATCH", { ...draft, expectedVersion: editing.rowVersion })), "Corrections saved to the original proposal. Submit when ready for review.");
+    if (!result) return false;
+    setSelectedId(editing.id); await loadDetail(editing.id); setEditing(null); return true;
   }
 
   return <div className="space-y-5" data-testid="proposal-operations">
     {message && <Phase2Notice message={message.text} tone={message.tone} />}
-    {canCreate && catalog && <Panel title="Structured proposal wizard" description="Choose a completed, de-identified planning snapshot or document an independent manual count. Suppressed cells remain unavailable.">
+    {editing && canRevise && catalog && <Panel title={`Correct proposal: ${editing.title}`}><ProposalDraftEditor key={`${editing.id}:${editing.rowVersion}`} initial={editing} catalog={catalog} busy={busy} onSave={saveCorrections} onCancel={() => setEditing(null)} /></Panel>}
+    {handoffProgramId && <a className={secondaryButton} href="/officer/programs">View programs after handoff</a>}
+    {canCreate && catalog && !editing && <Panel title="Structured proposal wizard" description="Choose a completed, de-identified planning snapshot or document an independent manual count. Suppressed cells remain unavailable.">
       <form onSubmit={create} className="grid gap-3 md:grid-cols-3">
         <input className={inputClass} name="title" placeholder="Editable project title" required />
         <select className={inputClass} name="projectCategoryId" required><option value="">Project category</option>{catalog.projectCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-        <select className={inputClass} name="responsibleOfficerId" required><option value="">Responsible officer</option>{catalog.responsibleOfficers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <select className={inputClass} name="originChannel"><option value="paraya_internal">PARAYA internal</option><option value="partner_document">Partner document</option><option value="barangay_referral">Barangay referral</option></select>
-        <select className={inputClass} name="originatingPartnerId"><option value="">No originating proponent</option>{catalog.partners.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        {!contributorMode && <select className={inputClass} name="responsibleOfficerId" required><option value="">Responsible officer</option>{catalog.responsibleOfficers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+        {!contributorMode && <select className={inputClass} name="originChannel"><option value="paraya_internal">PARAYA internal</option><option value="partner_document">Partner document</option><option value="barangay_referral">Barangay referral</option></select>}
+        <select className={inputClass} name="originatingPartnerId" required={contributorMode}><option value="">{contributorMode ? "Assigned proponent organization" : "No originating proponent"}</option>{catalog.partners.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.type}</option>)}</select>
         <div className="grid grid-cols-2 gap-2"><input className={inputClass} name="startsOn" type="date" required /><input className={inputClass} name="endsOn" type="date" required /></div>
         <textarea className={`${textareaClass} md:col-span-3`} name="description" placeholder="Rationale and implementation description" required />
         <select className={inputClass} name="barangayId" value={targetBarangay} onChange={(event) => setTargetBarangay(event.target.value)} required><option value="">Lead barangay</option>{catalog.barangays.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
@@ -252,7 +270,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
 
         <input className={inputClass} name="finalBeneficiaryCount" type="number" min="1" step="1" value={finalBeneficiaryCount} onChange={(event) => setFinalBeneficiaryCount(event.target.value)} placeholder="Final beneficiary count" required />
         {requiresOverride && <input className={`${inputClass} md:col-span-2`} value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} minLength={10} placeholder="Reason for overriding the calculated count" required />}
-        <fieldset className="md:col-span-3"><legend className="mb-2 text-sm font-medium">SDG alignment (select at least one)</legend><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{catalog.sdgs.map((sdg) => <label className="rounded border p-2 text-xs" key={sdg.number}><input name="sdgs" type="checkbox" value={sdg.number} /> {sdg.number}</label>)}</div></fieldset>
+        <fieldset className="md:col-span-3"><legend className="mb-2 text-sm font-medium">Focus SDG alignment (select at least one)</legend><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{catalog.sdgs.filter(sdg => isFocusSdg(sdg.number)).map((sdg) => <label className="rounded border p-2 text-xs" key={sdg.number}><input name="sdgs" type="checkbox" value={sdg.number} /> {sdg.number}</label>)}</div></fieldset>
         <select className={inputClass} name="budgetCategoryId" required><option value="">Budget category</option>{catalog.budgetCategories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
         <input className={inputClass} name="budgetDescription" placeholder="Budget/resource item" required />
         <input className={inputClass} name="amount" inputMode="decimal" placeholder="PHP or in-kind value" required />
@@ -269,7 +287,7 @@ export function ProposalOperations({ canCreate, canReview, canEvidence, canDecid
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Targets" value={detail.targets.length} /><Field label="Needs" value={detail.needs.length} /><Field label="Final beneficiaries" value={detail.beneficiaryEstimates.reduce((sum, estimate) => sum + estimate.finalCount, 0)} /><Field label="SDGs" value={detail.sdgs.map((sdg) => sdg.number).join(", ")} /><Field label="Budget status" value={<StatusPill value={detail.budget?.status} />} /><Field label="Cash" value={`PHP ${detail.budget?.cashTotal ?? "0.00"}`} /><Field label="In kind" value={`PHP ${detail.budget?.inKindTotal ?? "0.00"}`} /><Field label="Version" value={detail.rowVersion} /></dl>
         {detail.requiredWarnings.length > 0 && <fieldset className="rounded-md border border-amber-200 bg-amber-50 p-3"><legend className="font-medium text-amber-900">Human warning acknowledgment</legend>{detail.requiredWarnings.map((warning) => <label className="mt-2 block text-sm" key={warning}><input type="checkbox" checked={acknowledged.includes(warning)} onChange={(event) => setAcknowledged((values) => event.target.checked ? [...values, warning] : values.filter((value) => value !== warning))} /> {warning.replaceAll("_", " ")}</label>)}</fieldset>}
         <textarea className={textareaClass} value={remarks} onChange={(event) => setRemarks(event.target.value)} placeholder="Human review remarks" />
-        <div className="flex flex-wrap gap-2">{canSubmit && ["draft", "revisions_requested"].includes(detail.status) && <button className={primaryButton} onClick={() => void workflow("submit")}>Submit</button>}{canReview && detail.status === "submitted" && <button className={primaryButton} onClick={() => void workflow("pass_pre_screening")}>Pass pre-screening</button>}{canEvidence && detail.status === "evidence_review" && <button className={primaryButton} onClick={() => void workflow("confirm_evidence")}>Confirm evidence</button>}{canReview && ["pre_screening", "evidence_review", "director_review"].includes(detail.status) && <button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("request_revision")}>Request revisions</button>}{canDecide && detail.status === "director_review" && <><button className={primaryButton} onClick={() => void workflow("director_approve")}>Director approve</button><button className={secondaryButton} disabled={!remarks} onClick={() => void workflow("director_reject")}>Director reject</button></>}{canHandoff && detail.status === "approved" && <button className={primaryButton} onClick={() => void handoff()}>Create or open operational program</button>}</div>
+        <div className="flex flex-wrap gap-2">{canRevise && canEditProposal(detail.status) && <button className={secondaryButton} disabled={busy} onClick={startEditing}>Edit this proposal</button>}{canSubmit && ["draft", "revisions_requested"].includes(detail.status) && <button className={primaryButton} disabled={busy || editing !== null} onClick={() => void workflow("submit")}>Submit</button>}{canReview && canAdvancePreScreening(detail.status) && <button className={primaryButton} disabled={busy || editing !== null} onClick={() => void workflow("pass_pre_screening")}>{detail.status === "submitted" ? "Start pre-screening" : "Complete pre-screening"}</button>}{canEvidence && detail.status === "evidence_review" && <button className={primaryButton} disabled={busy || editing !== null} onClick={() => void workflow("confirm_evidence")}>Confirm evidence</button>}{canReview && ["pre_screening", "evidence_review", "director_review"].includes(detail.status) && <button className={secondaryButton} disabled={busy || editing !== null || remarks.trim().length < 5} onClick={() => void workflow("request_revision")}>Request revisions</button>}{canDecide && detail.status === "director_review" && <><button className={primaryButton} disabled={busy || editing !== null} onClick={() => void workflow("director_approve")}>PARAYA Officer approve</button><button className={secondaryButton} disabled={busy || editing !== null || remarks.trim().length < 5} onClick={() => void workflow("director_reject")}>PARAYA Officer reject</button></>}{canHandoff && detail.status === "approved" && <button className={primaryButton} disabled={busy || editing !== null} onClick={() => void handoff()}>Create or open operational program</button>}</div>
       </Panel>
       <Panel title="Frozen versions and budget"><div className="grid gap-4 sm:grid-cols-2"><Field label="Proposal snapshot" value={detail.activeVersion ? `v${detail.activeVersion.versionNumber} · ${detail.activeVersion.canonicalHash.slice(0, 12)}…` : "Not submitted"} /><Field label="Budget declaration" value={detail.budget?.zeroCash ? "Zero cash with in-kind resources" : "Cash/in-kind plan"} /></div><div className="mt-3 space-y-2">{detail.budget?.items.map((item) => <div className="rounded border p-3 text-sm" key={item.id}>{item.description}<span className="float-right">{item.kind === "cash" ? "PHP" : "In kind"} {item.amount}</span></div>)}</div></Panel>
     </>}

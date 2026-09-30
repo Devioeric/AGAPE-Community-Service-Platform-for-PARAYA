@@ -3,6 +3,8 @@
 // snapshot endpoint and by the officer's manual-trigger button.
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { countSdgAlignments, dayAfter } from "@/lib/analytics/query-contract";
+import type { DashboardBaseline } from "@/lib/dashboard/kpi-trend";
 
 export type PeriodType = "monthly" | "quarterly" | "yearly";
 
@@ -61,6 +63,8 @@ export function previousPeriod(type: PeriodType, ref: Date = new Date()): Period
 // ─── Generator ─────────────────────────────────────────────────────────────
 
 export interface SnapshotData {
+  /** Optional canonical current-total baseline, not the period-filtered totals below. */
+  dashboardKpis?: DashboardBaseline;
   period: PeriodRange;
   generated_at: string;
   totals: {
@@ -92,6 +96,7 @@ export interface SnapshotData {
 export async function generateSnapshot(period: PeriodRange): Promise<SnapshotData> {
   const admin = createAdminClient();
   const { start, end } = period;
+  const exclusiveEnd = dayAfter(end);
 
   // Run everything in parallel — these are all simple counts/lists.
   const [
@@ -110,9 +115,9 @@ export async function generateSnapshot(period: PeriodRange): Promise<SnapshotDat
       .gte("start_date", start).lte("start_date", end),
     admin.from("project_proposals")
       .select("status")
-      .gte("created_at", start).lte("created_at", end + "T23:59:59"),
+      .gte("created_at", start).lt("created_at", exclusiveEnd),
     admin.from("users")
-      .select("status")
+      .select("status, is_active")
       .eq("role", "volunteer"),
     admin.from("activity_logs")
       .select("hours, status")
@@ -123,20 +128,23 @@ export async function generateSnapshot(period: PeriodRange): Promise<SnapshotDat
       .gte("received_date", start).lte("received_date", end),
     admin.from("community_needs")
       .select("category, approval_status, resolved")
-      .gte("created_at", start).lte("created_at", end + "T23:59:59"),
+      .gte("created_at", start).lt("created_at", exclusiveEnd),
     admin.from("profiling_evidence_snapshots")
       .select("cycle_id, aggregate_data, generated_at")
       .eq("aggregate_schema_version", "agape.profiling.aggregate.v2")
       .order("generated_at", { ascending: false })
-      .gte("generated_at", start).lte("generated_at", end + "T23:59:59"),
+      .gte("generated_at", start).lt("generated_at", exclusiveEnd),
     admin.from("attendance")
       .select("id")
-      .gte("checked_in_at", start).lte("checked_in_at", end + "T23:59:59"),
+      .gte("checked_in_at", start).lt("checked_in_at", exclusiveEnd),
     admin.from("proposal_sdg_alignment")
       .select("sdg_number, project_proposals!inner(created_at)")
       .gte("project_proposals.created_at", start)
-      .lte("project_proposals.created_at", end + "T23:59:59"),
-  ]);
+      .lt("project_proposals.created_at", exclusiveEnd),
+  ]).then(results => {
+    if (results.some(result => result.error)) throw new Error("Unable to generate a complete analytics snapshot");
+    return results;
+  });
 
   // ── Programs ───────────────────────────────────────────────────────────
   const programsByStatus: Record<string, number> = {};
@@ -176,15 +184,12 @@ export async function generateSnapshot(period: PeriodRange): Promise<SnapshotDat
   const needsByCategory: Record<string, number> = {};
   let pendingNeeds = 0;
   for (const n of needs ?? []) {
-    needsByCategory[n.category] = (needsByCategory[n.category] ?? 0) + 1;
-    if (n.approval_status === "pending_captain") pendingNeeds++;
+    if (n.approval_status === "approved") needsByCategory[n.category] = (needsByCategory[n.category] ?? 0) + 1;
+    if (n.approval_status === "pending_paraya_review") pendingNeeds++;
   }
 
   // ── SDG alignment (proposals created in period) ────────────────────────
-  const sdgCounts: Record<number, number> = { 4: 0, 9: 0, 11: 0, 17: 0 };
-  for (const s of sdgRows ?? []) {
-    if (s.sdg_number in sdgCounts) sdgCounts[s.sdg_number]++;
-  }
+  const sdgCounts = countSdgAlignments(sdgRows ?? []);
 
   const latestEvidenceByCycle = new Map<string, { aggregate_data: unknown }>();
   for (const row of profilingEvidence ?? []) {
@@ -202,12 +207,12 @@ export async function generateSnapshot(period: PeriodRange): Promise<SnapshotDat
       approvedProposals: proposalsByStatus.approved ?? 0,
       rejectedProposals: proposalsByStatus.rejected ?? 0,
       volunteers:        (volunteers ?? []).length,
-      activeVolunteers:  (volunteers ?? []).filter((v) => v.status === "active").length,
+      activeVolunteers:  (volunteers ?? []).filter((v) => v.status === "active" && v.is_active).length,
       volunteerHours:    Math.round(volunteerHours * 10) / 10,
       activitiesLogged:  approvedLogs.length,
       donations:         (donations ?? []).length,
       donationQty:       Math.round(donationQty * 10) / 10,
-      communityNeeds:    (needs ?? []).length,
+      communityNeeds:    (needs ?? []).filter(need => need.approval_status === "approved").length,
       pendingNeeds,
       households:        Array.from(latestEvidenceByCycle.values()).reduce((sum, row) => sum + Number((row.aggregate_data as { sample?: { approvedHouseholds?: number } } | null)?.sample?.approvedHouseholds ?? 0), 0),
       attendanceRecords: (attendance ?? []).length,

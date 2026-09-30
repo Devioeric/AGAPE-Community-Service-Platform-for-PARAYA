@@ -1,5 +1,7 @@
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseProgramActivityCreateInput } from "@/lib/programs/mutation-contracts";
+import { programMutationError } from "@/lib/programs/completion-contract";
 import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -15,7 +17,10 @@ export async function POST(request: Request, { params }: Ctx) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { data, error } = await auth.supabase
+  // Keep direct table writes denied by RLS; authorized server routes use the
+  // server-only client after validating the actor and payload.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("program_activities")
     .insert({
       ...parsed.data,
@@ -26,6 +31,9 @@ export async function POST(request: Request, { params }: Ctx) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const failure = programMutationError(error);
+    return NextResponse.json({ error: failure.error, code: failure.code }, { status: failure.status });
+  }
   return NextResponse.json({ data }, { status: 201 });
 }

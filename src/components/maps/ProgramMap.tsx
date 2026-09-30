@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, Marker, Popup } from "react-leaflet";
+import { CartoBasemap } from "./CartoBasemap";
 import L from "leaflet";
 
 export interface MapProgram {
@@ -90,12 +91,7 @@ export default function ProgramMap({ programs, height = "420px" }: ProgramMapPro
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={19}
-        />
+        <CartoBasemap />
 
         {groups.map((g) => {
           const dom = dominantStatus(g.programs.map((p) => p.status));
@@ -112,14 +108,14 @@ export default function ProgramMap({ programs, height = "420px" }: ProgramMapPro
                           <div className="flex items-start gap-1.5">
                             <span
                               style={{ background: cfg.bg, color: cfg.color }}
-                              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 capitalize"
+                              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5 capitalize"
                             >
                               {p.status}
                             </span>
                             <p className="text-xs font-medium text-gray-800 leading-snug">{p.title}</p>
                           </div>
                           {(p.start_date || p.end_date) && (
-                            <p className="text-[11px] text-gray-500 mt-0.5 ml-0.5">
+                            <p className="text-[12px] text-gray-500 mt-0.5 ml-0.5">
                               {fmtDate(p.start_date)}{p.end_date ? ` – ${fmtDate(p.end_date)}` : ""}
                             </p>
                           )}

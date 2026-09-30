@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, GeoJSON, useMap } from "react-leaflet";
+import { CartoBasemap } from "./CartoBasemap";
 import type { Layer, PathOptions } from "leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
@@ -191,7 +192,7 @@ export default function CommunityNeedsMap({
     (layer as L.Path).bindTooltip(
       `<div style="font-family:'DM Sans',sans-serif;">
          <div style="font-weight:600;color:#2C2416;">${name.toUpperCase()}</div>
-         <div style="color:#6B6356;font-size:11px;">${n} community need${n === 1 ? "" : "s"}</div>
+         <div style="color:#6B6356;font-size: 12px;">${n} community need${n === 1 ? "" : "s"}</div>
        </div>`,
       { permanent: !!selectedBarangayId, direction: "center", className: "barangay-label" }
     );
@@ -226,12 +227,7 @@ export default function CommunityNeedsMap({
           style={{ height: "100%", width: "100%" }}
           scrollWheelZoom
         >
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            subdomains="abcd"
-            maxZoom={19}
-          />
+          <CartoBasemap />
           <GeoJSON
             key={geoKey.current}
             data={polygonFeatures}
@@ -261,7 +257,7 @@ export default function CommunityNeedsMap({
         {/* Category breakdown */}
         {categoryBreakdown.length > 0 ? (
           <div className="space-y-2 mb-4">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+            <p className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium">
               By Category
             </p>
             {categoryBreakdown.map(([cat, count]) => {
@@ -292,14 +288,14 @@ export default function CommunityNeedsMap({
         {/* Sitio breakdown — only when one barangay is focused */}
         {sitioBreakdown.length > 0 && (
           <div className="space-y-1.5 mt-4 pt-4 border-t border-border">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+            <p className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
               By Sitio
             </p>
             {sitioBreakdown.map((s) => (
               <div key={s.sitio} className="flex items-start justify-between text-xs gap-3 py-1.5 border-b border-border/40 last:border-0">
                 <div className="min-w-0">
                   <p className="font-medium text-foreground truncate">{s.sitio}</p>
-                  <p className="text-muted-foreground text-[11px] truncate">
+                  <p className="text-muted-foreground text-[12px] truncate">
                     {s.items.slice(0, 2).map((i) => i.title).join(", ")}
                     {s.items.length > 2 && ` +${s.items.length - 2} more`}
                   </p>
@@ -313,7 +309,7 @@ export default function CommunityNeedsMap({
         {/* Density legend — only when showing all barangays */}
         {!selectedBarangayId && (
           <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-2">
+            <p className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium mb-2">
               Density Scale
             </p>
             <div className="space-y-1">

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     admin.auth.admin.getUserById(user.id),
     admin
       .from("users")
-      .select("id, email, role, status, is_active")
+      .select("id, email, role, status, is_active, barangay_id")
       .eq("id", user.id)
       .maybeSingle(),
   ]);
@@ -66,6 +66,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This account role is no longer provisioned. Contact an administrator." },
       { status: 403 }
+    );
+  }
+  if (profile.role === "barangay_secretary" && !profile.barangay_id) {
+    return NextResponse.json(
+      { error: "This Barangay Secretary invitation is missing its barangay assignment. Contact an administrator." },
+      { status: 403 },
     );
   }
 

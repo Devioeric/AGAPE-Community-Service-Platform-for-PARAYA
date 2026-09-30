@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isStaffOrAdmin, isParayaStaff, isBarangayRole, isPartner, isAdmin } from "@/lib/auth/roles";
 import { allowedChatbotTopics, topicsForModule } from "@/lib/ai/chatbot-modules";
 import type { PermissionOverrides } from "@/lib/auth/capabilities";
+import { CHATBOT_LIMITS, capChatbotContext } from "@/lib/ai/chatbot-token-budget";
+import { contributorProposalContext } from "@/lib/ai/chatbot-context";
 
 interface RouterInput {
   /** User-session client — used only to look up the caller's own profile (barangay_id, etc.). */
@@ -14,6 +16,7 @@ interface RouterInput {
   message:  string;
   /** Optional: when set, bypasses keyword detection and runs only the matching module's topics. */
   module?:  string | null;
+  topics?: readonly string[];
 }
 
 type Topic =
@@ -66,16 +69,13 @@ const TOPIC_PATTERNS: Record<Topic, RegExp> = {
 function detectTopics(message: string): Topic[] {
   return (Object.keys(TOPIC_PATTERNS) as Topic[]).filter((t) =>
     TOPIC_PATTERNS[t].test(message)
-  );
+  ).slice(0, CHATBOT_LIMITS.automaticTopics);
 }
 
-async function safe<T>(p: Promise<T>, label?: string): Promise<T | null> {
+async function safe(p: Promise<string | null>, label?: string): Promise<string | null> {
   try { return await p; }
-  catch (err) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(`[chatbot-router] handler${label ? ` "${label}"` : ""} failed:`, err);
-    }
-    return null;
+  catch {
+    return `${label ?? "Requested"} context unavailable; do not infer counts or statuses.`;
   }
 }
 
@@ -108,6 +108,7 @@ export async function buildQueryAwareContext({
   barangayId,
   message,
   module,
+  topics: plannedTopics,
 }: RouterInput): Promise<string> {
   if (isPartner(role) || isAdmin(role)) return "";
   // If the user pinned a module via the UI dropdown, run only its topics —
@@ -116,8 +117,8 @@ export async function buildQueryAwareContext({
   const allowedTopics = allowedChatbotTopics(role, permissions);
   let topics = forced
     ? (forced as Topic[])
-    : detectTopics(message);
-  topics = topics.filter((topic) => allowedTopics.has(topic));
+    : (plannedTopics ?? detectTopics(message)) as Topic[];
+  topics = topics.filter((topic) => allowedTopics.has(topic) && topic in TOPIC_PATTERNS).slice(0, CHATBOT_LIMITS.automaticTopics);
   if (!topics.length) return "";
 
   const admin = createAdminClient();
@@ -125,7 +126,7 @@ export async function buildQueryAwareContext({
   const handlers: Partial<Record<Topic, () => Promise<string | null>>> = {
     budget:         () => fetchBudget(admin, role),
     donations:      () => fetchDonations(admin, role),
-    surveys:        () => fetchSurveys(admin, role),
+    surveys:        () => fetchSurveys(admin, role, barangayId),
     partnerships:   () => fetchPartnerships(admin, role, barangayId),
     needs:          () => fetchNeeds(admin, role, barangayId),
     volunteers:     () => fetchVolunteers(admin, role),
@@ -153,7 +154,7 @@ export async function buildQueryAwareContext({
   const filtered = blocks.filter((b): b is string => !!b);
   if (!filtered.length) return "";
 
-  return `=== ADDITIONAL DATA (matched your question) ===\n${filtered.join("\n\n")}`;
+  return capChatbotContext(`=== ADDITIONAL DATA (matched your question) ===\n${filtered.join("\n\n")}`);
 }
 
 // ─── Topic handlers ─────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ async function fetchBudget(supabase: SupabaseClient, role: string): Promise<stri
 
   const { data } = await supabase
     .from("program_budgets")
-    .select("approval_status")
+    .select("approval_status").throwOnError()
     .order("updated_at", { ascending: false })
     .limit(200);
 
@@ -181,8 +182,8 @@ async function fetchDonations(supabase: SupabaseClient, role: string): Promise<s
   if (!isStaffOrAdmin(role)) return null;
 
   const [recent, totals] = await Promise.all([
-    supabase.from("donations").select("item_type, quantity, received_date").is("archived_at", null).order("received_date", { ascending: false }).limit(5),
-    supabase.from("donations").select("quantity").is("archived_at", null),
+    supabase.from("donations").select("item_type, quantity, received_date").throwOnError().is("archived_at", null).order("received_date", { ascending: false }).limit(5),
+    supabase.from("donations").select("quantity").throwOnError().is("archived_at", null),
   ]);
 
   const totalQty = (totals.data ?? []).reduce((s, d) => s + (Number(d.quantity) ?? 0), 0);
@@ -195,11 +196,13 @@ async function fetchDonations(supabase: SupabaseClient, role: string): Promise<s
   ].join("\n\n");
 }
 
-async function fetchSurveys(supabase: SupabaseClient, role: string): Promise<string | null> {
+async function fetchSurveys(supabase: SupabaseClient, role: string, barangayId?: string | null): Promise<string | null> {
   const isStaffish = isStaffOrAdmin(role);
+  if (isBarangayRole(role) && !barangayId) return null;
 
-  let query = supabase.from("surveys").select("title, status, target_barangay_id, barangays(name)").limit(10);
+  let query = supabase.from("surveys").select("title, status, target_barangay_id, barangays(name)").throwOnError().limit(10);
   if (!isStaffish) query = query.eq("status", "published");
+  if (isBarangayRole(role)) query = query.eq("target_barangay_id", barangayId!);
   query = query.order("created_at", { ascending: false });
 
   const { data } = await query;
@@ -223,7 +226,7 @@ async function fetchPartnerships(supabase: SupabaseClient, role: string, baranga
   if (isBarangayRole(role) && !barangayId) return null;
   let query = supabase
     .from("barangays")
-    .select("name, partnership_start, is_active, total_population, total_households")
+    .select("name, partnership_start, is_active, total_population, total_households").throwOnError()
     .order("name", { ascending: true })
     .limit(25);
   if (isBarangayRole(role)) query = query.eq("id", barangayId!);
@@ -251,41 +254,54 @@ async function fetchNeeds(admin: SupabaseClient, role: string, barangayId?: stri
   if (isBarangayRole(role) && !barangayId) return null;
   let query = admin
     .from("community_needs")
-    .select("category, priority, approval_status, sitio, barangays(name)")
+    .select("title, category, priority, approval_status, barangays(name)").throwOnError()
     .order("created_at", { ascending: false })
     .limit(5);
 
   if (isBarangayRole(role)) query = query.eq("barangay_id", barangayId!);
 
-  let priorityQuery = admin.from("community_needs").select("priority");
-  let statusQuery = admin.from("community_needs").select("approval_status");
+  let aggregateQuery = admin.from("community_needs").select("priority, approval_status").throwOnError();
   if (isBarangayRole(role)) {
-    priorityQuery = priorityQuery.eq("barangay_id", barangayId!);
-    statusQuery = statusQuery.eq("barangay_id", barangayId!);
+    aggregateQuery = aggregateQuery.eq("barangay_id", barangayId!);
   }
 
-  const [recent, byPriority, byStatus] = await Promise.all([
+  const [recent, aggregates] = await Promise.all([
     query,
-    priorityQuery,
-    statusQuery,
+    aggregateQuery,
   ]);
 
   const priorityCounts: Record<string, number> = {};
-  (byPriority.data ?? []).forEach((n) => { priorityCounts[n.priority] = (priorityCounts[n.priority] ?? 0) + 1; });
+  (aggregates.data ?? []).forEach((n) => { priorityCounts[n.priority] = (priorityCounts[n.priority] ?? 0) + 1; });
 
   const statusCounts: Record<string, number> = {};
-  (byStatus.data ?? []).forEach((n) => { statusCounts[n.approval_status] = (statusCounts[n.approval_status] ?? 0) + 1; });
+  (aggregates.data ?? []).forEach((n) => { statusCounts[n.approval_status] = (statusCounts[n.approval_status] ?? 0) + 1; });
 
   const lines = (recent.data ?? []).map((n) => {
     const b = Array.isArray(n.barangays) ? n.barangays[0] : (n.barangays as { name?: string } | null);
-    const where = n.sitio ? `${b?.name ?? "?"} / ${n.sitio}` : b?.name ?? "?";
-    return `- [${n.priority}] ${n.category} in ${where} — ${n.approval_status}`;
+    return `- ${n.title ?? "Untitled need"} [${n.priority}] ${n.category} in ${b?.name ?? "?"} — ${n.approval_status}`;
   });
 
+  // A Secretary also needs to know which of their own submissions to act on,
+  // including the PARAYA Officer's note on each returned need.
+  let actionBlocks: string[] = [];
+  if (isBarangayRole(role)) {
+    const open = await admin.from("community_needs").select("title, category, approval_status, approval_notes, created_at").throwOnError()
+      .eq("barangay_id", barangayId!).in("approval_status", ["needs_revision", "pending_paraya_review"])
+      .order("created_at", { ascending: false }).limit(20);
+    const rows = open.data ?? [];
+    const describe = (n: (typeof rows)[number]) => `- ${n.title ?? "Untitled need"} (${n.category}, submitted ${String(n.created_at).slice(0, 10)})`;
+    actionBlocks = [
+      section("Returned to your barangay for revision (revise and resubmit on Submit Community Needs)", rows.filter((n) => n.approval_status === "needs_revision")
+        .map((n) => `${describe(n)}${n.approval_notes ? `. PARAYA Officer's note: "${String(n.approval_notes).slice(0, 300)}"` : ""}`)),
+      section("Awaiting PARAYA Officer review", rows.filter((n) => n.approval_status === "pending_paraya_review").map(describe)),
+    ];
+  }
+
   return [
-    `Total community needs: ${byPriority.data?.length ?? 0}`,
+    `Total community needs: ${aggregates.data?.length ?? 0}`,
     `By priority: ${Object.entries(priorityCounts).map(([k, v]) => `${k} (${v})`).join(", ") || "n/a"}`,
     `By approval: ${Object.entries(statusCounts).map(([k, v]) => `${k} (${v})`).join(", ") || "n/a"}`,
+    ...actionBlocks,
     section("Recent community needs", lines),
   ].join("\n\n");
 }
@@ -293,38 +309,41 @@ async function fetchNeeds(admin: SupabaseClient, role: string, barangayId?: stri
 async function fetchVolunteers(supabase: SupabaseClient, role: string): Promise<string | null> {
   if (!isStaffOrAdmin(role) && !isPartner(role)) return null;
 
-  const [countRes, byDept] = await Promise.all([
-    supabase.from("volunteers").select("id", { count: "exact", head: true }),
-    supabase.from("volunteers").select("department").limit(200),
+  const [countRes, byCourse] = await Promise.all([
+    supabase.from("volunteers").select("id", { count: "exact", head: true }).throwOnError(),
+    supabase.from("volunteers").select("course").throwOnError().limit(500),
   ]);
 
-  const deptCounts: Record<string, number> = {};
-  (byDept.data ?? []).forEach((v) => {
-    const d = (v.department ?? "Unassigned") as string;
-    deptCounts[d] = (deptCounts[d] ?? 0) + 1;
+  const courseCounts: Record<string, number> = {};
+  (byCourse.data ?? []).forEach((v) => {
+    const course = (v.course ?? "Not specified") as string;
+    courseCounts[course] = (courseCounts[course] ?? 0) + 1;
   });
-  const deptLines = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `- ${k}: ${v}`);
+  const courseLines = Object.entries(courseCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `- ${k}: ${v}`);
 
   return [
     `Total volunteers: ${countRes.count ?? 0}`,
-    section("Top departments by volunteer count", deptLines),
+    section("Top programs of study by volunteer count", courseLines),
   ].join("\n\n");
 }
 
 async function fetchProposals(supabase: SupabaseClient, role: string, userId: string): Promise<string | null> {
+  // A Contributor sees only the structured proposals they created.
+  if (role === "contributor") return contributorProposalContext(userId);
   let query = supabase
     .from("project_proposals")
-    .select("title, status, is_income_generating, finance_clearance, created_at")
+    .select("title, status, is_income_generating, finance_clearance, created_at").throwOnError()
     .order("created_at", { ascending: false })
     .limit(10);
+  let statusQuery = supabase.from("project_proposals").select("status").throwOnError();
 
-  if (isPartner(role)) query = query.eq("created_by", userId);
+  if (isPartner(role)) { query = query.eq("created_by", userId); statusQuery = statusQuery.eq("created_by", userId); }
   else if (!isParayaStaff(role) && !isAdmin(role) && role !== "finance_officer") return null;
 
-  const { data } = await query;
+  const [{ data }, { data: statuses }] = await Promise.all([query, statusQuery]);
 
   const byStatus: Record<string, number> = {};
-  (data ?? []).forEach((p) => { byStatus[p.status] = (byStatus[p.status] ?? 0) + 1; });
+  (statuses ?? []).forEach((p) => { byStatus[p.status] = (byStatus[p.status] ?? 0) + 1; });
 
   const lines = (data ?? []).slice(0, 5).map((p) => {
     const flags: string[] = [];
@@ -334,7 +353,7 @@ async function fetchProposals(supabase: SupabaseClient, role: string, userId: st
   });
 
   return [
-    `Total proposals: ${data?.length ?? 0}`,
+    `Total proposals: ${statuses?.length ?? 0}`,
     `By status: ${Object.entries(byStatus).map(([k, v]) => `${k} (${v})`).join(", ") || "n/a"}`,
     section("Recent proposals", lines),
   ].join("\n\n");
@@ -343,18 +362,20 @@ async function fetchProposals(supabase: SupabaseClient, role: string, userId: st
 async function fetchPrograms(supabase: SupabaseClient, role: string): Promise<string | null> {
   let query = supabase
     .from("programs")
-    .select("title, status, start_date, end_date, barangays(name)")
+    .select("title, status, start_date, end_date, barangays(name)").throwOnError()
     .order("start_date", { ascending: false })
     .limit(10);
+  let statusQuery = supabase.from("programs").select("status").throwOnError();
 
   if (role === "volunteer") {
     query = query.in("status", ["upcoming", "active"]);
+    statusQuery = statusQuery.in("status", ["upcoming", "active"]);
   }
 
-  const { data } = await query;
+  const [{ data }, { data: statuses }] = await Promise.all([query, statusQuery]);
 
   const byStatus: Record<string, number> = {};
-  (data ?? []).forEach((p) => { byStatus[p.status] = (byStatus[p.status] ?? 0) + 1; });
+  (statuses ?? []).forEach((p) => { byStatus[p.status] = (byStatus[p.status] ?? 0) + 1; });
 
   const lines = (data ?? []).slice(0, 5).map((p) => {
     const b = Array.isArray(p.barangays) ? p.barangays[0] : (p.barangays as { name?: string } | null);
@@ -362,7 +383,7 @@ async function fetchPrograms(supabase: SupabaseClient, role: string): Promise<st
   });
 
   return [
-    `Total programs: ${data?.length ?? 0}`,
+    `Total programs: ${statuses?.length ?? 0}`,
     `By status: ${Object.entries(byStatus).map(([k, v]) => `${k} (${v})`).join(", ") || "n/a"}`,
     section("Programs", lines),
   ].join("\n\n");
@@ -372,31 +393,31 @@ async function fetchSchedule(supabase: SupabaseClient, role: string, userId: str
   if (role === "volunteer") {
     const { data } = await supabase
       .from("program_activities")
-      .select("title, scheduled_date, programs!inner(title, program_signups!inner(volunteer_id))")
+      .select("title, date, programs!inner(title, program_signups!inner(volunteer_id))").throwOnError()
       .eq("programs.program_signups.volunteer_id", userId)
-      .gte("scheduled_date", today())
-      .lte("scheduled_date", daysAhead(7))
-      .order("scheduled_date", { ascending: true })
+      .gte("date", today())
+      .lte("date", daysAhead(7))
+      .order("date", { ascending: true })
       .limit(10);
 
     const lines = (data ?? []).map((a) => {
       const p = Array.isArray(a.programs) ? a.programs[0] : (a.programs as { title?: string } | null);
-      return `- ${a.scheduled_date}: ${a.title} (${p?.title ?? ""})`;
+      return `- ${a.date}: ${a.title} (${p?.title ?? ""})`;
     });
     return section("Your activities this week", lines);
   }
 
   const { data } = await supabase
     .from("program_activities")
-    .select("title, scheduled_date, programs(title)")
-    .gte("scheduled_date", today())
-    .lte("scheduled_date", daysAhead(7))
-    .order("scheduled_date", { ascending: true })
+    .select("title, date, programs(title)").throwOnError()
+    .gte("date", today())
+    .lte("date", daysAhead(7))
+    .order("date", { ascending: true })
     .limit(10);
 
   const lines = (data ?? []).map((a) => {
     const p = Array.isArray(a.programs) ? a.programs[0] : (a.programs as { title?: string } | null);
-    return `- ${a.scheduled_date}: ${a.title} (${p?.title ?? ""})`;
+    return `- ${a.date}: ${a.title} (${p?.title ?? ""})`;
   });
   return section("Activities this week (system-wide)", lines);
 }
@@ -405,15 +426,15 @@ async function fetchAttendance(supabase: SupabaseClient, role: string, userId: s
   if (role === "volunteer") {
     const { count } = await supabase
       .from("attendance")
-      .select("id", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true }).throwOnError()
       .eq("volunteer_id", userId);
     return `Your total attendance check-ins: ${count ?? 0}`;
   }
   if (!isStaffOrAdmin(role)) return null;
 
   const [todayRes, weekRes] = await Promise.all([
-    supabase.from("attendance").select("id", { count: "exact", head: true }).gte("checked_in_at", today()),
-    supabase.from("attendance").select("id", { count: "exact", head: true }).gte("checked_in_at", daysAgo(7)),
+    supabase.from("attendance").select("id", { count: "exact", head: true }).throwOnError().gte("checked_in_at", today()),
+    supabase.from("attendance").select("id", { count: "exact", head: true }).throwOnError().gte("checked_in_at", daysAgo(7)),
   ]);
 
   return [
@@ -426,9 +447,9 @@ async function fetchImpact(supabase: SupabaseClient, role: string): Promise<stri
   if (!isStaffOrAdmin(role)) return null;
 
   const [indicators, qualitative, followups] = await Promise.all([
-    supabase.from("impact_indicators").select("id", { count: "exact", head: true }).is("voided_at", null),
-    supabase.from("impact_qualitative").select("id", { count: "exact", head: true }).is("voided_at", null),
-    supabase.from("follow_up_records").select("id", { count: "exact", head: true }).is("voided_at", null),
+    supabase.from("impact_indicators").select("id", { count: "exact", head: true }).throwOnError().is("voided_at", null),
+    supabase.from("impact_qualitative").select("id", { count: "exact", head: true }).throwOnError().is("voided_at", null),
+    supabase.from("follow_up_records").select("id", { count: "exact", head: true }).throwOnError().is("voided_at", null),
   ]);
 
   return [
@@ -442,7 +463,7 @@ async function fetchHours(supabase: SupabaseClient, role: string, userId: string
   if (role === "volunteer") {
     const { data } = await supabase
       .from("activity_logs")
-      .select("hours, status")
+      .select("hours, status").throwOnError()
       .eq("volunteer_id", userId)
       .gte("date", semesterStart());
 
@@ -457,7 +478,7 @@ async function fetchHours(supabase: SupabaseClient, role: string, userId: string
 
   const { data } = await supabase
     .from("activity_logs")
-    .select("hours, status")
+    .select("hours, status").throwOnError()
     .gte("date", semesterStart());
 
   const approved = (data ?? []).filter((l) => l.status === "approved").reduce((s, l) => s + (Number(l.hours) ?? 0), 0);
@@ -474,7 +495,7 @@ async function fetchClasses(supabase: SupabaseClient, role: string, userId: stri
 
   const { data } = await supabase
     .from("volunteer_class_schedules")
-    .select("subject, day_of_week, start_time, end_time, location")
+    .select("subject, day_of_week, start_time, end_time, location").throwOnError()
     .eq("volunteer_id", userId)
     .order("day_of_week", { ascending: true });
 
@@ -491,7 +512,7 @@ async function fetchSkills(admin: SupabaseClient, role: string, barangayId?: str
 
   let query = admin
     .from("barangay_skills")
-    .select("skill_name, category, practitioner_count, proficiency_level, barangays(name)")
+    .select("skill_name, category, practitioner_count, proficiency_level, barangays(name)").throwOnError()
     .order("practitioner_count", { ascending: false })
     .limit(10);
   if (isBarangayRole(role)) query = query.eq("barangay_id", barangayId!);
@@ -509,7 +530,7 @@ async function fetchAssets(admin: SupabaseClient, role: string, barangayId?: str
   if (!isStaffOrAdmin(role) && !isBarangayRole(role)) return null;
   if (isBarangayRole(role) && !barangayId) return null;
 
-  let query = admin.from("barangay_assets").select("asset_name, asset_type, quantity, condition, barangays(name)").limit(10);
+  let query = admin.from("barangay_assets").select("asset_name, asset_type, quantity, condition, barangays(name)").throwOnError().limit(10);
   if (isBarangayRole(role)) query = query.eq("barangay_id", barangayId!);
 
   const { data } = await query;
@@ -524,7 +545,7 @@ async function fetchActivityLogs(supabase: SupabaseClient, role: string, userId:
   if (role === "volunteer") {
     const { data } = await supabase
       .from("activity_logs")
-      .select("status, hours, programs(title)")
+      .select("status, hours, programs(title)").throwOnError()
       .eq("volunteer_id", userId)
       .order("date", { ascending: false })
       .limit(5);
@@ -539,7 +560,7 @@ async function fetchActivityLogs(supabase: SupabaseClient, role: string, userId:
 
   const { data } = await supabase
     .from("activity_logs")
-    .select("status, hours");
+    .select("status, hours").throwOnError();
 
   const counts: Record<string, number> = { approved: 0, pending: 0, rejected: 0 };
   (data ?? []).forEach((l) => { counts[l.status] = (counts[l.status] ?? 0) + 1; });
@@ -552,14 +573,11 @@ async function fetchActivityLogs(supabase: SupabaseClient, role: string, userId:
 async function fetchForum(supabase: SupabaseClient): Promise<string | null> {
   const { data } = await supabase
     .from("forum_threads")
-    .select("title, category, created_at, users:author_id(full_name)")
+    .select("title, category, created_at").throwOnError()
     .order("created_at", { ascending: false })
     .limit(5);
 
-  const lines = (data ?? []).map((t) => {
-    const u = Array.isArray(t.users) ? t.users[0] : (t.users as { full_name?: string } | null);
-    return `- ${t.title} [${t.category}]${u?.full_name ? ` by ${u.full_name}` : ""}`;
-  });
+  const lines = (data ?? []).map((t) => `- ${t.title} [${t.category}]`);
   return section("Recent forum threads", lines);
 }
 
@@ -568,7 +586,7 @@ async function fetchReports(supabase: SupabaseClient, role: string): Promise<str
 
   const { data } = await supabase
     .from("ai_reports")
-    .select("title, status, period_start, period_end")
+    .select("title, status, period_start, period_end").throwOnError()
     .order("created_at", { ascending: false })
     .limit(5);
 
@@ -582,8 +600,8 @@ async function fetchUsers(supabase: SupabaseClient, role: string): Promise<strin
   if (!isAdmin(role)) return null;
 
   const [total, byRole] = await Promise.all([
-    supabase.from("users").select("id", { count: "exact", head: true }),
-    supabase.from("users").select("role").limit(500),
+    supabase.from("users").select("id", { count: "exact", head: true }).throwOnError(),
+    supabase.from("users").select("role").throwOnError().limit(500),
   ]);
 
   const counts: Record<string, number> = {};
@@ -600,8 +618,8 @@ async function fetchAudit(supabase: SupabaseClient, role: string): Promise<strin
   if (!isAdmin(role)) return null;
 
   const [todayCount, recentEntries] = await Promise.all([
-    supabase.from("audit_logs").select("id", { count: "exact", head: true }).gte("created_at", today()),
-    supabase.from("audit_logs").select("action, resource_type, level, created_at").order("created_at", { ascending: false }).limit(5),
+    supabase.from("audit_logs").select("id", { count: "exact", head: true }).throwOnError().gte("created_at", today()),
+    supabase.from("audit_logs").select("action, resource_type, level, created_at").throwOnError().order("created_at", { ascending: false }).limit(5),
   ]);
 
   const lines = (recentEntries.data ?? []).map(

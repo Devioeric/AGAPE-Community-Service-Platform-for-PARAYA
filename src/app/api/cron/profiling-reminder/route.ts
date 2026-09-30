@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { notify } from "@/lib/notifications/dispatch";
 import { isProfilingV2Enabled } from "@/lib/profiling/feature";
+import { profilingReminderUrl, reminderBarangayId } from "@/lib/profiling/reminder-links";
 import { NextResponse } from "next/server";
 
 // GET /api/cron/profiling-reminder
@@ -14,7 +15,7 @@ import { NextResponse } from "next/server";
 //   - To avoid spamming, skip if we already sent a `reminder` notification
 //     about this barangay's profiling cycle in the last 30 days. We detect
 //     the prior reminder by an action_url containing the barangay id.
-//   - Fan out to every PARAYA Researcher + Director.
+//   - Fan out to every active PARAYA Officer.
 //
 // Schedule (vercel.json example):
 //   { "path": "/api/cron/profiling-reminder", "schedule": "0 8 * * 1" } // Mon 8am
@@ -70,27 +71,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, fired: 0, stale: 0, message: "Nothing due." });
   }
 
-  // Recipients: every active Researcher + Director.
+  // Recipients: every active PARAYA Officer.
   const { data: recipients, error: usersErr } = await admin
     .from("users")
     .select("id")
-    .in("role", ["paraya_researcher", "paraya_director"])
+    .eq("role", "paraya_officer")
     .eq("status", "active");
   if (usersErr) return NextResponse.json({ error: usersErr.message }, { status: 500 });
   const recipientIds = (recipients ?? []).map((r) => r.id);
 
   // Detect prior reminders within the dedup window. The action_url
   // ?b=<barangay_id> lets us match a previous reminder for the same barangay
-  // without inventing a new column on `notifications`.
+  // without inventing a new column on `notifications`. The link path changed
+  // over time, so matching happens in reminderBarangayId rather than SQL.
   const { data: priorRems } = await admin
     .from("notifications")
     .select("action_url")
     .eq("type", REMINDER_TYPE)
     .gte("created_at", dedupCutoff)
-    .like("action_url", "%/community-profile?b=%");
+    .like("action_url", "/officer/%?b=%");
   const recentBarangayIds = new Set(
     (priorRems ?? [])
-      .map((n) => (n.action_url as string | null)?.match(/[?&]b=([0-9a-f-]{36})/i)?.[1])
+      .map((n) => reminderBarangayId(n.action_url as string | null))
       .filter((s): s is string => !!s)
   );
 
@@ -105,7 +107,7 @@ export async function GET(request: Request) {
     const message   = latest
       ? `It has been ${ageDays} days since the last approved resident-profiling cycle in ${b.name}. Schedule the next sampled cycle.`
       : `${b.name} has no completed normalized profiling cycle. Configure the sample and schedule the first privacy-approved cycle.`;
-    const actionUrl = `/officer/community-profile?b=${b.id}`;
+    const actionUrl = profilingReminderUrl(b.id);
 
     // Fan out to every PARAYA staff recipient. Errors are swallowed by
     // notify() itself; we just count successful fires.

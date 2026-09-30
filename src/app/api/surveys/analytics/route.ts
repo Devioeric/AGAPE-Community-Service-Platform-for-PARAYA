@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { surveyDistribution, type SurveyAnswer } from "@/lib/surveys/analysis";
 
 export async function GET(request: Request) {
   const auth = await authorizeCapability("survey.analyze");
@@ -16,19 +17,20 @@ export async function GET(request: Request) {
 
   // ── Detailed analysis for one survey ──────────────────────────────────────
   if (surveyId) {
-    const [{ data: survey }, { data: responses, error: rErr }] = await Promise.all([
+    const [{ data: survey, error: surveyError }, { data: responses, error: rErr }] = await Promise.all([
       supabase
         .from("surveys")
         .select("*, survey_questions(*), barangays(name)")
         .eq("id", surveyId)
         .order("order_index", { referencedTable: "survey_questions", ascending: true })
-        .single(),
+        .maybeSingle(),
       adminDb
         .from("survey_responses")
         .select("id, submitted_at, excluded, exclusion_reason, excluded_at, respondent_id")
         .eq("survey_id", surveyId),
     ]);
 
+    if (surveyError || rErr) return NextResponse.json({ error: "Unable to load survey analytics" }, { status: 503 });
     if (!survey) return NextResponse.json({ error: "Survey not found" }, { status: 404 });
 
     const allResponses    = rErr ? [] : (responses ?? []);
@@ -37,14 +39,14 @@ export async function GET(request: Request) {
     const responseIds     = safeResponses.map((r) => r.id);
 
     // Fetch answers for these responses
-    type AnswerRow = { question_id: string; answer_text: string };
-    let answers: AnswerRow[] = [];
+    let answers: SurveyAnswer[] = [];
     if (responseIds.length > 0) {
-      const { data: ans } = await adminDb
+      const { data: ans, error: answerError } = await adminDb
         .from("survey_answers")
-        .select("question_id, answer_text")
+        .select("question_id, answer_text, answer_options")
         .in("response_id", responseIds);
-      answers = (ans ?? []) as AnswerRow[];
+      if (answerError) return NextResponse.json({ error: "Unable to load survey analytics" }, { status: 503 });
+      answers = (ans ?? []) as SurveyAnswer[];
     }
 
     type DbQuestion = {
@@ -60,32 +62,7 @@ export async function GET(request: Request) {
     const questions = ((survey.survey_questions ?? []) as DbQuestion[])
       .sort((a, b) => a.order_index - b.order_index)
       .map((q) => {
-        const qAnswers = answers.filter((a) => a.question_id === q.id);
-
-        const distribution: { label: string; count: number }[] = [];
-
-        if (q.question_type === "multiple_choice") {
-          (q.options ?? []).forEach((opt) => {
-            distribution.push({ label: opt, count: qAnswers.filter((a) => a.answer_text === opt).length });
-          });
-        } else if (q.question_type === "checkbox") {
-          (q.options ?? []).forEach((opt) => {
-            distribution.push({
-              label: opt,
-              count: qAnswers.filter((a) => {
-                try { return (JSON.parse(a.answer_text) as string[]).includes(opt); }
-                catch { return a.answer_text?.includes(opt); }
-              }).length,
-            });
-          });
-        } else if (q.question_type === "rating") {
-          [1, 2, 3, 4, 5].forEach((n) => {
-            distribution.push({ label: String(n), count: qAnswers.filter((a) => a.answer_text === String(n)).length });
-          });
-        }
-
-        const numericVals = qAnswers.map((a) => Number(a.answer_text)).filter((n) => !isNaN(n) && n > 0);
-        const average = numericVals.length > 0 ? numericVals.reduce((a, b) => a + b, 0) / numericVals.length : null;
+        const result = surveyDistribution(q, answers);
 
         return {
           id:             q.id,
@@ -94,9 +71,7 @@ export async function GET(request: Request) {
           options:        q.options,
           section_title:  q.section_title,
           is_required:    q.is_required,
-          response_count: qAnswers.length,
-          distribution,
-          average:        average !== null ? Math.round(average * 100) / 100 : null,
+          ...result,
         };
       });
 
@@ -153,7 +128,7 @@ export async function GET(request: Request) {
   }
 
   // ── Overview (all surveys) ─────────────────────────────────────────────────
-  const [{ data: surveys }, { data: allResponses, error: arErr }] = await Promise.all([
+  const [{ data: surveys, error: surveysError }, { data: allResponses, error: arErr }] = await Promise.all([
     supabase
       .from("surveys")
       .select("id, title, status, created_at, published_at, opens_at, closes_at, target_barangay_id, barangays(name), survey_questions(id)")
@@ -162,6 +137,7 @@ export async function GET(request: Request) {
       .from("survey_responses")
       .select("survey_id, submitted_at, excluded"),
   ]);
+  if (surveysError || arErr) return NextResponse.json({ error: "Unable to load survey analytics" }, { status: 503 });
 
   const rawAllResponses  = arErr ? [] : (allResponses ?? []);
   // Apply the same default — exclude flagged rows from the rollup unless

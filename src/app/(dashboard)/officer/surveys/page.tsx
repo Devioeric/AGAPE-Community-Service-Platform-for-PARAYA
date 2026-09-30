@@ -1,11 +1,13 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
   MoreHorizontal, Loader2, FileText, Globe, XCircle,
   Settings, Eye, LayoutList, Pencil, GitBranch, Check, Search, Tag,
-  Bookmark, LayoutTemplate, X as XIcon,
+  Bookmark, LayoutTemplate, Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,9 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { templateNameKey } from "@/lib/surveys/template-contract";
+import { createTemplateLibraryReader, currentTemplateSelection, type SurveyTemplate, type TemplateReadState } from "@/lib/surveys/template-read-contract";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,16 +90,6 @@ interface LocalQuestion {
   section_local_id: string;
   conditional_on?: string;    // localId of parent question
   conditional_value?: string;
-}
-
-interface SurveyTemplate {
-  id:          string;
-  name:        string;
-  description: string | null;
-  sections:    LocalSection[];
-  questions:   Omit<LocalQuestion, "dbId">[];
-  created_by:  string | null;
-  created_at:  string;
 }
 
 type Methodology = "quantitative" | "qualitative" | "mixed";
@@ -537,8 +532,15 @@ export default function SurveysPage() {
   const [createBarangayId, setCreateBarangayId]       = useState("");
   const [selectedTemplateId, setSelectedTemplateId]   = useState<string | null>(null);
 
-  // Templates (persisted in localStorage)
-  const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
+  // Retained server-side template versions. Only the creator may supersede/archive.
+  const [templateLibrary, setTemplateLibrary] = useState<TemplateReadState>({ status: "idle", data: null });
+  const [templateReader] = useState(() => createTemplateLibraryReader());
+  const templates = templateLibrary.data ?? [];
+  const templatesReady = templateLibrary.status === "success";
+  const [showArchivedTemplates, setShowArchivedTemplates] = useState(false);
+  const [templateAction, setTemplateAction] = useState<{ action: "save" | "archive"; template: SurveyTemplate | null } | null>(null);
+  const [templateReason, setTemplateReason] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const fetchSurveys = useCallback(async () => {
     setLoading(true);
@@ -571,14 +573,13 @@ export default function SurveysPage() {
       .catch(() => {});
   }, []);
 
-  const fetchTemplates = useCallback(async () => {
-    try {
-      const res = await fetch("/api/survey-templates");
-      if (res.ok) { const j = await res.json(); setTemplates(j.data ?? []); }
-    } catch { /* non-critical */ }
-  }, []);
-
-  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+  const fetchTemplates = useCallback(() => templateReader.load(setTemplateLibrary), [templateReader]);
+  useEffect(() => { void fetchTemplates(); return () => templateReader.cancel(); }, [fetchTemplates, templateReader]);
+  useEffect(() => {
+    if (templateLibrary.status === "success" && templateLibrary.data) {
+      setSelectedTemplateId(id => currentTemplateSelection(id, templateLibrary.data!));
+    }
+  }, [templateLibrary]);
 
   // ── Section helpers ────────────────────────────────────────────────────────────
 
@@ -666,15 +667,36 @@ export default function SurveysPage() {
 
   // ── Template helpers ──────────────────────────────────────────────────────────
 
-  async function saveAsTemplate() {
+  function saveAsTemplate() {
+    if (!templatesReady || savingTemplate) return;
     if (!builderTitle.trim()) { toast.error("Add a title before saving as template."); return; }
-    const res = await fetch("/api/survey-templates", {
+    const current = templates.find(template => template.can_manage && !template.archived_at && templateNameKey(template.name) === templateNameKey(builderTitle));
+    setTemplateReason("");
+    setTemplateAction({ action: "save", template: current ?? null });
+  }
+
+  async function confirmTemplateAction() {
+    if (!templateAction || !templatesReady || savingTemplate) return;
+    const { action, template } = templateAction;
+    if (template && !templates.some(row => row.id === template.id && row.row_version === template.row_version && row.can_manage && !row.archived_at)) {
+      setTemplateAction(null); toast.error("Refresh the template library before changing this version."); return;
+    }
+    if ((action === "archive" || template) && templateReason.trim().length < 5) { toast.error("Enter a reason of at least 5 characters."); return; }
+    setSavingTemplate(true);
+    try {
+    const res = action === "archive" && template ? await fetch(`/api/survey-templates/${template.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expected_version: template.row_version, reason: templateReason.trim() }),
+    }) : await fetch("/api/survey-templates", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({
         name:        builderTitle.trim(),
         description: builderDesc.trim(),
         sections,
+        expected_template_id: template?.id ?? null,
+        expected_version: template?.row_version ?? null,
+        ...(template ? { reason: templateReason.trim() } : {}),
         questions:   questions.map(({ dbId, ...q }) => {
           void dbId;
           return q;
@@ -682,25 +704,24 @@ export default function SurveysPage() {
       }),
     });
     if (res.ok) {
-      toast.success(`Template "${builderTitle.trim()}" saved.`);
-      await fetchTemplates();
+      toast.success(action === "archive" ? "Template archived; its content and history are retained." : "Template saved; any prior version is retained.");
+      if (selectedTemplateId === template?.id) setSelectedTemplateId(null);
+      setTemplateAction(null);
+      const refreshed = await fetchTemplates();
+      if (!refreshed) toast.error("The template change was saved, but the library could not be refreshed. Retry templates; do not repeat the save.");
     } else {
-      toast.error("Failed to save template.");
+      const payload = await res.json().catch(() => ({}));
+      toast.error(payload.error ?? "The template change was not saved.");
+      if (res.status === 409) { await fetchTemplates(); setTemplateAction(null); }
     }
-  }
-
-  async function deleteTemplate(id: string) {
-    setTemplates((prev) => prev.filter((t) => t.id !== id)); // optimistic
-    const res = await fetch(`/api/survey-templates/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.error("Failed to delete template.");
-      await fetchTemplates(); // revert on failure
-    }
+    } catch { toast.error("The template change was not saved. Please try again."); }
+    finally { setSavingTemplate(false); }
   }
 
   // ── Open builder ──────────────────────────────────────────────────────────────
 
   function openCreate() {
+    void fetchTemplates();
     setCreateTitle("");
     setCreateDesc("");
     setCreateBarangayId("");
@@ -710,6 +731,10 @@ export default function SurveysPage() {
 
   function startSurvey() {
     if (!createTitle.trim()) { toast.error("Survey title is required."); return; }
+    if (selectedTemplateId && !templatesReady) { toast.error("Retry templates or start without a template."); return; }
+    if (selectedTemplateId && !templates.some(template => template.id === selectedTemplateId && !template.archived_at)) {
+      toast.error("Choose a current template or start without a template."); return;
+    }
 
     setEditId(null);
     setBuilderTitle(createTitle.trim());
@@ -908,6 +933,25 @@ export default function SurveysPage() {
     });
   }, [surveys, search, statusFilter, dateFrom, dateTo]);
 
+  const templateActionDialog = (
+    <Dialog open={!!templateAction} onOpenChange={open => { if (!open && !savingTemplate) setTemplateAction(null); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{templateAction?.action === "archive" ? "Archive template" : templateAction?.template ? "Save a superseding template" : "Save template"}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">{templateAction?.action === "archive" ? "This template leaves the active picker. Its content, creator, and history are retained." : templateAction?.template ? "The existing template will become read-only. Its content and original creator are retained alongside this new version." : "This saves reusable survey structure, not any survey responses."}</p>
+        {(templateAction?.action === "archive" || templateAction?.template) && <div className="space-y-2">
+          <Label htmlFor="template-retention-reason">Reason</Label>
+          <Textarea id="template-retention-reason" value={templateReason} onChange={event => setTemplateReason(event.target.value)} minLength={5} maxLength={1000} disabled={savingTemplate} />
+        </div>}
+        <DialogFooter>
+          <Button variant="outline" disabled={savingTemplate} onClick={() => setTemplateAction(null)}>Cancel</Button>
+          <Button disabled={!templatesReady || savingTemplate || (!!templateAction?.template && templateReason.trim().length < 5)} onClick={confirmTemplateAction}>
+            {savingTemplate ? "Saving…" : templateAction?.action === "archive" ? "Archive template" : "Save template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Builder view
   // ─────────────────────────────────────────────────────────────────────────────
@@ -918,6 +962,12 @@ export default function SurveysPage() {
 
     return (
       <div className="space-y-4">
+        {templateActionDialog}
+        {templateLibrary.status === "error" && <div role="alert" className="rounded-xl border border-warning/30 p-3 text-sm space-y-2">
+          <p>Survey templates could not be loaded. Your survey draft is unchanged; saving templates is unavailable until the library recovers.</p>
+          <Button variant="outline" onClick={() => void fetchTemplates()}>Retry templates</Button>
+        </div>}
+        {templateLibrary.status === "denied" && <p role="status" className="text-sm text-muted-foreground">You do not have access to the template library.</p>}
         {/* Top bar */}
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setView("list")} className="gap-1.5 text-muted-foreground">
@@ -927,7 +977,7 @@ export default function SurveysPage() {
             {editId ? "Edit Survey" : "New Survey"}
           </h2>
           <div className="ml-auto flex gap-2">
-            <Button variant="ghost" size="sm" onClick={saveAsTemplate} className="gap-1.5 text-muted-foreground hover:text-foreground hidden sm:flex">
+            <Button variant="ghost" size="sm" disabled={!templatesReady || savingTemplate} onClick={saveAsTemplate} className="gap-1.5 text-muted-foreground hover:text-foreground hidden sm:flex">
               <Bookmark className="w-4 h-4" /> Save as Template
             </Button>
             <Button variant="outline" disabled={saving} onClick={() => saveSurvey("draft")}>
@@ -1019,10 +1069,10 @@ export default function SurveysPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium truncate">{sec.title}</p>
                               {sec.category && (
-                                <p className="text-[10px] text-muted-foreground truncate capitalize">{sec.category}</p>
+                                <p className="text-[11px] text-muted-foreground truncate capitalize">{sec.category}</p>
                               )}
                             </div>
-                            <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                            <span className="text-[11px] text-muted-foreground flex-shrink-0">
                               {questions.filter((q) => q.section_local_id === sec.localId).length}
                             </span>
                             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
@@ -1070,12 +1120,12 @@ export default function SurveysPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-heading text-sm font-semibold text-foreground">{activeSection.title}</h3>
                       {activeSection.category && (
-                        <Badge className="text-[10px] bg-accent/10 text-accent-foreground border border-accent/20 gap-1">
+                        <Badge className="text-[11px] bg-accent/10 text-accent-foreground border border-accent/20 gap-1">
                           <Tag className="w-2.5 h-2.5" />
                           <span className="capitalize">{activeSection.category}</span>
                         </Badge>
                       )}
-                      <Badge className="text-[10px] bg-muted text-muted-foreground border">
+                      <Badge className="text-[11px] bg-muted text-muted-foreground border">
                         {activeSectionQuestions.length} question{activeSectionQuestions.length !== 1 ? "s" : ""}
                       </Badge>
                     </div>
@@ -1188,7 +1238,7 @@ export default function SurveysPage() {
                       )}
                     </select>
                     {settings.program_id && (
-                      <p className="text-[11px] text-muted-foreground mt-2">
+                      <p className="text-[12px] text-muted-foreground mt-2">
                         Responses to this survey will be associated with the linked program for
                         impact analytics and program reporting.
                       </p>
@@ -1347,7 +1397,7 @@ export default function SurveysPage() {
               </p>
             </SheetHeader>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-6 space-y-6">
 
               {/* Title */}
               <div className="space-y-1.5">
@@ -1455,6 +1505,7 @@ export default function SurveysPage() {
 
   return (
     <div className="space-y-6">
+      {templateActionDialog}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Total",     value: counts.total,     accent: "border-l-primary" },
@@ -1503,82 +1554,86 @@ export default function SurveysPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-muted/30">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Survey</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Questions</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
-                  </td></tr>
-                ) : filteredSurveys.length === 0 ? (
-                  <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
-                    {surveys.length === 0 ? "No surveys yet. Click \"Create Survey\" to build one." : "No surveys match your filters."}
-                  </td></tr>
-                ) : filteredSurveys.map((s, i) => (
-                  <tr key={s.id} className={`border-b border-border/60 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}>
-                    <td className="py-3 px-4">
-                      <p className="font-medium text-foreground">{s.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                      <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{s.survey_questions?.length ?? 0}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Badge className={STATUS_STYLES[s.status] + " capitalize"}>{s.status}</Badge>
-                        {s.methodology && s.methodology !== "quantitative" && (
-                          <Badge className={`${METHODOLOGY_BADGE[s.methodology]} text-[10px]`} title="Research methodology">
-                            {METHODOLOGY_LABEL[s.methodology]}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          disabled={actionId === s.id}
-                          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-                        >
-                          {actionId === s.id
-                            ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                            : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                          }
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(s.id)}>
-                              Edit
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            {s.status === "draft" && (
-                              <DropdownMenuItem className="gap-2 cursor-pointer text-success" onClick={() => changeStatus(s.id, "published")}>
-                                <Globe className="w-3.5 h-3.5" /> Publish
-                              </DropdownMenuItem>
+            <PaginatedTable rows={filteredSurveys} label="Surveys" resetKey={JSON.stringify([search, statusFilter, dateFrom, dateTo])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Surveys" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-muted/30">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Survey</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Questions</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+                      </td></tr>
+                    ) : filteredSurveys.length === 0 ? (
+                      <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
+                        {surveys.length === 0 ? "No surveys yet. Click \"Create Survey\" to build one." : "No surveys match your filters."}
+                      </td></tr>
+                    ) : pageRows.map((s, i) => (
+                      <tr key={s.id} className={`border-b border-border/60 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}>
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-foreground">{s.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </p>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                          <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{s.survey_questions?.length ?? 0}</span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className={STATUS_STYLES[s.status] + " capitalize"}>{s.status}</Badge>
+                            {s.methodology && s.methodology !== "quantitative" && (
+                              <Badge className={`${METHODOLOGY_BADGE[s.methodology]} text-[11px]`} title="Research methodology">
+                                {METHODOLOGY_LABEL[s.methodology]}
+                              </Badge>
                             )}
-                            {s.status === "published" && (
-                              <DropdownMenuItem className="gap-2 cursor-pointer text-warning" onClick={() => changeStatus(s.id, "closed")}>
-                                <XCircle className="w-3.5 h-3.5" /> Close
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              disabled={actionId === s.id}
+                              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                            >
+                              {actionId === s.id
+                                ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                              }
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(s.id)}>
+                                  Edit
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                {s.status === "draft" && (
+                                  <DropdownMenuItem className="gap-2 cursor-pointer text-success" onClick={() => changeStatus(s.id, "published")}>
+                                    <Globe className="w-3.5 h-3.5" /> Publish
+                                  </DropdownMenuItem>
+                                )}
+                                {s.status === "published" && (
+                                  <DropdownMenuItem className="gap-2 cursor-pointer text-warning" onClick={() => changeStatus(s.id, "closed")}>
+                                    <XCircle className="w-3.5 h-3.5" /> Close
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
           {!loading && surveys.length > 0 && (
             <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
@@ -1600,7 +1655,7 @@ export default function SurveysPage() {
             </p>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-6 space-y-6">
 
             {/* Survey Details */}
             <div className="space-y-4">
@@ -1656,16 +1711,33 @@ export default function SurveysPage() {
                 <LayoutTemplate className="w-3.5 h-3.5 text-muted-foreground" />
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Start from Template</p>
               </div>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={showArchivedTemplates} onChange={event => setShowArchivedTemplates(event.target.checked)} />
+                Show retained archived versions (read only)
+              </label>
 
-              {templates.length === 0 ? (
+              {!templatesReady ? (
+                <div className="rounded-xl border border-border p-4 space-y-3" aria-busy={templateLibrary.status === "loading"}>
+                  <p role={templateLibrary.status === "error" ? "alert" : "status"} className="text-sm text-muted-foreground">
+                    {templateLibrary.status === "error" ? "Survey templates could not be loaded. Your draft is unchanged."
+                      : templateLibrary.status === "denied" ? "You do not have access to the template library."
+                      : "Loading survey templates…"}
+                  </p>
+                  {templateLibrary.status === "error" && <Button variant="outline" onClick={() => void fetchTemplates()}>Retry templates</Button>}
+                  {selectedTemplateId && <Button variant="ghost" onClick={() => setSelectedTemplateId(null)}>Start without a template</Button>}
+                </div>
+              ) : templates.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
                   No templates yet. Build a survey and click{" "}
                   <span className="font-medium text-foreground">Save as Template</span>{" "}
                   in the builder to create one.
                 </div>
+              ) : !showArchivedTemplates && templates.every(template => !!template.archived_at) ? (
+                <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No active templates. Select “Show retained archived versions” to view retained history.</p>
               ) : (
                 <div className="space-y-2">
                   {templates
+                    .filter(template => showArchivedTemplates || !template.archived_at)
                     .slice()
                     .sort((a, b) => b.created_at.localeCompare(a.created_at))
                     .map((t) => {
@@ -1673,7 +1745,7 @@ export default function SurveysPage() {
                       return (
                         <div
                           key={t.id}
-                          onClick={() => setSelectedTemplateId(isSelected ? null : t.id)}
+                          onClick={() => { if (templatesReady && !t.archived_at && !savingTemplate) setSelectedTemplateId(isSelected ? null : t.id); }}
                           className={cn(
                             "relative flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all duration-150 group",
                             isSelected
@@ -1690,27 +1762,28 @@ export default function SurveysPage() {
 
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground leading-snug truncate">{t.name}</p>
+                            {t.archived_at && <p className="text-xs text-muted-foreground">Archived — {t.archive_reason}</p>}
                             {t.description && (
                               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.description}</p>
                             )}
                             <div className="flex items-center gap-3 mt-1.5">
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[12px] text-muted-foreground">
                                 {t.sections.length} section{t.sections.length !== 1 ? "s" : ""}
                               </span>
-                              <span className="text-[10px] text-muted-foreground/50">·</span>
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[11px] text-muted-foreground/50">·</span>
+                              <span className="text-[12px] text-muted-foreground">
                                 {t.questions.length} question{t.questions.length !== 1 ? "s" : ""}
                               </span>
                             </div>
                             {t.sections.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1.5">
                                 {t.sections.slice(0, 3).map((s) => (
-                                  <span key={s.localId} className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                  <span key={s.localId} className="text-[11px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
                                     {s.title}
                                   </span>
                                 ))}
                                 {t.sections.length > 3 && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                  <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
                                     +{t.sections.length - 3} more
                                   </span>
                                 )}
@@ -1718,13 +1791,14 @@ export default function SurveysPage() {
                             )}
                           </div>
 
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteTemplate(t.id); }}
-                            className="opacity-0 group-hover:opacity-100 flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md hover:bg-danger/10 hover:text-danger text-muted-foreground transition-all"
-                            title="Delete template"
+                          {t.can_manage && !t.archived_at && <button
+                            disabled={!templatesReady || savingTemplate}
+                            onClick={(e) => { e.stopPropagation(); setTemplateReason(""); setTemplateAction({ action: "archive", template: t }); }}
+                            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-all focus-visible:ring-2 focus-visible:ring-primary"
+                            title="Archive template" aria-label={`Archive template ${t.name}`}
                           >
-                            <XIcon className="w-3.5 h-3.5" />
-                          </button>
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>}
                         </div>
                       );
                     })}
@@ -1737,6 +1811,7 @@ export default function SurveysPage() {
           <SheetFooter className="flex-col gap-2.5 px-6 py-5 border-t border-border">
             <Button
               onClick={startSurvey}
+              disabled={!!selectedTemplateId && !templatesReady}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
             >
               {selectedTemplateId ? (

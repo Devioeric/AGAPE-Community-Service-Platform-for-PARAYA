@@ -1,5 +1,7 @@
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseProgramBudgetCreateInput } from "@/lib/programs/mutation-contracts";
+import { programMutationError } from "@/lib/programs/completion-contract";
 import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -15,13 +17,21 @@ export async function POST(request: Request, { params }: Ctx) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { data, error } = await auth.supabase
+  // The database intentionally denies direct authenticated writes by the
+  // consolidated Officer role. The route has already performed the active
+  // account/capability check above, so use the server-only client for this
+  // validated mutation rather than weakening RLS.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("program_budgets")
     .insert({ ...parsed.data, program_id: id, created_by: auth.actor.id, approval_status: "approved" })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const failure = programMutationError(error);
+    return NextResponse.json({ error: failure.error, code: failure.code }, { status: failure.status });
+  }
   return NextResponse.json({ data }, { status: 201 });
 }
 

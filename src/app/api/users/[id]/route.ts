@@ -5,6 +5,7 @@ import {
   INACTIVE_AUTH_BAN_DURATION,
   isActiveAccount,
 } from "@/lib/auth/account-status";
+import { isActiveLoginRole, isRetiredBarangayRole } from "@/lib/auth/roles";
 import { isAdminAssignableLoginRole } from "@/lib/auth/provisioning";
 import { normalizeDenyOnlyOverrides } from "@/lib/auth/capabilities";
 import { NextResponse } from "next/server";
@@ -59,7 +60,7 @@ export async function PATCH(
   const adminDb = createAdminClient();
   const { data: target, error: targetError } = await adminDb
     .from("users")
-    .select("id, role, status, is_active")
+    .select("id, role, status, is_active, barangay_id, must_change_password")
     .eq("id", id)
     .maybeSingle();
 
@@ -68,6 +69,46 @@ export async function PATCH(
   }
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const isHistoricalTarget = !isActiveLoginRole(target.role);
+  const hasMutation = Object.keys(body).length > 0;
+  if (isRetiredBarangayRole(target.role) && hasMutation) {
+    return NextResponse.json(
+      { error: "Retired barangay accounts cannot be reactivated or converted" },
+      { status: 400 },
+    );
+  }
+  if (isHistoricalTarget && hasMutation) {
+    return NextResponse.json(
+      { error: "Historical accounts cannot be reactivated or converted; create an approved login explicitly" },
+      { status: 400 },
+    );
+  }
+
+  const resultingRole = body.role ?? target.role;
+  const resultingStatus = body.status ?? target.status;
+  const resultingBarangayId = body.barangay_id !== undefined ? body.barangay_id : target.barangay_id;
+  if (resultingRole === "contributor" && resultingStatus === "active") {
+    const { count: activeContributorCount, error: contributorCountError } = await adminDb
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "contributor")
+      .eq("status", "active")
+      .eq("is_active", true)
+      .neq("id", id);
+    if (contributorCountError) {
+      return NextResponse.json({ error: "Unable to verify Contributor account capacity", code: "account_capacity_unavailable" }, { status: 503 });
+    }
+    if ((activeContributorCount ?? 0) > 0) {
+      return NextResponse.json({ error: "Only one active Contributor account is allowed", code: "active_contributor_exists" }, { status: 409 });
+    }
+  }
+  if (resultingRole === "barangay_secretary" && resultingStatus === "active" && !resultingBarangayId) {
+    return NextResponse.json(
+      { error: "An active Barangay Secretary must be assigned to a barangay" },
+      { status: 400 },
+    );
   }
 
   let normalizedPermissions: Record<string, false> | undefined;
@@ -94,6 +135,11 @@ export async function PATCH(
       { error: "The System Administrator role and active status are protected" },
       { status: 400 }
     );
+  }
+
+  if (target.role === "admin" && target.status === "active" && (resultingRole !== "admin" || resultingStatus !== "active")) {
+    const { count: adminCount } = await adminDb.from("users").select("id", { count: "exact", head: true }).eq("role", "admin").eq("status", "active").eq("is_active", true);
+    if ((adminCount ?? 0) <= 1) return NextResponse.json({ error: "The final active administrator cannot be removed", code: "last_admin_protected" }, { status: 409 });
   }
 
   const isStatusChange = body.status !== undefined;
@@ -143,8 +189,8 @@ export async function PATCH(
 
     if (authStatusError) {
       return NextResponse.json(
-        { error: "Unable to update account authentication status" },
-        { status: 500 }
+        { error: "Unable to update account authentication status", code: "auth_status_unavailable" },
+        { status: 503 }
       );
     }
   }
@@ -166,7 +212,7 @@ export async function PATCH(
         .updateUserById(id, { ban_duration: previousBanDuration })
         .catch(() => undefined);
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to update the account profile", code: "profile_update_unavailable" }, { status: 503 });
   }
 
   // Mirror full_name into auth user_metadata so it stays in sync
@@ -179,6 +225,18 @@ export async function PATCH(
   if (body.role !== undefined) {
     await adminDb.auth.admin.updateUserById(id, {
       app_metadata: { agape_role: body.role },
+    });
+  }
+
+  if (body.role !== undefined && body.role !== target.role) {
+    await adminDb.from("role_history").insert({
+      user_id: id,
+      previous_role: target.role,
+      new_role: body.role,
+      change_reason: "Administrator role update",
+      actor_id: auth.actor.id,
+      source_status: target.status,
+      target_status: resultingStatus,
     });
   }
 

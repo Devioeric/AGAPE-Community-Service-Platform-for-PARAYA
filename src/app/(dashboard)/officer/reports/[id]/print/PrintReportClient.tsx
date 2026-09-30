@@ -3,97 +3,26 @@
 import { useEffect } from "react";
 import { Printer, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { reportDocumentSchema, type ReportDocumentV2 } from "@/lib/reporting/report-document";
 
-// Renders an AI report in a print-friendly layout and auto-fires the browser
-// print dialog. The print stylesheet in globals.css hides the dashboard
-// chrome; this page additionally drops the .print-hidden helpers from view.
+type Report = { id: string; title: string; periodStart: string; periodEnd: string; narrative: string; status: string; createdAt: string; reportDocument?: unknown };
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-interface Report {
-  id:            string;
-  title:         string;
-  period_start:  string;
-  period_end:    string;
-  narrative:     string;
-  status:        string;
-  created_at:    string;
+function StatusNotice({ status }: { status: string }) {
+  const copy = status === "approved" ? "Approved — official use permitted according to the report lifecycle." : status === "reviewed" ? "Reviewed — awaiting final approval." : "Draft — requires human review before official use.";
+  return <p className="text-sm font-medium border border-foreground/20 rounded px-3 py-2">{copy}</p>;
 }
 
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+function DocumentBody({ document }: { document: ReportDocumentV2 }) {
+  return <main className="space-y-7 text-foreground">
+    <section><h2 className="font-heading text-xl font-semibold">{document.executiveSummary.heading}</h2><p className="mt-2 leading-relaxed">{document.executiveSummary.narrative}</p></section>
+    {document.sections.map(section => <section key={section.id} className="break-inside-avoid"><div className="flex items-baseline justify-between gap-3"><h2 className="font-heading text-xl font-semibold">{section.title}</h2><span className="text-xs uppercase tracking-wide text-muted-foreground">{section.availability}</span></div><p className="mt-2 leading-relaxed">{section.narrative}</p>{section.metrics.length > 0 && <table className="w-full mt-3 text-sm border-collapse"><thead><tr className="border-b border-foreground/20 text-left"><th className="py-2 pr-3">Metric</th><th className="py-2 pr-3">Value</th><th className="py-2">Definition / Source</th></tr></thead><tbody>{section.metrics.map(metric => <tr key={metric.label} className="border-b border-foreground/10"><td className="py-2 pr-3 font-medium">{metric.label}</td><td className="py-2 pr-3">{metric.value === null ? "Unavailable" : `${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`}</td><td className="py-2 text-muted-foreground">{metric.definition} · {metric.source}</td></tr>)}</tbody></table>}{section.notes.length > 0 && <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground">{section.notes.map(note => <li key={note}>{note}</li>)}</ul>}</section>)}
+    <section className="border-t border-foreground/20 pt-4"><p className="text-sm">Source: {document.provenance.source}. As of {fmtDate(document.provenance.asOf)}.</p><p className="text-sm text-muted-foreground mt-1">This report is aggregate-only and advisory. It is not a replacement for official accounting, census, or institutional approval records.</p></section>
+  </main>;
+}
 
-export default function PrintReportClient({
-  report,
-  generatedBy,
-}: {
-  report:      Report;
-  generatedBy: string | null;
-}) {
-  useEffect(() => {
-    // Small delay so layout settles before the print dialog opens; otherwise
-    // some browsers capture the page mid-paint.
-    const t = window.setTimeout(() => window.print(), 250);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="max-w-3xl mx-auto bg-card text-foreground">
-      {/* Toolbar — hidden when printing */}
-      <div className="print-hidden flex items-center justify-between gap-3 py-4 border-b border-border mb-6">
-        <Link
-          href="/officer/reports"
-          className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to Reports
-        </Link>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-primary/30 text-primary text-sm hover:bg-primary/5"
-        >
-          <Printer className="w-4 h-4" /> Print / Save as PDF
-        </button>
-      </div>
-
-      {/* Printable masthead */}
-      <header className="mb-6 pb-4 border-b border-foreground/20">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          PARAYA · DYCI Center for Community Engagement
-        </p>
-        <h1 className="font-heading text-3xl font-bold mt-2 text-foreground">
-          {report.title}
-        </h1>
-        <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-          <div>
-            <span className="text-muted-foreground">Period:</span>{" "}
-            <span className="text-foreground">{fmtDate(report.period_start)} – {fmtDate(report.period_end)}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Status:</span>{" "}
-            <span className="text-foreground capitalize">{report.status}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Generated:</span>{" "}
-            <span className="text-foreground">{fmtDate(report.created_at)}</span>
-          </div>
-          {generatedBy && (
-            <div>
-              <span className="text-muted-foreground">Generated by:</span>{" "}
-              <span className="text-foreground">{generatedBy}</span>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Narrative body — split on blank lines, each paragraph */}
-      <main className="space-y-4 text-foreground leading-relaxed">
-        {report.narrative.split("\n\n").map((para, i) => (
-          <p key={i} className="text-base">{para}</p>
-        ))}
-      </main>
-
-      {/* Disclaimer footer */}
-      <footer className="mt-10 pt-4 border-t border-foreground/20 text-xs text-muted-foreground">
-        AI-generated narrative. Reviewed and approved by PARAYA Office before official use.
-      </footer>
-    </div>
-  );
+export default function PrintReportClient({ report, generatedBy }: { report: Report; generatedBy: string | null }) {
+  useEffect(() => { const timer = window.setTimeout(() => window.print(), 250); return () => window.clearTimeout(timer); }, []);
+  const parsed = reportDocumentSchema.safeParse(report.reportDocument);
+  return <div className="max-w-3xl mx-auto bg-card text-foreground"><div className="print-hidden flex items-center justify-between gap-3 py-4 border-b border-border mb-6"><Link href="/officer/reports" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Back to Reports</Link><button onClick={() => window.print()} className="inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-primary/30 text-primary text-sm"><Printer className="w-4 h-4" /> Print / Save as PDF</button></div><header className="mb-6 pb-4 border-b border-foreground/20"><p className="text-xs uppercase tracking-wider text-muted-foreground">PARAYA · Dr. Yanga&apos;s Colleges, Inc.</p><h1 className="font-heading text-3xl font-bold mt-2">{report.title}</h1><div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1 text-sm"><div><span className="text-muted-foreground">Period:</span> {fmtDate(report.periodStart)} – {fmtDate(report.periodEnd)}</div><div><span className="text-muted-foreground">Status:</span> <span className="capitalize">{report.status}</span></div><div><span className="text-muted-foreground">Generated:</span> {fmtDate(report.createdAt)}</div>{generatedBy && <div><span className="text-muted-foreground">Generated by:</span> {generatedBy}</div>}</div><div className="mt-4"><StatusNotice status={report.status} /></div></header>{parsed.success ? <DocumentBody document={parsed.data} /> : <main className="space-y-4 leading-relaxed">{report.narrative.split("\n\n").map((para, i) => <p key={i}>{para}</p>)}</main>}<footer className="mt-10 pt-4 border-t border-foreground/20 text-xs text-muted-foreground">{report.status === "approved" ? <>Approved report. Official-use decisions remain governed by PARAYA&apos;s report lifecycle.</> : "Draft report. Human review is required before official use."}</footer></div>;
 }

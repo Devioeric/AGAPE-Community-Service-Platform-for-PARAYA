@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { focusSdgs } from "../sdg-focus.js";
 
 export const proposalAlignmentDraftSchema = z.object({
   title: z.string().max(200).default(""),
@@ -96,6 +97,7 @@ function dimension(
 
 export function assessProposalAlignment(raw: ProposalAlignmentInput): ProposalAlignmentResult {
   const input = proposalAlignmentInputSchema.parse(raw);
+  const selectedFocusSdgs = focusSdgs(input.sdgs);
   const hasRationale = input.rationale.trim().length >= 30;
   const hasBeneficiaryGroup = input.targetBeneficiaries.trim().length >= 5;
   const hasBeneficiaryCount = input.expectedBeneficiaryCount !== null;
@@ -169,12 +171,12 @@ export function assessProposalAlignment(raw: ProposalAlignmentInput): ProposalAl
           "The draft needs clearer delivery information before feasibility can be judged reliably.",
           "Complete the title, measurable objectives, expected output, and valid start/end dates.",
         ),
-    input.sdgs.length > 0
+    selectedFocusSdgs.length > 0
       ? dimension(
           "sdg_alignment",
           "SDG alignment",
           "moderate",
-          [`${input.sdgs.length} SDG${input.sdgs.length === 1 ? " is" : "s are"} selected.`],
+          [`${selectedFocusSdgs.length} focus SDG${selectedFocusSdgs.length === 1 ? " is" : "s are"} selected.`],
           "The selected SDGs provide an initial alignment claim, but an authorized reviewer must confirm their relevance.",
           "Add a short indicator or justification for each selected SDG during evidence review.",
         )
@@ -182,9 +184,9 @@ export function assessProposalAlignment(raw: ProposalAlignmentInput): ProposalAl
           "sdg_alignment",
           "SDG alignment",
           "insufficient_evidence",
-          ["No SDG is selected."],
+          ["No AGAPE focus SDG is selected."],
           "No SDG alignment can be assessed from the current draft.",
-          "Select at least one applicable SDG and document why it applies.",
+          "Select an applicable goal from SDGs 4, 9, 11, and 17 and document why it applies; do not force an unsupported alignment.",
         ),
     input.budget !== null
       ? dimension(

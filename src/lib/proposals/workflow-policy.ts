@@ -38,9 +38,9 @@ export const PROPOSAL_PIPELINE: Readonly<Record<string, string>> = {
   submitted: "pre_screening",
   pre_screening: "sdg_review",
   sdg_review: "finance_review",
-  // The existing schema has no director_review state yet. During Phase 0,
-  // finance_review is retained as the pre-decision state and only the Director
-  // may perform its final transition.
+  // The existing schema has no separate Officer decision state yet.
+  // finance_review remains the pre-decision state and only the consolidated
+  // PARAYA Officer may perform its final transition.
   finance_review: "approved",
 };
 
@@ -48,10 +48,7 @@ const ACTION_SET = new Set<string>(PROPOSAL_ACTIONS);
 const BODY_FIELDS = new Set(["action", "notes", "finance_notes"]);
 const REVIEW_STAGES = new Set(["submitted", "pre_screening", "sdg_review", "finance_review"]);
 const PARAYA_REVIEW_ROLES = new Set([
-  "paraya_director",
-  "paraya_associate",
-  "paraya_researcher",
-  "paraya_officer", // temporary legacy alias; never receives final authority
+  "paraya_officer",
 ]);
 
 function canReview(role: string | null | undefined): boolean {
@@ -148,11 +145,11 @@ export function authorizeProposalAction(context: ProposalActionContext): Proposa
   }
 
   if (action === "reject") {
-    if (role !== "paraya_director") {
-      return deny(403, "Only the PARAYA Director can reject a proposal.");
+    if (role !== "paraya_officer") {
+      return deny(403, "Only the PARAYA Officer can reject a proposal.");
     }
     if (currentStatus !== "finance_review" || !financeClearance) {
-      return deny(422, "Final rejection is available only after finance clearance at Director review.");
+      return deny(422, "Final rejection is available only after finance clearance at Officer review.");
     }
     if (!notes || notes.length < 5) {
       return deny(400, "Rejection remarks of at least 5 characters are required.");
@@ -162,8 +159,8 @@ export function authorizeProposalAction(context: ProposalActionContext): Proposa
 
   if (action === "advance") {
     if (currentStatus === "finance_review") {
-      if (role !== "paraya_director") {
-        return deny(403, "Only the PARAYA Director can make the final proposal decision.");
+      if (role !== "paraya_officer") {
+        return deny(403, "Only the PARAYA Officer can make the final proposal decision.");
       }
       if (!financeClearance) return deny(422, "Finance clearance is required before final approval.");
       return { allowed: true };

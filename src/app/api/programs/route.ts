@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isPartner } from "@/lib/auth/roles";
 import { authorizeAnyCapability, authorizeCapability } from "@/lib/auth/authorize";
 import { parseProgramCreateInput } from "@/lib/programs/mutation-contracts";
+import { programMutationError } from "@/lib/programs/completion-contract";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -42,7 +43,12 @@ export async function GET() {
     supabase.from("program_signups").select("program_id, id, status").eq("volunteer_id", user.id),
   ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { error: "Programs could not be loaded. Please try again.", code: "program_list_unavailable" },
+      { status: 500, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
 
   if (isPartner(self?.role)) {
     return NextResponse.json({ data: (programs ?? []).map((program) => ({
@@ -79,6 +85,9 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const failure = programMutationError(error);
+    return NextResponse.json({ error: failure.error, code: failure.code }, { status: failure.status });
+  }
   return NextResponse.json({ data }, { status: 201 });
 }

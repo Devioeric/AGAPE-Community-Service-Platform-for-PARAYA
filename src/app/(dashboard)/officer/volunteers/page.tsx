@@ -1,8 +1,11 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Loader2, CheckCircle, XCircle, MoreHorizontal, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { indexVolunteerNames, selectVolunteerLogs } from "@/lib/volunteers/activity-log-presentation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,12 +29,12 @@ interface Volunteer {
 
 interface ActivityLog {
   id: string;
+  volunteer_id: string;
   date: string;
   hours: number;
   description: string;
   status: "pending" | "approved" | "rejected";
   programs: { title: string } | null;
-  users: { full_name: string } | null;
 }
 
 const LOG_BADGE: Record<string, string> = {
@@ -51,44 +54,35 @@ export default function OfficerVolunteersPage() {
   const [actId, setActId]           = useState<string | null>(null);
   const [sheetOpen, setSheetOpen]   = useState(false);
   const [selectedVol, setSelectedVol] = useState<Volunteer | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    try {
     const [volRes, logRes] = await Promise.all([
-      fetch("/api/volunteers"),
-      fetch("/api/activity-logs"),
+      fetch("/api/volunteers", { cache: "no-store" }),
+      fetch("/api/activity-logs", { cache: "no-store" }),
     ]);
-    if (volRes.ok) {
-      const j = await volRes.json();
-      setVolunteers(j.data ?? []);
+    if (!volRes.ok || !logRes.ok) throw new Error("Unable to load volunteer records.");
+    const [volBody, logBody] = await Promise.all([volRes.json(), logRes.json()]);
+    if (!Array.isArray(volBody.data) || !Array.isArray(logBody.data)) throw new Error("Invalid volunteer records.");
+    setVolunteers(volBody.data);
+    setLogs(logBody.data);
+    } catch {
+      setLoadError("Volunteer records could not be loaded. Try again.");
+    } finally {
+      setLoading(false);
     }
-    if (logRes.ok) {
-      const j = await logRes.json();
-      setLogs(j.data ?? []);
-    }
-    setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Per-volunteer stats
-  useMemo(() => {
-    const map: Record<string, { approved: number; pending: number }> = {};
-    for (const log of logs) {
-      if (!map[log.users?.full_name ?? ""]) map[log.users?.full_name ?? ""] = { approved: 0, pending: 0 };
-      // We need volunteer_id; use the joined user name as proxy — ideally we'd have volunteer_id
-    }
-    // Better: compute from logs by matching volunteer names
-    const byId: Record<string, { approved: number; pending: number }> = {};
-    for (const v of volunteers) {
-      byId[v.id] = { approved: 0, pending: 0 };
-    }
-    return byId;
-  }, [logs, volunteers]);
+  const volunteerNames = useMemo(() => indexVolunteerNames(volunteers), [volunteers]);
 
   // Logs for selected volunteer
   const selectedLogs = useMemo(() =>
-    selectedVol ? logs.filter((l) => l.users?.full_name === selectedVol.full_name) : [],
+    selectVolunteerLogs(logs, selectedVol?.id ?? null),
     [logs, selectedVol]
   );
 
@@ -106,6 +100,7 @@ export default function OfficerVolunteersPage() {
 
   async function reviewLog(id: string, status: "approved" | "rejected") {
     setActId(id);
+    try {
     const res = await fetch(`/api/activity-logs/${id}`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -117,7 +112,9 @@ export default function OfficerVolunteersPage() {
     } else {
       toast.error("Action failed.");
     }
-    setActId(null);
+    } catch {
+      toast.error("The review could not be saved. Try again.");
+    } finally { setActId(null); }
   }
 
   function openVolunteer(v: Volunteer) {
@@ -133,6 +130,7 @@ export default function OfficerVolunteersPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && <div role="alert" className="rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm">{loadError} <Button variant="outline" size="sm" onClick={() => void fetchData()}>Retry</Button></div>}
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
@@ -143,7 +141,7 @@ export default function OfficerVolunteersPage() {
           <Card key={c.label} className={`border-border shadow-card border-l-4 ${c.accent}`}>
             <CardContent className="px-4 py-2.5">
               <p className="text-sm text-muted-foreground">{c.label}</p>
-              <p className="text-2xl font-bold font-heading text-foreground mt-0.5">{loading ? "—" : c.value}</p>
+              <p className="text-2xl font-bold font-heading text-foreground mt-0.5">{loading || loadError ? "—" : c.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -158,10 +156,10 @@ export default function OfficerVolunteersPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {pendingLogs.slice(0, 5).map((log) => (
+            {pendingLogs.map((log) => (
               <div key={log.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-surface border border-border">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{log.users?.full_name ?? "Unknown"}</p>
+                  <p className="text-sm font-medium text-foreground">{volunteerNames.get(log.volunteer_id) ?? "Volunteer record unavailable"}</p>
                   <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{log.description}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date(log.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {log.hours}h
@@ -173,6 +171,7 @@ export default function OfficerVolunteersPage() {
                     size="sm"
                     disabled={actId === log.id}
                     onClick={() => reviewLog(log.id, "approved")}
+                    aria-label={`Approve activity log for ${volunteerNames.get(log.volunteer_id) ?? "volunteer"}`}
                     className="h-7 px-2.5 text-xs bg-success hover:bg-success/90 text-white"
                   >
                     {actId === log.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
@@ -181,6 +180,7 @@ export default function OfficerVolunteersPage() {
                     size="sm"
                     disabled={actId === log.id}
                     onClick={() => reviewLog(log.id, "rejected")}
+                    aria-label={`Reject activity log for ${volunteerNames.get(log.volunteer_id) ?? "volunteer"}`}
                     className="h-7 px-2.5 text-xs bg-danger hover:bg-danger/90 text-white"
                   >
                     <XCircle className="w-3 h-3" />
@@ -225,69 +225,73 @@ export default function OfficerVolunteersPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Volunteer</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Account Status</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Joined</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
-                  </td></tr>
-                ) : filteredVols.length === 0 ? (
-                  <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
-                    {volunteers.length === 0 ? "No volunteers registered yet." : "No volunteers match your filters."}
-                  </td></tr>
-                ) : filteredVols.map((v, i) => (
-                  <tr key={v.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
-                    onClick={() => openVolunteer(v)}>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarFallback className="text-xs bg-primary/15 text-primary font-bold">
-                            {v.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-foreground">{v.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{v.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge className={v.status === "active"
-                        ? "bg-success/10 text-success border-success/20 border"
-                        : "bg-warning/10 text-warning border-warning/20 border"
-                      + " capitalize text-xs"}>
-                        {v.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                      {new Date(v.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </td>
-                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openVolunteer(v)}>
-                              View Details
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PaginatedTable rows={filteredVols} label="Volunteers" resetKey={JSON.stringify([search, statusFilter, dateFrom, dateTo])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Volunteers" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Volunteer</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Account Status</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Joined</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+                      </td></tr>
+                    ) : filteredVols.length === 0 ? (
+                      <tr><td colSpan={4} className="py-16 text-center text-muted-foreground">
+                        {volunteers.length === 0 ? "No volunteers registered yet." : "No volunteers match your filters."}
+                      </td></tr>
+                    ) : pageRows.map((v, i) => (
+                      <tr key={v.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
+                        onClick={() => openVolunteer(v)}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8 flex-shrink-0">
+                              <AvatarFallback className="text-xs bg-primary/15 text-primary font-bold">
+                                {v.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">{v.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{v.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={v.status === "active"
+                            ? "bg-success/10 text-success border-success/20 border"
+                            : "bg-warning/10 text-warning border-warning/20 border"
+                          + " capitalize text-xs"}>
+                            {v.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                          {new Date(v.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => openVolunteer(v)}>
+                                  View Details
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
           <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
             {filteredVols.length} of {volunteers.length} volunteers
@@ -314,7 +318,7 @@ export default function OfficerVolunteersPage() {
             )}
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-4">
             <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Activity Logs</h4>
             {selectedLogs.length === 0 ? (
               <p className="text-sm text-muted-foreground">No activity logs for this volunteer.</p>
@@ -335,6 +339,7 @@ export default function OfficerVolunteersPage() {
                         <button
                           disabled={actId === log.id}
                           onClick={() => reviewLog(log.id, "approved")}
+                          aria-label="Approve activity log"
                           className="w-6 h-6 rounded flex items-center justify-center bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
                         >
                           {actId === log.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
@@ -342,6 +347,7 @@ export default function OfficerVolunteersPage() {
                         <button
                           disabled={actId === log.id}
                           onClick={() => reviewLog(log.id, "rejected")}
+                          aria-label="Reject activity log"
                           className="w-6 h-6 rounded flex items-center justify-center bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
                         >
                           <XCircle className="w-3 h-3" />

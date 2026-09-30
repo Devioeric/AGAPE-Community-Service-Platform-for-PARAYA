@@ -152,15 +152,6 @@ export default function OfficerAttendancePage() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
-          <ScanLine className="w-5 h-5 text-primary" /> Attendance — QR &amp; OTP
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Generate an attendance code per activity. Volunteers scan the QR code or enter the 6-character OTP to check in.
-        </p>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
 
@@ -194,13 +185,13 @@ export default function OfficerAttendancePage() {
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <p className="text-sm font-medium text-foreground line-clamp-1">{a.title}</p>
                       {a.otp_active && (
-                        <Badge className="bg-success/10 text-success border-success/20 border text-[10px] flex-shrink-0">
+                        <Badge className="bg-success/10 text-success border-success/20 border text-[11px] flex-shrink-0">
                           Live
                         </Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-1">{a.program?.title ?? "—"}</p>
-                    <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-between mt-1.5 text-[12px] text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> {fmtDate(a.date)}
                       </span>
@@ -339,7 +330,7 @@ export default function OfficerAttendancePage() {
                   <CardTitle className="font-heading text-base flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" />
                     Checked In
-                    <Badge className="bg-muted text-muted-foreground border-0 text-[10px] ml-1">
+                    <Badge className="bg-muted text-muted-foreground border-0 text-[11px] ml-1">
                       {roster.length}
                     </Badge>
                   </CardTitle>
@@ -375,7 +366,7 @@ export default function OfficerAttendancePage() {
                           <p className="text-xs text-muted-foreground">{r.volunteer?.email ?? "—"}</p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Badge className={`text-[10px] capitalize ${
+                          <Badge className={`text-[11px] capitalize ${
                             r.method === "manual"
                               ? "bg-muted text-muted-foreground border border-border"
                               : "bg-success/10 text-success border-success/20 border"

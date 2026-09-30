@@ -75,6 +75,23 @@ const config: Config = {
         sans: ["DM Sans", "sans-serif"],
         heading: ["Playfair Display", "serif"],
       },
+      // Slightly larger shared type scale for readability while preserving
+      // the existing responsive layout and font families.
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.125rem" }],
+        sm: ["0.9375rem", { lineHeight: "1.375rem" }],
+        base: ["1.0625rem", { lineHeight: "1.625rem" }],
+        lg: ["1.1875rem", { lineHeight: "1.75rem" }],
+        xl: ["1.3125rem", { lineHeight: "1.875rem" }],
+        "2xl": ["1.5625rem", { lineHeight: "2rem" }],
+        "3xl": ["2rem", { lineHeight: "2.25rem" }],
+        "4xl": ["2.375rem", { lineHeight: "2.5rem" }],
+        "5xl": ["3.125rem", { lineHeight: "1" }],
+        "6xl": ["3.875rem", { lineHeight: "1" }],
+        "7xl": ["4.625rem", { lineHeight: "1" }],
+        "8xl": ["6.125rem", { lineHeight: "1" }],
+        "9xl": ["8.125rem", { lineHeight: "1" }],
+      },
       borderRadius: {
         lg: "0.5rem",
         md: "calc(0.5rem - 2px)",

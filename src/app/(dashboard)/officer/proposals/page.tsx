@@ -1,5 +1,9 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
+import { isFocusSdg } from "@/lib/sdg-focus.js";
+
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -11,6 +15,9 @@ import {
   RotateCcw, History, Workflow, Printer, Sparkles, CircleAlert,
 } from "lucide-react";
 import { derivePhase, PHASE_META, type PhaseKey } from "@/lib/proposals/phase";
+import { authorizeProposalAction, type ProposalAction } from "@/lib/proposals/workflow-policy";
+import { hasCapability, type Capability } from "@/lib/auth/capabilities";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
 import { ExportMenu } from "@/components/shared/ExportMenu";
 import { CommunityValidationSection } from "@/components/shared/CommunityValidationSection";
 import { toast } from "sonner";
@@ -27,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { AdvisoryRecommendationResponse } from "@/lib/ai/advisory-recommendations";
+import type { ProposalReviewDecision } from "@/types";
 import {
   proposalAlignmentResponseSchema,
   type ProposalAlignmentDraft,
@@ -123,7 +131,7 @@ interface Proposal {
 
 interface ProposalDetail extends Proposal {
   proposal_reviews: {
-    id: string; stage: string; decision: string;
+    id: string; stage: string; decision: ProposalReviewDecision;
     notes: string | null; reviewed_at: string;
     users: { full_name: string } | null;
   }[];
@@ -159,6 +167,28 @@ const STATUS_BADGE: Record<ProposalStatus, string> = {
   approved:             "bg-success/10 text-success border-success/20 border",
   rejected:             "bg-danger/10 text-danger border-danger/20 border",
   revisions_requested:  "bg-accent/15 text-accent-foreground border-accent/30 border",
+};
+
+const REVIEW_DECISION_LABEL: Record<ProposalReviewDecision, string> = {
+  approved: "Approved",
+  rejected: "Rejected",
+  needs_revision: "Needs revision",
+  submitted: "Submitted",
+  prescreening_failed: "Pre-screening failed",
+  finance_cleared: "Finance cleared",
+  revisions_requested: "Revisions requested",
+  resubmitted: "Resubmitted",
+};
+
+const REVIEW_DECISION_BADGE: Record<ProposalReviewDecision, string> = {
+  approved: "bg-success/10 text-success border-success/20",
+  rejected: "bg-danger/10 text-danger border-danger/20",
+  needs_revision: "bg-accent/15 text-accent-foreground border-accent/30",
+  submitted: "bg-info/10 text-info border-info/20",
+  prescreening_failed: "bg-danger/10 text-danger border-danger/20",
+  finance_cleared: "bg-success/10 text-success border-success/20",
+  revisions_requested: "bg-accent/15 text-accent-foreground border-accent/30",
+  resubmitted: "bg-info/10 text-info border-info/20",
 };
 
 const SDG_META = [
@@ -277,6 +307,8 @@ function PipelineStepper({ status }: { status: ProposalStatus }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ProposalsPage() {
+  const { role, permissions } = useDashboardActor();
+  const canCreate = hasCapability(role, permissions, "proposal.create");
   const router = useRouter();
   const searchParams = useSearchParams();
   const recommendationHandled = useRef(false);
@@ -325,6 +357,25 @@ export default function ProposalsPage() {
   const [showReviseForm, setShowReviseForm] = useState(false);
   const [advancing, setAdvancing]       = useState(false);
 
+  // Use the same state/role contract as the API. Reason text is validated when
+  // acting; it must not hide the button used to open the reason form.
+  function canAction(action: ProposalAction) {
+    if (!detail) return false;
+    const capability: Capability = action === "mark_finance_cleared" || (action === "request_revisions" && detail.status === "finance_review")
+      ? "proposal.finance"
+      : action === "reject" || (action === "advance" && detail.status === "finance_review")
+        ? "proposal.decide" : action === "resubmit" || detail.status === "draft" ? "proposal.create" : "proposal.review";
+    return hasCapability(role, permissions, capability) && authorizeProposalAction({
+      action, role, currentStatus: detail.status, financeClearance: detail.finance_clearance,
+      notes: "Required reason supplied on confirmation", finance_notes: null,
+    }).allowed;
+  }
+  const mayAdvance = canAction("advance");
+  const mayReject = canAction("reject");
+  const mayRevise = canAction("request_revisions");
+  const mayClear = canAction("mark_finance_cleared");
+  const mayResubmit = canAction("resubmit");
+
   const { register, handleSubmit, reset, getValues, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
@@ -354,12 +405,14 @@ export default function ProposalsPage() {
 
   useEffect(() => {
     fetchProposals();
-    fetch("/api/partnerships").then((r) => r.json()).then((j) => setBarangays(j.data ?? []));
-  }, [fetchProposals]);
+    // Only the create/edit form uses barangays; read-only roles such as Finance lack partnership access.
+    if (canCreate) fetch("/api/partnerships").then((r) => r.json()).then((j) => setBarangays(j.data ?? []));
+  }, [fetchProposals, canCreate]);
 
   // ── Form sheet ──────────────────────────────────────────────────────────────
 
   function openCreate() {
+    if (!canCreate) return;
     setEditProposal(null);
     setSdgSelected([]); setSdgIndicators({});
     setInformedBy([]);
@@ -393,7 +446,7 @@ export default function ProposalsPage() {
         setInformedBy([]);
         setAlignment(null);
         setAlignmentAssessment(null);
-        const supportedSdgs = new Set<number>(SDG_META.map((item) => item.n));
+        const supportedSdgs = new Set<number>(SDG_META.filter(item => isFocusSdg(item.n)).map((item) => item.n));
         setSdgSelected(recommendation.suggestedSdgs.filter((sdg) => supportedSdgs.has(sdg)));
         setSdgIndicators({});
         setRecommendationDraftContext({
@@ -428,6 +481,7 @@ export default function ProposalsPage() {
   }, [reset, router, searchParams]);
 
   function openEdit(p: Proposal) {
+    if (!canCreate) return;
     setEditProposal(p);
     const nums = (p.proposal_sdg_alignment ?? []).map((a) => a.sdg_number);
     setSdgSelected(nums);
@@ -511,6 +565,7 @@ export default function ProposalsPage() {
   }
 
   async function onSubmit(data: FormData) {
+    if (!canCreate) return;
     setSaving(true);
     const payload = {
       ...data,
@@ -576,9 +631,9 @@ export default function ProposalsPage() {
   }
 
   async function advance(action: "advance" | "reject" | "request_revisions" | "resubmit") {
-    if (!detail) return;
-    if (action === "reject" && !reviewNotes.trim())            { toast.error("Rejection notes are required."); return; }
-    if (action === "request_revisions" && !reviewNotes.trim()) { toast.error("Revision notes are required so the proponent knows what to change."); return; }
+    if (!detail || !canAction(action)) return;
+    if (action === "reject" && reviewNotes.trim().length < 5) { toast.error("Rejection notes must contain at least 5 characters."); return; }
+    if (action === "request_revisions" && reviewNotes.trim().length < 5) { toast.error("Revision notes must contain at least 5 characters."); return; }
     setAdvancing(true);
     const proposalId = detail.id;
     try {
@@ -625,7 +680,7 @@ export default function ProposalsPage() {
   }
 
   async function markFinanceCleared() {
-    if (!detail) return;
+    if (!detail || !mayClear) return;
     setAdvancing(true);
     const proposalId = detail.id;
     const financeNotes = reviewNotes.trim() || null;
@@ -718,7 +773,7 @@ export default function ProposalsPage() {
       </div>
 
       {/* Pipeline phase rollup — maps live proposals to the PARAYA Action
-          Research Cycle phases so the Director can see where the work is
+          Research Cycle phases so the PARAYA Officer can see where the work is
           concentrated. Rejected proposals are excluded from the bar. */}
       {!loading && phaseCounts.activeTotal > 0 && (
         <Card className="border-border shadow-card">
@@ -790,9 +845,9 @@ export default function ProposalsPage() {
                   filename="paraya-proposals"
                   sheetName="Proposals"
                 />
-                <Button onClick={openCreate} className="bg-primary hover:bg-primary-dark text-white gap-2">
+                {canCreate && <Button onClick={openCreate} className="bg-primary hover:bg-primary-dark text-white gap-2">
                   <Plus className="w-4 h-4" /> New Proposal
-                </Button>
+                </Button>}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -823,81 +878,85 @@ export default function ProposalsPage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Proposal</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Pipeline</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Budget</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} className="py-16 text-center text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
-                  </td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="py-16 text-center text-muted-foreground">
-                    {proposals.length === 0 ? "No proposals yet. Click \"New Proposal\" to create one." : "No proposals match your filters."}
-                  </td></tr>
-                ) : filtered.map((p, i) => (
-                  <tr
-                    key={p.id}
-                    className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
-                    onClick={() => openDetail(p.id)}
-                  >
-                    <td className="py-3 px-4">
-                      <p className="font-medium text-foreground leading-snug">{p.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {p.barangays ? p.barangays.name : "No barangay"} · {fmt(p.created_at)}
-                      </p>
-                      {(p.proposal_sdg_alignment ?? []).length > 0 && (
-                        <div className="flex gap-1 mt-1 flex-wrap">
-                          {p.proposal_sdg_alignment.map((a) => {
-                            const sdg = SDG_META.find((s) => s.n === a.sdg_number);
-                            return sdg ? (
-                              <span key={a.sdg_number} className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: sdg.color }}>
-                                SDG {a.sdg_number}
-                              </span>
-                            ) : null;
-                          })}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 hidden md:table-cell">
-                      <PipelineStepper status={p.status} />
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{currency(p.budget)}</td>
-                    <td className="py-3 px-4">
-                      <Badge className={`${STATUS_BADGE[p.status]} capitalize text-xs`}>
-                        {p.status.replace("_", " ")}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(p.id)}>
-                              <FileText className="w-3.5 h-3.5 mr-2" /> View Details
-                            </DropdownMenuItem>
-                            {(p.status === "draft" || p.status === "revisions_requested") && (
-                              <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(p)}>
-                                {p.status === "revisions_requested" ? "Edit Revision" : "Edit"}
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PaginatedTable rows={filtered} label="Proposals" resetKey={JSON.stringify([search, statusFilter, dateFrom, dateTo])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Proposals" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Proposal</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Pipeline</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Budget</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={5} className="py-16 text-center text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+                      </td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr><td colSpan={5} className="py-16 text-center text-muted-foreground">
+                        {proposals.length === 0 ? "No proposals yet. Click \"New Proposal\" to create one." : "No proposals match your filters."}
+                      </td></tr>
+                    ) : pageRows.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
+                        onClick={() => openDetail(p.id)}
+                      >
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-foreground leading-snug">{p.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {p.barangays ? p.barangays.name : "No barangay"} · {fmt(p.created_at)}
+                          </p>
+                          {(p.proposal_sdg_alignment ?? []).length > 0 && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {p.proposal_sdg_alignment.map((a) => {
+                                const sdg = SDG_META.find((s) => s.n === a.sdg_number);
+                                return sdg ? (
+                                  <span key={a.sdg_number} className="text-[11px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: sdg.color }}>
+                                    SDG {a.sdg_number}
+                                  </span>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 hidden md:table-cell">
+                          <PipelineStepper status={p.status} />
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{currency(p.budget)}</td>
+                        <td className="py-3 px-4">
+                          <Badge className={`${STATUS_BADGE[p.status]} capitalize text-xs`}>
+                            {p.status.replace("_", " ")}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(p.id)}>
+                                  <FileText className="w-3.5 h-3.5 mr-2" /> View Details
+                                </DropdownMenuItem>
+                                {canCreate && (p.status === "draft" || p.status === "revisions_requested") && (
+                                  <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(p)}>
+                                    {p.status === "revisions_requested" ? "Edit Revision" : "Edit"}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
           {!loading && proposals.length > 0 && (
             <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
@@ -917,7 +976,7 @@ export default function ProposalsPage() {
           </SheetHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+            <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
 
               {recommendationDraftContext && (
                 <div className="rounded-xl border border-info/30 bg-info/5 p-4 text-sm" data-testid="recommendation-draft-prefill">
@@ -973,9 +1032,9 @@ export default function ProposalsPage() {
                           <li key={link.id} className="rounded-lg border border-border bg-background px-3 py-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs font-medium text-foreground">{label}</span>
-                              {isRecommendation && <Badge className="bg-info/10 text-info border-info/20 border text-[10px]">Recommendation provenance · planning only</Badge>}
+                              {isRecommendation && <Badge className="bg-info/10 text-info border-info/20 border text-[11px]">Recommendation provenance · planning only</Badge>}
                             </div>
-                            <p className="mt-1 text-[11px] text-muted-foreground">
+                            <p className="mt-1 text-[12px] text-muted-foreground">
                               Verified source · linked {fmt(link.created_at)}
                             </p>
                           </li>
@@ -1076,9 +1135,9 @@ export default function ProposalsPage() {
               {/* SDG alignment */}
               <div className="space-y-4">
                 <p className="text-muted-foreground font-medium">SDG Alignment</p>
-                <p className="text-xs text-muted-foreground">Select all applicable UN Sustainable Development Goals.</p>
+                <p className="text-xs text-muted-foreground">Select applicable goals from AGAPE’s focus SDGs: 4, 9, 11, and 17.</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {SDG_META.map((sdg) => {
+                  {SDG_META.filter(sdg => isFocusSdg(sdg.n)).map((sdg) => {
                     const selected = sdgSelected.includes(sdg.n);
                     return (
                       <button
@@ -1099,8 +1158,8 @@ export default function ProposalsPage() {
                 </div>
                 {sdgSelected.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Specific indicators for selected SDGs:</p>
-                    {sdgSelected.map((n) => {
+                    <p className="text-xs text-muted-foreground">Specific indicators for selected focus SDGs. Previously recorded out-of-focus classifications, if any, are retained unchanged as historical evidence.</p>
+                    {sdgSelected.filter(isFocusSdg).map((n) => {
                       const sdg = SDG_META.find((s) => s.n === n)!;
                       return (
                         <div key={n} className="space-y-1">
@@ -1166,7 +1225,7 @@ export default function ProposalsPage() {
                           <div className="min-w-0 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-xs font-medium text-foreground">{dimension.label}</p>
-                              <Badge variant="outline" className="text-[10px] capitalize">
+                              <Badge variant="outline" className="text-[11px] capitalize">
                                 {dimension.rating.replaceAll("_", " ")}
                               </Badge>
                             </div>
@@ -1178,7 +1237,7 @@ export default function ProposalsPage() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
                       {alignment.limitations.join(" ")}
                     </p>
                   </CardContent>
@@ -1219,7 +1278,7 @@ export default function ProposalsPage() {
                             className="rounded border-border"
                           />
                           <span className="flex-1 min-w-0 truncate">{p.title}</span>
-                          <Badge className={`${STATUS_BADGE[p.status]} capitalize text-[10px] px-1.5 py-0`}>
+                          <Badge className={`${STATUS_BADGE[p.status]} capitalize text-[11px] px-1.5 py-0`}>
                             {p.status.replace("_", " ")}
                           </Badge>
                           <span className="text-xs text-muted-foreground tabular-nums shrink-0">
@@ -1267,7 +1326,7 @@ export default function ProposalsPage() {
             )}
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
             {detailLoading ? (
               <div className="py-20 text-center text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
@@ -1341,7 +1400,7 @@ export default function ProposalsPage() {
                           return (
                             <div key={a.sdg_number} className="rounded-lg p-2 text-xs" style={{ backgroundColor: `${sdg.color}18`, border: `1px solid ${sdg.color}40` }}>
                               <span className="font-bold" style={{ color: sdg.color }}>SDG {a.sdg_number}</span>
-                              <span className="text-muted-foreground ml-1">{sdg.label}</span>
+                              <span className="text-muted-foreground ml-1">{sdg.label}{!isFocusSdg(a.sdg_number) && " — historical, outside current tracking scope"}</span>
                               {a.indicator && <p className="text-foreground mt-0.5 italic">{a.indicator}</p>}
                             </div>
                           );
@@ -1371,7 +1430,7 @@ export default function ProposalsPage() {
                               className="w-full flex items-center gap-2 p-2.5 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/40 text-left text-sm transition-colors"
                             >
                               <span className="flex-1 min-w-0 truncate text-foreground">{p.title}</span>
-                              <Badge className={`${STATUS_BADGE[p.status]} capitalize text-[10px] px-1.5 py-0`}>
+                              <Badge className={`${STATUS_BADGE[p.status]} capitalize text-[11px] px-1.5 py-0`}>
                                 {p.status.replace("_", " ")}
                               </Badge>
                               <span className="text-xs text-muted-foreground tabular-nums shrink-0">
@@ -1392,17 +1451,12 @@ export default function ProposalsPage() {
                     <div className="space-y-3">
                       <p className="text-muted-foreground font-medium">Review History</p>
                       {detail.proposal_reviews.map((r) => {
-                        const badgeClass =
-                          r.decision === "approved"            ? "bg-success/10 text-success border-success/20"
-                          : r.decision === "revisions_requested" ? "bg-accent/15 text-accent-foreground border-accent/30"
-                          : r.decision === "resubmitted"       ? "bg-info/10 text-info border-info/20"
-                          :                                       "bg-danger/10 text-danger border-danger/20";
                         return (
                         <div key={r.id} className="p-3 rounded-xl border border-border bg-transparent-alt/30 text-sm">
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-foreground capitalize">{r.stage.replace("_", " ")}</span>
-                            <Badge className={`${badgeClass} border text-xs`}>
-                              {r.decision.replace("_", " ")}
+                            <Badge className={`${REVIEW_DECISION_BADGE[r.decision]} border text-xs`}>
+                              {REVIEW_DECISION_LABEL[r.decision]}
                             </Badge>
                           </div>
                           {r.notes && <p className="text-muted-foreground mt-1 text-xs">{r.notes}</p>}
@@ -1517,7 +1571,7 @@ export default function ProposalsPage() {
 
                 {/* Approved proposals: offer a one-click handoff into the
                     Programs module with the proposal's fields pre-filled. */}
-                {detail.status === "approved" && (
+                {detail.status === "approved" && hasCapability(role, permissions, "program.manage") && (
                   <>
                     <Separator />
                     <div className="space-y-3">
@@ -1541,13 +1595,16 @@ export default function ProposalsPage() {
 
                 {/* Actions — three modes: resubmit (when revisions_requested),
                     review (advance/revise/reject), or hidden (approved/rejected). */}
-                {(ADVANCE_LABEL[detail.status] || detail.status === "revisions_requested") && (
+                {detail.status === "finance_review" && !detail.finance_clearance && !mayClear && (
+                  <p role="status" className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-sm">Awaiting Finance Officer clearance. Final PARAYA Officer approval or rejection becomes available after clearance.</p>
+                )}
+                {(mayAdvance || mayReject || mayRevise || mayClear || mayResubmit) && (
                   <>
                     <Separator />
                     <div className="space-y-3">
                       <p className="text-muted-foreground font-medium">Actions</p>
 
-                      {detail.status === "revisions_requested" ? (
+                      {mayResubmit ? (
                         <div className="space-y-2">
                           <div className="space-y-1.5">
                             <Label className="text-xs">Resubmission notes (optional)</Label>
@@ -1568,7 +1625,7 @@ export default function ProposalsPage() {
                             Resubmit for Review
                           </Button>
                         </div>
-                      ) : showRejectForm ? (
+                      ) : showRejectForm && mayReject ? (
                         <div className="space-y-2">
                           <Label className="text-xs text-danger">Rejection reason <span className="text-danger">*</span></Label>
                           <Textarea
@@ -1582,13 +1639,13 @@ export default function ProposalsPage() {
                             <Button variant="outline" onClick={() => { setShowRejectForm(false); setReviewNotes(""); }} className="flex-1">
                               Cancel
                             </Button>
-                            <Button disabled={advancing} onClick={() => advance("reject")} className="flex-1 bg-danger hover:bg-danger/90 text-white">
+                            <Button disabled={advancing || reviewNotes.trim().length < 5} onClick={() => advance("reject")} className="flex-1 bg-danger hover:bg-danger/90 text-white">
                               {advancing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                               Confirm Rejection
                             </Button>
                           </div>
                         </div>
-                      ) : showReviseForm ? (
+                      ) : showReviseForm && mayRevise ? (
                         <div className="space-y-2">
                           <Label className="text-xs text-accent-foreground">
                             What needs to change? <span className="text-danger">*</span>
@@ -1604,7 +1661,7 @@ export default function ProposalsPage() {
                             <Button variant="outline" onClick={() => { setShowReviseForm(false); setReviewNotes(""); }} className="flex-1">
                               Cancel
                             </Button>
-                            <Button disabled={advancing} onClick={() => advance("request_revisions")} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
+                            <Button disabled={advancing || reviewNotes.trim().length < 5} onClick={() => advance("request_revisions")} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
                               {advancing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-1" />}
                               Send Back for Revisions
                             </Button>
@@ -1627,7 +1684,7 @@ export default function ProposalsPage() {
                             />
                           </div>
                           {/* In finance_review without clearance, force the Mark Finance Cleared step */}
-                          {detail.status === "finance_review" && !detail.finance_clearance ? (
+                          {mayClear ? (
                             <div className="flex gap-2">
                               <Button
                                 disabled={advancing}
@@ -1638,7 +1695,7 @@ export default function ProposalsPage() {
                                 Mark Finance Cleared
                               </Button>
                               {/* Request revisions is only valid in actual review stages, not draft */}
-                              <Button
+                              {mayRevise && <Button
                                 variant="outline"
                                 disabled={advancing}
                                 onClick={() => setShowReviseForm(true)}
@@ -1646,29 +1703,20 @@ export default function ProposalsPage() {
                                 title="Send back for revisions"
                               >
                                 <RotateCcw className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                disabled={advancing}
-                                onClick={() => setShowRejectForm(true)}
-                                className="border-danger/40 text-danger hover:bg-danger/5"
-                                title="Reject"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
+                              </Button>}
                             </div>
                           ) : (
                             <div className="flex gap-2">
-                              <Button
+                              {mayAdvance && <Button
                                 disabled={advancing}
                                 onClick={() => advance("advance")}
                                 className="flex-1 bg-primary hover:bg-primary-dark text-white gap-2"
                               >
                                 {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                                 {ADVANCE_LABEL[detail.status]}
-                              </Button>
+                              </Button>}
                               {/* Request revisions is only valid in actual review stages, not draft */}
-                              {detail.status !== "draft" && (
+                              {mayRevise && (
                                 <Button
                                   variant="outline"
                                   disabled={advancing}
@@ -1679,7 +1727,7 @@ export default function ProposalsPage() {
                                   <RotateCcw className="w-4 h-4" />
                                 </Button>
                               )}
-                              <Button
+                              {mayReject && <Button
                                 variant="outline"
                                 disabled={advancing}
                                 onClick={() => setShowRejectForm(true)}
@@ -1687,7 +1735,7 @@ export default function ProposalsPage() {
                                 title="Reject"
                               >
                                 <XCircle className="w-4 h-4" />
-                              </Button>
+                              </Button>}
                             </div>
                           )}
                         </div>

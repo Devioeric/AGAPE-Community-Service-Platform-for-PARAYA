@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { authorizeAnyCapability } from "@/lib/auth/authorize";
 import { guardV1Mutation } from "@/lib/phase2/feature";
 import { NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import {
   runPrescreening,
   type ProposalForScreening,
@@ -12,14 +13,31 @@ import {
   parseProposalActionInput,
   PROPOSAL_PIPELINE,
 } from "@/lib/proposals/workflow-policy";
+import type { ProposalReviewDecision } from "@/types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 type WorkflowReview = {
   stage: string;
-  decision: string;
+  decision: ProposalReviewDecision;
   notes?: string | null;
 };
+
+type WorkflowErrorCode =
+  | "proposal_not_found"
+  | "workflow_conflict"
+  | "workflow_forbidden"
+  | "invalid_workflow"
+  | "workflow_persistence_failed";
+
+function workflowErrorResponse(
+  message: string,
+  code: WorkflowErrorCode,
+  requestId: string,
+  status: 400 | 403 | 404 | 409 | 422 | 500,
+) {
+  return NextResponse.json({ error: message, code, requestId }, { status });
+}
 
 export async function POST(request: Request, { params }: Ctx) {
   const auth = await authorizeAnyCapability(["proposal.create", "proposal.review", "proposal.finance", "proposal.decide"]);
@@ -28,10 +46,11 @@ export async function POST(request: Request, { params }: Ctx) {
   if (retired) return retired;
   const supabase = auth.supabase;
   const { id } = await params;
+  const requestId = randomUUID();
   const rawBody = await request.json().catch(() => null);
   const parsedBody = parseProposalActionInput(rawBody);
   if (!parsedBody.ok) {
-    return NextResponse.json({ error: parsedBody.error }, { status: 400 });
+    return workflowErrorResponse(parsedBody.error, "invalid_workflow", requestId, 400);
   }
   const body = parsedBody.data;
 
@@ -41,6 +60,7 @@ export async function POST(request: Request, { params }: Ctx) {
       id, title, rationale, objectives, status, is_income_generating, finance_clearance,
       target_beneficiaries, budget, timeline_start, timeline_end,
       revision_count, revision_requested_from, community_validated,
+      prescreening_passed, prescreening_checks, prescreening_ran_at,
       proposal_sdg_alignment(sdg_number)
     `)
     .eq("id", id)
@@ -48,10 +68,9 @@ export async function POST(request: Request, { params }: Ctx) {
 
   if (proposalError || !proposal) {
     const notFound = proposalError?.code === "PGRST116";
-    return NextResponse.json(
-      { error: notFound ? "Proposal not found" : "Unable to load proposal" },
-      { status: notFound ? 404 : 500 },
-    );
+    return notFound
+      ? workflowErrorResponse("Proposal not found", "proposal_not_found", requestId, 404)
+      : workflowErrorResponse("Unable to load proposal", "workflow_persistence_failed", requestId, 500);
   }
 
   const currentStatus = proposal.status as string;
@@ -64,9 +83,11 @@ export async function POST(request: Request, { params }: Ctx) {
     financeClearance: expectedFinanceClearance,
   });
   if (!authorization.allowed) {
-    return NextResponse.json(
-      { error: authorization.error ?? "Forbidden" },
-      { status: authorization.httpStatus ?? 403 },
+    return workflowErrorResponse(
+      authorization.error ?? "Forbidden",
+      authorization.httpStatus === 403 ? "workflow_forbidden" : "invalid_workflow",
+      requestId,
+      authorization.httpStatus ?? 403,
     );
   }
 
@@ -76,25 +97,32 @@ export async function POST(request: Request, { params }: Ctx) {
     patch: Record<string, unknown>,
     review?: WorkflowReview,
   ): Promise<NextResponse | null> {
-    const { error } = await workflowDb.rpc(
-      "phase0_apply_proposal_workflow_change",
-      {
-        p_proposal_id: id,
-        p_expected_status: currentStatus,
-        p_expected_finance_clearance: expectedFinanceClearance,
-        p_patch: patch,
-        p_reviewer_id: review ? reviewerId : null,
-        p_review_stage: review?.stage ?? null,
-        p_review_decision: review?.decision ?? null,
-        p_review_notes: review?.notes ?? null,
-      },
-    );
+    let error: { code?: string } | null = null;
+    try {
+      ({ error } = await workflowDb.rpc(
+        "phase0_apply_proposal_workflow_change",
+        {
+          p_proposal_id: id,
+          p_expected_status: currentStatus,
+          p_expected_finance_clearance: expectedFinanceClearance,
+          p_patch: patch,
+          p_reviewer_id: review ? reviewerId : null,
+          p_review_stage: review?.stage ?? null,
+          p_review_decision: review?.decision ?? null,
+          p_review_notes: review?.notes ?? null,
+        },
+      ));
+    } catch {
+      error = { code: "XX000" };
+    }
 
     if (!error) return null;
     if (error.code === "40001") {
-      return NextResponse.json(
-        { error: "This proposal changed while you were reviewing it. Reload and try again." },
-        { status: 409 },
+      return workflowErrorResponse(
+        "This proposal changed while you were reviewing it. Reload and try again.",
+        "workflow_conflict",
+        requestId,
+        409,
       );
     }
 
@@ -102,11 +130,18 @@ export async function POST(request: Request, { params }: Ctx) {
       proposalId: id,
       action: body.action,
       code: error.code,
+      requestId,
     });
-    return NextResponse.json(
-      { error: "The proposal workflow action could not be saved." },
-      { status: 500 },
-    );
+    if (error.code === "42501") {
+      return workflowErrorResponse("You are not allowed to perform this workflow action.", "workflow_forbidden", requestId, 403);
+    }
+    if (error.code === "P0002") {
+      return workflowErrorResponse("Proposal not found.", "proposal_not_found", requestId, 404);
+    }
+    if (error.code === "22023" || error.code === "23514") {
+      return workflowErrorResponse("The proposal workflow action is not valid for its current state.", "invalid_workflow", requestId, 422);
+    }
+    return workflowErrorResponse("The proposal workflow action could not be saved.", "workflow_persistence_failed", requestId, 500);
   }
 
   if (body.action === "request_revisions") {
@@ -199,9 +234,11 @@ export async function POST(request: Request, { params }: Ctx) {
 
   const nextStatus = PROPOSAL_PIPELINE[currentStatus];
   if (!nextStatus) {
-    return NextResponse.json(
-      { error: "Cannot advance from this status" },
-      { status: 400 },
+    return workflowErrorResponse(
+      "Cannot advance from this status",
+      "invalid_workflow",
+      requestId,
+      400,
     );
   }
 
@@ -224,6 +261,32 @@ export async function POST(request: Request, { params }: Ctx) {
     };
     const result = runPrescreening(forScreening);
 
+    // A repeated click after a failed check must be idempotent.  Compare the
+    // deterministic check payload with the last persisted result so a real
+    // correction (for example, community validation being completed) can be
+    // re-run while an unchanged failure does not append duplicate history.
+    const priorChecks = Array.isArray(proposal.prescreening_checks)
+      ? proposal.prescreening_checks
+      : null;
+    const sameFailedResult = !result.passed
+      && proposal.prescreening_passed === false
+      && typeof proposal.prescreening_ran_at === "string"
+      && priorChecks !== null
+      && JSON.stringify(priorChecks) === JSON.stringify(result.checks);
+    if (sameFailedResult) {
+      const failed = result.checks.filter((check) => !check.passed);
+      return NextResponse.json(
+        {
+          error: "Pre-screening checks failed.",
+          code: "pre_screening_failed",
+          requestId,
+          checks: result.checks,
+          failedCount: failed.length,
+        },
+        { status: 422 },
+      );
+    }
+
     screeningPatch = {
       prescreening_passed: result.passed,
       prescreening_checks: result.checks,
@@ -244,6 +307,8 @@ export async function POST(request: Request, { params }: Ctx) {
       return NextResponse.json(
         {
           error: "Pre-screening checks failed.",
+          code: "pre_screening_failed",
+          requestId,
           checks: result.checks,
           failedCount: failed.length,
         },

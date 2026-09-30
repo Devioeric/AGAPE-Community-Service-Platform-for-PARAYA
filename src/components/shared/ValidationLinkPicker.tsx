@@ -32,7 +32,7 @@ interface Props {
 }
 
 const SOURCE_META: Record<SourceType, { label: string; icon: React.ComponentType<{ className?: string }>; hint: string }> = {
-  community_need:    { label: "Community Needs",    icon: ClipboardList, hint: "Captain-approved needs are strongest evidence." },
+  community_need:    { label: "Community Needs",    icon: ClipboardList, hint: "PARAYA-reviewed barangay needs are strongest evidence." },
   survey:            { label: "Surveys",            icon: BarChart3,    hint: "Cite a survey whose responses informed the objectives." },
   field_observation: { label: "Field Observations", icon: Eye,          hint: "Open-ended notes from community immersion." },
   profiling_evidence_snapshot: { label: "Approved Profile Evidence", icon: Home, hint: "Completed, de-identified profiling-cycle evidence." },
@@ -224,7 +224,7 @@ export function ValidationLinkPicker({
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{c.label}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{c.meta}</p>
+                      <p className="text-[12px] text-muted-foreground truncate">{c.meta}</p>
                     </div>
                     {sel && <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />}
                   </button>
@@ -247,7 +247,7 @@ export function ValidationLinkPicker({
                 placeholder="e.g. Objective 2 directly addresses the flooding concern surfaced in this record."
                 className="focus-visible:ring-primary/30 resize-none text-sm"
               />
-              <p className="text-[11px] text-muted-foreground">{rationale.trim().length} / 10 min characters</p>
+              <p className="text-[12px] text-muted-foreground">{rationale.trim().length} / 10 min characters</p>
             </div>
           )}
         </div>
@@ -311,8 +311,8 @@ export function LinkedRecordCard({
     secondaryLine = [cat, brgy, sitio].filter(Boolean).join(" · ");
     if ((details.approval_status as string) === "approved") {
       approvedBadge = (
-        <Badge className="bg-success/10 text-success border-success/20 border text-[10px] font-normal">
-          Captain-approved
+        <Badge className="bg-success/10 text-success border-success/20 border text-[11px] font-normal">
+          PARAYA-reviewed
         </Badge>
       );
     }
@@ -352,25 +352,25 @@ export function LinkedRecordCard({
               <p className="text-sm font-medium text-foreground line-clamp-1">{title}</p>
               {approvedBadge}
               {planningProvenance && (
-                <Badge className="bg-info/10 text-info border-info/20 border text-[10px] font-normal">
+                <Badge className="bg-info/10 text-info border-info/20 border text-[11px] font-normal">
                   Planning provenance
                 </Badge>
               )}
             </div>
             {secondaryLine && (
-              <p className="text-[11px] text-muted-foreground truncate">{secondaryLine}</p>
+              <p className="text-[12px] text-muted-foreground truncate">{secondaryLine}</p>
             )}
           </div>
         </div>
       </div>
       <p className="text-xs text-foreground/80 italic pl-7">→ {record.rationale}</p>
       {planningProvenance && (
-        <p className="text-[10px] text-info pl-7">
+        <p className="text-[11px] text-info pl-7">
           Preserved for traceability; this source does not by itself complete human community validation.
         </p>
       )}
       {record.linker_name && (
-        <p className="text-[10px] text-muted-foreground pl-7">Linked by {record.linker_name}</p>
+        <p className="text-[11px] text-muted-foreground pl-7">Linked by {record.linker_name}</p>
       )}
     </div>
   );

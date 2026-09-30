@@ -96,22 +96,9 @@ export async function GET(request: Request, { params }: Ctx) {
       meta: [text(row.observation_date, 10), text(row.category, 60), text(row.sitio, 120)].filter(Boolean).join(" · "),
     }));
   } else {
-    const result = await admin.from("profiling_evidence_snapshots")
-      .select("id,generated_at,aggregate_schema_version,profiling_cycles!inner(name,barangay_id,status,barangays(name))")
-      .eq("aggregate_schema_version", "agape.profiling.aggregate.v2")
-      .eq("profiling_cycles.barangay_id", proposal.barangay_id)
-      .in("profiling_cycles.status", ["completed", "archived"])
-      .order("generated_at", { ascending: false })
-      .limit(200);
-    queryError = result.error;
-    candidates = (result.data ?? []).map((row) => {
-      const cycle = row.profiling_cycles as unknown as { name?: unknown; barangays?: unknown } | null;
-      return {
-        id: row.id,
-        label: text(cycle?.name, 180, "Completed profiling cycle"),
-        meta: [barangayName(cycle?.barangays), text(row.generated_at, 40)].filter(Boolean).join(" · "),
-      };
-    });
+    // Reconstructed profiling evidence is no longer offered as a new validation source.
+    // Existing links remain readable in proposal detail and print views.
+    candidates = [];
   }
 
   if (queryError) {

@@ -310,7 +310,7 @@ export function ForumView({ isModerator, currentUserId }: ForumViewProps) {
                     {detail.pinned && <Pin className="w-3.5 h-3.5 text-warning" />}
                     {detail.locked && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                     <Badge
-                      className="text-[10px] capitalize"
+                      className="text-[11px] capitalize"
                       style={{
                         background: `${CATEGORY_META[detail.category]?.color ?? "#6B5B3E"}18`,
                         color:      CATEGORY_META[detail.category]?.color ?? "#6B5B3E",
@@ -367,14 +367,14 @@ export function ForumView({ isModerator, currentUserId }: ForumViewProps) {
                 return (
                   <div key={p.id} className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface-alt/30">
                     <Avatar className="w-8 h-8 flex-shrink-0">
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
+                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-[11px]">
                         {initials(p.author?.full_name ?? "U")}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="font-medium text-sm text-foreground">{p.author?.full_name ?? "Unknown"}</p>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                           {ROLE_LABEL[p.author?.role ?? ""] ?? "User"}
                         </span>
                         <span className="text-xs text-muted-foreground">· {relativeTime(p.created_at)}</span>
@@ -437,15 +437,6 @@ export function ForumView({ isModerator, currentUserId }: ForumViewProps) {
 
   return (
     <div className="space-y-6">
-
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-primary" /> Discussion Forum
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Ask questions, share experiences, and coordinate with the PARAYA community.
-        </p>
-      </div>
 
       {/* Filters + new thread */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -518,7 +509,7 @@ export function ForumView({ isModerator, currentUserId }: ForumViewProps) {
                         {t.locked && <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
                         <p className="font-medium text-sm text-foreground truncate">{t.title}</p>
                         <Badge
-                          className="text-[10px] capitalize flex-shrink-0"
+                          className="text-[11px] capitalize flex-shrink-0"
                           style={{
                             background: `${CATEGORY_META[t.category]?.color ?? "#6B5B3E"}18`,
                             color:      CATEGORY_META[t.category]?.color ?? "#6B5B3E",

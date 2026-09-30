@@ -1,9 +1,11 @@
 import { hasCapability, type Capability, type PermissionOverrides } from "@/lib/auth/capabilities";
+import { getDiscoverableNavigationEntries } from "@/lib/navigation/catalog";
+import { NAVIGATION_MODULE_LABELS } from "@/lib/navigation/assistant";
 
 export interface ChatbotModule { key: string; label: string; topics: string[] }
 
 const MODULES: Array<ChatbotModule & { any: readonly Capability[] }> = [
-  { key: "proposals", label: "Proposals", topics: ["proposals"], any: ["proposal.read"] },
+  { key: "proposals", label: "Proposals", topics: ["proposals"], any: ["proposal.read", "contributor.proposal.read"] },
   { key: "programs", label: "Programs", topics: ["programs", "schedule"], any: ["program.read"] },
   { key: "surveys", label: "Surveys", topics: ["surveys"], any: ["survey.read"] },
   { key: "volunteers", label: "Volunteers", topics: ["volunteers"], any: ["volunteer.directory.read"] },
@@ -23,12 +25,16 @@ const MODULES: Array<ChatbotModule & { any: readonly Capability[] }> = [
 
 export function getAvailableModules(role: string, overrides?: PermissionOverrides): ChatbotModule[] {
   if (!hasCapability(role, overrides, "ai.assist")) return [];
-  return MODULES.filter((module) => module.any.some((capability) => hasCapability(role, overrides, capability)))
+  const liveModules = MODULES.filter((module) => module.any.some((capability) => hasCapability(role, overrides, capability)))
     .map(({ key, label, topics }) => ({ key, label, topics }));
+  const navigationModules = Array.from(new Set(getDiscoverableNavigationEntries(role, overrides).map(item => item.module)))
+    .filter(key => !liveModules.some(module => module.key === key))
+    .map(key => ({ key, label: NAVIGATION_MODULE_LABELS[key] ?? key, topics: [] }));
+  return [...liveModules, ...navigationModules];
 }
 
 export function topicsForModule(key: string, role?: string, overrides?: PermissionOverrides): string[] | null {
-  const selectedModule = MODULES.find((candidate) => candidate.key === key);
+  const selectedModule = (role ? getAvailableModules(role, overrides) : MODULES).find((candidate) => candidate.key === key);
   if (!selectedModule) return null;
   if (role && !getAvailableModules(role, overrides).some((candidate) => candidate.key === key)) return null;
   return selectedModule.topics;

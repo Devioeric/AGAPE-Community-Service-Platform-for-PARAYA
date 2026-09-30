@@ -24,7 +24,9 @@ export type ParsedProfilingImport = {
 export type StagedProfilingPackage = { row_number: number; row_key: string; payload: Record<string, unknown> };
 
 const HOUSEHOLD_REQUIRED = ["household_row_key", "sample_reference", "sitio_id", "participation_consent", "household_consent_name", "privacy_notice_version"];
-const RESIDENT_REQUIRED = ["household_row_key", "first_name", "last_name", "consent_status"];
+// Resident names are optional: the resident code, consent, and non-name
+// profile fields are sufficient to create an authorized de-identified record.
+const RESIDENT_REQUIRED = ["household_row_key", "consent_status"];
 
 function normalizeHeader(value: string): string {
   return normalizeProfilingImportHeader(value);
@@ -151,6 +153,11 @@ function integer(value: unknown): number | null {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function optionalText(value: unknown): string | null {
+  const normalized = String(value ?? "").trim();
+  return normalized === "" ? null : normalized;
+}
+
 export function buildStagedProfilingPackages(parsed: ParsedProfilingImport, cycleId: string, asOfDate?: string): { packages: StagedProfilingPackage[]; errors: ImportRowError[] } {
   const errors = [...parsed.errors];
   const byHousehold = new Map<string, Record<string, unknown>[]>();
@@ -165,9 +172,9 @@ export function buildStagedProfilingPackages(parsed: ParsedProfilingImport, cycl
     const residentPayloads = (byHousehold.get(key) ?? []).map((resident) => ({
       ...(resident.resident_id && String(resident.resident_id).trim() ? { resident_id: String(resident.resident_id).trim() } : {}),
       household_row_key: key,
-      first_name: resident.first_name,
+      first_name: optionalText(resident.first_name),
       middle_name: resident.middle_name || null,
-      last_name: resident.last_name,
+      last_name: optionalText(resident.last_name),
       suffix: resident.suffix || null,
       birth_date: resident.birth_date || null,
       estimated_age: integer(resident.estimated_age),

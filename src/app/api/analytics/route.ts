@@ -1,68 +1,98 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { analyticsFilter, countSdgAlignments, focusSdgs } from "@/lib/analytics/query-contract";
+import { needsInsights, proposalInsights, sdgInsights, volunteerInsights, type NeedInsightRow, type ProposalInsightRow } from "@/lib/analytics/insights";
+
+const headers = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
   const auth = await authorizeCapability("analytics.aggregate.read");
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const adminSupabase = createAdminClient();
-
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status, headers });
   const { searchParams } = new URL(request.url);
-  const barangayId = searchParams.get("barangay_id") ?? null;
-  const year       = searchParams.get("year") ? Number(searchParams.get("year")) : null;
-  const type       = searchParams.get("type") ?? null;
-  const yearStart  = year ? `${year}-01-01` : null;
-  const yearEnd    = year ? `${year}-12-31` : null;
+  let filters: ReturnType<typeof analyticsFilter>;
+  try { filters = analyticsFilter(searchParams); } catch { return NextResponse.json({ error: "Invalid analytics filters" }, { status: 400, headers }); }
+  const { barangayId, year, type, yearStart, yearEnd, nextYearStart } = filters;
+  try {
+  const adminSupabase = createAdminClient();
+  // Decide dependencies before constructing any query. The overview contract stays complete.
+  const overview = !type;
+  const wantsPrograms = overview || ["dashboard", "volunteers", "sdg", "community-needs"].includes(type!);
+  const wantsHours = overview || type === "dashboard" || type === "volunteers";
+  const wantsSdg = overview || ["dashboard", "sdg", "proposals"].includes(type!);
+  const wantsNeeds = overview || type === "community-needs";
+  const wantsProposals = overview || type === "sdg" || type === "proposals";
 
   // ── Pre-query: resolve barangay-scoped IDs for join-dependent filters ─────────
   let barangayProgramIds: string[] | null = null;
   let sdgAlignments: { sdg_number: number }[] = [];
 
-  if (barangayId) {
-    const [{ data: bProgs }, { data: bProposals }] = await Promise.all([
-      adminSupabase.from("programs").select("id").eq("barangay_id", barangayId),
-      adminSupabase.from("project_proposals").select("id").eq("barangay_id", barangayId),
-    ]);
+  if (barangayId && wantsHours) {
+    const { data: bProgs } = await adminSupabase.from("programs").select("id").eq("barangay_id", barangayId).throwOnError();
     barangayProgramIds = (bProgs ?? []).map((p) => p.id);
-
-    const proposalIds = (bProposals ?? []).map((p) => p.id);
-    if (proposalIds.length > 0) {
-      const { data } = await adminSupabase
-        .from("proposal_sdg_alignment").select("sdg_number").in("proposal_id", proposalIds);
-      sdgAlignments = data ?? [];
-    }
-  } else {
-    const { data } = await adminSupabase.from("proposal_sdg_alignment").select("sdg_number");
-    sdgAlignments = data ?? [];
   }
+  const sdgTask = async () => {
+  if (!wantsSdg) return;
+  let sdgQuery = adminSupabase.from("proposal_sdg_alignment").select("sdg_number, project_proposals!inner(barangay_id,created_at)");
+  if (barangayId) sdgQuery = sdgQuery.eq("project_proposals.barangay_id", barangayId);
+  if (yearStart) sdgQuery = sdgQuery.gte("project_proposals.created_at", yearStart).lt("project_proposals.created_at", nextYearStart!);
+  sdgAlignments = (await sdgQuery.throwOnError()).data ?? [];
+  };
 
   // ── Build filtered queries ─────────────────────────────────────────────────────
-  let programQ = adminSupabase.from("programs").select("status, barangay_id, barangays(name), start_date");
+  const programsTask = async () => {
+  if (!wantsPrograms) return { data: [] };
+  let programQ = adminSupabase.from("programs").select("id, status, barangay_id, barangays(name), start_date, sdg_alignments");
   if (barangayId) programQ = programQ.eq("barangay_id", barangayId);
   if (yearStart)  programQ = programQ.gte("start_date", yearStart).lte("start_date", yearEnd!);
+  return programQ.throwOnError();
+  };
 
+  const donationsTask = async () => {
+  if (!overview) return { data: [] };
   let donationsQ = adminSupabase.from("donations").select("item_type, quantity, donation_distributions(quantity,voided_at), received_date").is("archived_at", null);
+  if (barangayId) donationsQ = donationsQ.eq("barangay_id", barangayId);
   if (yearStart) donationsQ = donationsQ.gte("received_date", yearStart).lte("received_date", yearEnd!);
+  return donationsQ.throwOnError();
+  };
 
-  let needsQ = adminSupabase.from("community_needs").select("category, assessment_date");
+  const needsTask = async () => {
+  if (!wantsNeeds) return { data: [] };
+  // The Community Needs view reads every submission once: approved rows feed the
+  // planning charts, and the other review states feed the review chart.
+  if (type === "community-needs") {
+    let detailQ = adminSupabase.from("community_needs").select("category, priority, status, approval_status, affected_count, assessment_date, created_at, source, barangays(name)");
+    if (barangayId) detailQ = detailQ.eq("barangay_id", barangayId);
+    if (yearStart)  detailQ = detailQ.gte("assessment_date", yearStart).lte("assessment_date", yearEnd!);
+    return detailQ.throwOnError();
+  }
+  let needsQ = adminSupabase.from("community_needs").select("category, assessment_date").eq("approval_status", "approved");
   if (barangayId) needsQ = needsQ.eq("barangay_id", barangayId);
   if (yearStart)  needsQ = needsQ.gte("assessment_date", yearStart).lte("assessment_date", yearEnd!);
+  return needsQ.throwOnError();
+  };
 
+  const proposalsTask = async () => {
+  if (!wantsProposals) return { data: [] };
   let proposalsQ = adminSupabase.from("project_proposals").select("status");
   if (barangayId) proposalsQ = proposalsQ.eq("barangay_id", barangayId);
-  if (yearStart)  proposalsQ = proposalsQ.gte("created_at", yearStart).lte("created_at", yearEnd!);
+  if (yearStart)  proposalsQ = proposalsQ.gte("created_at", yearStart).lt("created_at", nextYearStart!);
+  return proposalsQ.throwOnError();
+  };
 
   // ── Activity logs (barangay-scoped via program IDs) ───────────────────────────
   let approvedLogs: { hours: number; date: string }[] = [];
-  if (!(barangayProgramIds !== null && barangayProgramIds.length === 0)) {
+  const hoursTask = async () => {
+  if (wantsHours && !(barangayProgramIds !== null && barangayProgramIds.length === 0)) {
     let logsQ = adminSupabase.from("activity_logs").select("hours, date").eq("status", "approved");
     if (barangayProgramIds && barangayProgramIds.length > 0) {
       logsQ = logsQ.in("program_id", barangayProgramIds);
     }
     if (yearStart) logsQ = logsQ.gte("date", yearStart).lte("date", yearEnd!);
-    const { data } = await logsQ;
+    const { data } = await logsQ.throwOnError();
     approvedLogs = data ?? [];
   }
+  };
 
   // ── Parallel main queries ─────────────────────────────────────────────────────
   const [
@@ -72,11 +102,13 @@ export async function GET(request: Request) {
     { data: communityNeeds },
     { data: proposals },
   ] = await Promise.all([
-    programQ,
-    adminSupabase.from("users").select("id, status").eq("role", "volunteer"),
-    donationsQ,
-    needsQ,
-    proposalsQ,
+    programsTask(),
+    overview || type === "volunteers" ? adminSupabase.from("users").select("id, status, is_active").eq("role", "volunteer").throwOnError() : Promise.resolve({ data: [] }),
+    donationsTask(),
+    needsTask(),
+    proposalsTask(),
+    sdgTask(),
+    hoursTask(),
   ]);
 
   // ── Programs by status ────────────────────────────────────────────────────────
@@ -99,7 +131,7 @@ export async function GET(request: Request) {
 
   // ── Volunteer stats (always global — not barangay-scoped) ─────────────────────
   const totalVolunteers  = (volunteers ?? []).length;
-  const activeVolunteers = (volunteers ?? []).filter((v) => v.status === "active").length;
+  const activeVolunteers = (volunteers ?? []).filter((v) => v.status === "active" && v.is_active).length;
 
   // ── Hours by month ────────────────────────────────────────────────────────────
   const now = new Date();
@@ -145,17 +177,15 @@ export async function GET(request: Request) {
     .map(([type, qty]) => ({ type, qty: Math.round(qty * 10) / 10 }));
 
   // ── SDG alignment count ───────────────────────────────────────────────────────
-  const sdgMap: Record<number, number> = { 4: 0, 9: 0, 11: 0, 17: 0 };
-  for (const a of sdgAlignments) {
-    if (a.sdg_number in sdgMap) sdgMap[a.sdg_number]++;
-  }
+  const sdgMap = countSdgAlignments(sdgAlignments);
   const sdgCounts = Object.entries(sdgMap).map(([num, count]) => ({
     sdg: Number(num), count,
   }));
 
   // ── Community needs by category ───────────────────────────────────────────────
   const needsMap: Record<string, number> = {};
-  for (const n of communityNeeds ?? []) {
+  const approvedNeeds = (communityNeeds ?? []).filter((n) => type !== "community-needs" || (n as { approval_status?: string }).approval_status === "approved");
+  for (const n of approvedNeeds) {
     needsMap[n.category] = (needsMap[n.category] ?? 0) + 1;
   }
   const needsByCategory = Object.entries(needsMap).map(([category, count]) => ({
@@ -180,25 +210,50 @@ export async function GET(request: Request) {
 
   let programStats: ProgramStat[]   = [];
   let topVolunteers: TopVolunteer[] = [];
+  let volunteerInsightsData: ReturnType<typeof volunteerInsights> | null = null;
 
-  if (type === "volunteers") {
+  if (type === "volunteers" && !(barangayProgramIds !== null && barangayProgramIds.length === 0)) {
     let programListQuery = adminSupabase.from("programs").select("id, title, status, start_date, barangays(name)").order("start_date", { ascending: false }).limit(20);
     if (barangayId) programListQuery = programListQuery.eq("barangay_id", barangayId);
     if (yearStart) programListQuery = programListQuery.gte("start_date", yearStart).lte("start_date", yearEnd!);
-    let allLogsQuery = adminSupabase.from("activity_logs").select("program_id, volunteer_id, hours, date").eq("status", "approved");
+    let allLogsQuery = adminSupabase.from("activity_logs").select("program_id, volunteer_id, hours, date, status");
     if (barangayProgramIds?.length) allLogsQuery = allLogsQuery.in("program_id", barangayProgramIds);
     if (yearStart) allLogsQuery = allLogsQuery.gte("date", yearStart).lte("date", yearEnd!);
-    let signupsQuery = adminSupabase.from("program_signups").select("program_id, status").neq("status", "withdrawn");
+    let signupsQuery = adminSupabase.from("program_signups").select("program_id, status");
     if (barangayProgramIds?.length) signupsQuery = signupsQuery.in("program_id", barangayProgramIds);
+    let checkInsQuery = adminSupabase.from("attendance").select("checked_in_at, method, program_activities(program_id)");
+    if (yearStart) checkInsQuery = checkInsQuery.gte("checked_in_at", yearStart).lt("checked_in_at", nextYearStart!);
     const [
       { data: progList },
-      { data: allLogs },
-      { data: signups },
+      { data: everyLog },
+      { data: everySignup },
+      { data: volunteerProfiles },
+      { data: checkIns },
     ] = await Promise.all([
-      programListQuery,
-      allLogsQuery,
-      signupsQuery,
+      programListQuery.throwOnError(),
+      allLogsQuery.throwOnError(),
+      signupsQuery.throwOnError(),
+      adminSupabase.from("volunteers").select("course, year_level").throwOnError(),
+      checkInsQuery.throwOnError(),
     ]);
+    const allLogs = (everyLog ?? []).filter((l) => l.status === "approved");
+    const signups = (everySignup ?? []).filter((s) => s.status !== "withdrawn");
+    const scopedProgramIds = barangayProgramIds ? new Set(barangayProgramIds) : null;
+    const scopedCheckIns = (checkIns ?? []).filter((checkIn) => {
+      if (!scopedProgramIds) return true;
+      const programId = (checkIn.program_activities as unknown as { program_id?: string } | null)?.program_id;
+      return Boolean(programId && scopedProgramIds.has(programId));
+    });
+    const programBarangays = new Map((programs ?? []).map((p) => [String(p.id), (p.barangays as unknown as { name: string } | null)?.name ?? "Unassigned"]));
+    volunteerInsightsData = volunteerInsights({
+      profiles: volunteerProfiles ?? [],
+      accounts: volunteers ?? [],
+      logs: everyLog ?? [],
+      signups: everySignup ?? [],
+      checkIns: scopedCheckIns,
+      programBarangays,
+      months,
+    });
 
     const hoursByProg: Record<string, number>  = {};
     const hoursByVol:  Record<string, number>  = {};
@@ -229,6 +284,10 @@ export async function GET(request: Request) {
       }));
   }
 
+  if (type === "volunteers" && !volunteerInsightsData) {
+    volunteerInsightsData = volunteerInsights({ profiles: [], accounts: volunteers ?? [], logs: [], signups: [], checkIns: [], programBarangays: new Map(), months });
+  }
+
   // community-needs: recent submissions + surveys completed count
   type NeedRow = {
     id: string; barangay: string; category: string;
@@ -239,12 +298,15 @@ export async function GET(request: Request) {
   let surveysCompletedCount        = 0;
 
   if (type === "community-needs") {
-    let recentNeedsQuery = adminSupabase.from("community_needs").select("id, category, description, title, priority, created_at, barangays(name)").order("created_at", { ascending: false }).limit(20);
+    let recentNeedsQuery = adminSupabase.from("community_needs").select("id, category, description, title, priority, created_at, barangays(name)").eq("approval_status", "approved").order("created_at", { ascending: false }).limit(20);
     if (barangayId) recentNeedsQuery = recentNeedsQuery.eq("barangay_id", barangayId);
-    if (yearStart) recentNeedsQuery = recentNeedsQuery.gte("created_at", yearStart).lte("created_at", `${yearEnd}T23:59:59`);
+    if (yearStart) recentNeedsQuery = recentNeedsQuery.gte("created_at", yearStart).lt("created_at", nextYearStart!);
+    let surveysQuery = adminSupabase.from("surveys").select("id, status");
+    if (barangayId) surveysQuery = surveysQuery.eq("target_barangay_id", barangayId);
+    if (yearStart) surveysQuery = surveysQuery.gte("created_at", yearStart).lt("created_at", nextYearStart!);
     const [{ data: needs }, { data: surveys }] = await Promise.all([
-      recentNeedsQuery,
-      adminSupabase.from("surveys").select("id, status"),
+      recentNeedsQuery.throwOnError(),
+      surveysQuery.throwOnError(),
     ]);
 
     recentNeeds = (needs ?? []).map((n) => ({
@@ -269,36 +331,48 @@ export async function GET(request: Request) {
   };
 
   let proposalRows: ProposalRow[] = [];
+  let proposalInsightsData: ReturnType<typeof proposalInsights> | null = null;
+  let sdgInsightsData: ReturnType<typeof sdgInsights> | null = null;
 
   if (type === "sdg" || type === "proposals") {
     let proposalListQuery = adminSupabase
       .from("project_proposals")
-      .select("id, title, status, created_at, barangays(name), proposal_sdg_alignment(sdg_number)")
-      .order("created_at", { ascending: false })
-      .limit(50);
+      .select("id, title, status, created_at, budget, expected_beneficiary_count, is_income_generating, finance_clearance, prescreening_passed, revision_count, community_validated, barangays(name), proposal_sdg_alignment(sdg_number)")
+      .order("created_at", { ascending: false });
     if (barangayId) proposalListQuery = proposalListQuery.eq("barangay_id", barangayId);
-    if (yearStart) proposalListQuery = proposalListQuery.gte("created_at", yearStart).lte("created_at", `${yearEnd}T23:59:59`);
-    const { data: proposalList } = await proposalListQuery;
+    if (yearStart) proposalListQuery = proposalListQuery.gte("created_at", yearStart).lt("created_at", nextYearStart!);
+    const [{ data: proposalList }, { data: sdgOutcomes }] = await Promise.all([
+      proposalListQuery.throwOnError(),
+      type === "sdg" ? adminSupabase.from("program_sdg_outcomes").select("sdg_goal, program_id").throwOnError() : Promise.resolve({ data: [] }),
+    ]);
+    const insightRows = (proposalList ?? []) as unknown as ProposalInsightRow[];
+    if (type === "proposals") proposalInsightsData = proposalInsights(insightRows, now);
+    if (type === "sdg") {
+      sdgInsightsData = sdgInsights({
+        proposals: insightRows,
+        programs: (programs ?? []).map((p) => ({ id: p.id, sdg_alignments: p.sdg_alignments })),
+        outcomes: sdgOutcomes ?? [],
+      });
+    }
 
-    proposalRows = (proposalList ?? []).map((p) => ({
+    proposalRows = (proposalList ?? []).slice(0, 50).map((p) => ({
       id:       p.id,
       title:    p.title,
       status:   p.status,
       barangay: (p.barangays as unknown as { name: string } | null)?.name ?? "—",
-      sdgs:     (p.proposal_sdg_alignment as { sdg_number: number }[] | null ?? []).map((a) => a.sdg_number),
+      sdgs:     focusSdgs((p.proposal_sdg_alignment as { sdg_number: number }[] | null ?? []).map((a) => a.sdg_number)),
       date:     p.created_at,
     }));
   }
 
   // ── Final response ────────────────────────────────────────────────────────────
-  return NextResponse.json({
-    data: {
+  const fullData = {
       programs: {
         total:     (programs ?? []).length,
         byStatus:  programsByStatus,
         chartData: Object.entries(programsByStatus).map(([status, count]) => ({ status, count })),
       },
-      volunteers: { total: totalVolunteers, active: activeVolunteers },
+      volunteers: { total: totalVolunteers, active: activeVolunteers, scope: "all_accounts" },
       hours:      { total: Math.round(totalHours * 10) / 10, byMonth: hoursByMonth },
       donations:  { total: (donations ?? []).length, totalQty: totalDonationQty, totalDistributed, byType: donationsByType },
       sdg:        { counts: sdgCounts },
@@ -311,6 +385,26 @@ export async function GET(request: Request) {
       recentNeeds,
       surveysCompletedCount,
       proposalRows,
-    },
-  });
+  };
+  // Chart breakdowns exist only for the view that shows them.
+  const viewData = {
+    ...fullData,
+    needsInsights: type === "community-needs" ? needsInsights((communityNeeds ?? []) as unknown as NeedInsightRow[], programs ?? [], now) : null,
+    volunteerInsights: volunteerInsightsData,
+    sdgInsights: sdgInsightsData,
+    proposalInsights: proposalInsightsData,
+  };
+  const keysByView = {
+    dashboard: ["hours", "sdg", "topBarangays"],
+    volunteers: ["programs", "volunteers", "hours", "topBarangays", "programStats", "topVolunteers", "volunteerInsights"],
+    sdg: ["programs", "proposals", "sdg", "proposalRows", "sdgInsights"],
+    proposals: ["proposals", "sdg", "proposalRows", "proposalInsights"],
+    "community-needs": ["needs", "recentNeeds", "surveysCompletedCount", "topBarangays", "needsInsights"],
+  } satisfies Record<string, (keyof typeof viewData)[]>;
+  const data = type ? Object.fromEntries(keysByView[type as keyof typeof keysByView].map(key => [key, viewData[key]])) : fullData;
+  return NextResponse.json({ data }, { headers });
+  } catch (error) {
+    const denied = typeof error === "object" && error !== null && "code" in error && error.code === "42501";
+    return NextResponse.json({ error: denied ? "Analytics access is not permitted" : "Unable to load analytics" }, { status: denied ? 403 : 503, headers });
+  }
 }

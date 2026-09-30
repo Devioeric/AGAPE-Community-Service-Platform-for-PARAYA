@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Search, Plus, MoreHorizontal, Pencil, PowerOff, Loader2,
-  MapPin, Phone, Users, Building2, CalendarDays, Map, CheckCircle2,
+  Search, Plus, MoreHorizontal, Pencil, PowerOff, Loader2, Eye,
+  MapPin, Phone, Mail, Users, Building2, CalendarDays, Map, CheckCircle2,
+  History, ExternalLink,
 } from "lucide-react";
 import { PH_PROVINCES, PH_MUNICIPALITIES, PH_BARANGAYS } from "@/lib/ph-data";
 import { toast } from "sonner";
@@ -23,6 +26,10 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import type { MapBarangay } from "@/components/maps/BarangayMap";
 
 // Load Leaflet map only on the client (no SSR)
@@ -55,6 +62,32 @@ interface Barangay {
   updated_at:        string;
 }
 
+interface PartnershipHistoryEvent {
+  id: string;
+  event_type: string;
+  description: string | null;
+  notes: string | null;
+  event_date: string | null;
+  date: string | null;
+  created_at: string;
+  officer_name: string | null;
+}
+
+interface ProgramSummary {
+  id: string;
+  title: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+interface BarangayDetail extends Barangay {
+  partnership_history: PartnershipHistoryEvent[];
+  programs?: ProgramSummary[];
+}
+
+type DetailStatus = "idle" | "loading" | "success" | "error" | "denied" | "not-found";
+
 // ─── Form schema ────────────────────────────────────────────────────────────────
 
 const barangaySchema = z.object({
@@ -76,7 +109,31 @@ type BarangayForm = z.infer<typeof barangaySchema>;
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function humanizeEventType(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function humanizeProgramStatus(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function toMapBarangay(b: Barangay): MapBarangay {
@@ -85,6 +142,86 @@ function toMapBarangay(b: Barangay): MapBarangay {
     contact_person: b.contact_person, contact_phone: b.contact_phone,
     partnership_start: b.partnership_start, is_active: b.is_active,
     latitude: b.latitude, longitude: b.longitude,
+  };
+}
+
+function normalizeBarangayDetail(value: unknown): BarangayDetail {
+  if (!value || typeof value !== "object") {
+    throw new Error("Invalid barangay detail response");
+  }
+  const data = value as Partial<BarangayDetail>;
+  if (typeof data.id !== "string" || typeof data.name !== "string") {
+    throw new Error("Invalid barangay detail response");
+  }
+  for (const field of [
+    "municipality", "province", "contact_person", "contact_phone", "contact_email",
+    "partnership_start", "created_at", "updated_at",
+  ] as const) {
+    const fieldValue = data[field];
+    if (fieldValue !== null && fieldValue !== undefined && typeof fieldValue !== "string") {
+      throw new Error("Invalid barangay detail response");
+    }
+  }
+  for (const field of ["total_population", "total_households", "latitude", "longitude"] as const) {
+    const fieldValue = data[field];
+    if (fieldValue !== null && fieldValue !== undefined && (typeof fieldValue !== "number" || !Number.isFinite(fieldValue))) {
+      throw new Error("Invalid barangay detail response");
+    }
+  }
+  if (typeof data.is_active !== "boolean" || !Array.isArray(data.partnership_history)) {
+    throw new Error("Invalid barangay detail response");
+  }
+
+  const history = data.partnership_history.map((event) => {
+    const item = event as Partial<PartnershipHistoryEvent>;
+    if (typeof item.id !== "string" || typeof item.event_type !== "string") {
+      throw new Error("Invalid partnership history response");
+    }
+    return {
+      id: item.id,
+      event_type: item.event_type,
+      description: typeof item.description === "string" ? item.description : null,
+      notes: typeof item.notes === "string" ? item.notes : null,
+      event_date: typeof item.event_date === "string" ? item.event_date : null,
+      date: typeof item.date === "string" ? item.date : null,
+      created_at: typeof item.created_at === "string" ? item.created_at : "",
+      officer_name: typeof item.officer_name === "string" ? item.officer_name : null,
+    };
+  }).sort((left, right) => {
+    const leftValue = left.date ?? left.event_date ?? left.created_at;
+    const rightValue = right.date ?? right.event_date ?? right.created_at;
+    if (!leftValue && !rightValue) return 0;
+    if (!leftValue) return 1;
+    if (!rightValue) return -1;
+    return new Date(rightValue).getTime() - new Date(leftValue).getTime();
+  });
+
+  let programs: ProgramSummary[] | undefined;
+  if (Array.isArray(data.programs)) {
+    programs = data.programs.map((program) => {
+      const item = program as Partial<ProgramSummary>;
+      if (typeof item.id !== "string" || typeof item.title !== "string" || typeof item.status !== "string") {
+        throw new Error("Invalid program summary response");
+      }
+      return {
+        id: item.id,
+        title: item.title,
+        status: item.status,
+        start_date: typeof item.start_date === "string" ? item.start_date : null,
+        end_date: typeof item.end_date === "string" ? item.end_date : null,
+      };
+    }).sort((left, right) => {
+      if (!left.start_date && !right.start_date) return 0;
+      if (!left.start_date) return 1;
+      if (!right.start_date) return -1;
+      return new Date(right.start_date).getTime() - new Date(left.start_date).getTime();
+    });
+  }
+
+  return {
+    ...(data as Barangay),
+    partnership_history: history,
+    ...(programs ? { programs } : {}),
   };
 }
 
@@ -101,6 +238,12 @@ export default function PartnershipManagementPage() {
   const [editTarget, setEditTarget]       = useState<Barangay | null>(null);
   const [mapFilter, setMapFilter]         = useState<"all" | "active">("active");
   const [coordAutoFilled, setCoordAutoFilled] = useState(false);
+  const [detailTarget, setDetailTarget] = useState<Barangay | null>(null);
+  const [detailData, setDetailData] = useState<BarangayDetail | null>(null);
+  const [detailStatus, setDetailStatus] = useState<DetailStatus>("idle");
+  const [detailError, setDetailError] = useState("Unable to load barangay details.");
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const detailRequestRef = useRef(0);
 
   const { register, handleSubmit, reset, watch, setValue, getValues, formState: { errors } } = useForm<BarangayForm>({
     resolver: zodResolver(barangaySchema),
@@ -191,6 +334,72 @@ export default function PartnershipManagementPage() {
     setSheetOpen(true);
   }
 
+  const loadDetails = useCallback(async (id: string) => {
+    detailAbortRef.current?.abort();
+    const controller = new AbortController();
+    detailAbortRef.current = controller;
+    const requestId = ++detailRequestRef.current;
+    setDetailStatus("loading");
+    setDetailData(null);
+    setDetailError("Unable to load barangay details.");
+
+    try {
+      const response = await fetch(`/api/partnerships/${id}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (requestId !== detailRequestRef.current || controller.signal.aborted) return;
+      if (response.status === 403 || response.status === 401) {
+        setDetailStatus("denied");
+        setDetailError("You do not have permission to view this barangay.");
+        return;
+      }
+      if (response.status === 404) {
+        setDetailStatus("not-found");
+        setDetailError("This barangay could not be found.");
+        return;
+      }
+      if (!response.ok) {
+        setDetailStatus("error");
+        setDetailError("Barangay details are temporarily unavailable. Try again.");
+        return;
+      }
+
+      const json = await response.json() as { data?: unknown };
+      const detail = normalizeBarangayDetail(json.data);
+      if (requestId !== detailRequestRef.current || controller.signal.aborted) return;
+      setDetailData(detail);
+      setDetailStatus("success");
+    } catch (error) {
+      if (controller.signal.aborted || requestId !== detailRequestRef.current) return;
+      setDetailStatus("error");
+      setDetailError(error instanceof Error && error.message.includes("Invalid")
+        ? "The barangay details response was invalid. Try again."
+        : "Barangay details are temporarily unavailable. Try again.");
+    }
+  }, []);
+
+  function openDetails(b: Barangay) {
+    setDetailTarget(b);
+    setDetailData(null);
+    setDetailStatus("loading");
+    void loadDetails(b.id);
+  }
+
+  function closeDetails() {
+    detailAbortRef.current?.abort();
+    detailAbortRef.current = null;
+    ++detailRequestRef.current;
+    setDetailTarget(null);
+    setDetailData(null);
+    setDetailStatus("idle");
+  }
+
+  useEffect(() => () => {
+    detailAbortRef.current?.abort();
+  }, []);
+
   // ── Cascade handlers ──────────────────────────────────────────────────────────
 
   function onProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -278,7 +487,7 @@ export default function PartnershipManagementPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -299,7 +508,7 @@ export default function PartnershipManagementPage() {
       </div>
 
       {/* Map */}
-      <Card className="border-border shadow-card">
+      <Card className="order-2 border-border shadow-card">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="font-heading text-lg flex items-center gap-2">
@@ -337,7 +546,7 @@ export default function PartnershipManagementPage() {
       </Card>
 
       {/* Directory table */}
-      <Card className="border-border shadow-card">
+      <Card className="order-1 border-border shadow-card">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="font-heading text-lg">Barangay Directory</CardTitle>
@@ -370,117 +579,302 @@ export default function PartnershipManagementPage() {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Barangay</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Contact Person</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Partnership Since</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-                      Loading directory…
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center text-muted-foreground">
-                      {barangays.length === 0
-                        ? "No barangays added yet. Click \"Add Barangay\" to get started."
-                        : "No barangays match your search."}
-                    </td>
-                  </tr>
-                ) : filtered.map((b, i) => (
-                  <tr key={b.id} className={`border-b border-border/60 transition-colors hover:bg-surface-alt/40 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                    <td className="py-3 px-4">
-                      <div className="flex items-start gap-2">
-                        <div>
-                          <p className="font-medium text-foreground">{b.name}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <MapPin className="w-3 h-3" />
-                            {b.municipality}, {b.province}
-                          </p>
-                        </div>
-                        {b.latitude && b.longitude && (
-                          <span title="Has map coordinates" className="mt-0.5">
-                            <Map className="w-3 h-3 text-primary/50" />
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 hidden md:table-cell">
-                      {b.contact_person ? (
-                        <div>
-                          <p className="text-foreground">{b.contact_person}</p>
-                          {b.contact_phone && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Phone className="w-3 h-3" />{b.contact_phone}
-                            </p>
+            <PaginatedTable rows={filtered} label="Barangays" resetKey={JSON.stringify([search, filter])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Barangays" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Barangay</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Contact Person</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Partnership Since</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={5} className="py-16 text-center text-muted-foreground">
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                          Loading directory…
+                        </td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-16 text-center text-muted-foreground">
+                          {barangays.length === 0
+                            ? "No barangays added yet. Click \"Add Barangay\" to get started."
+                            : "No barangays match your search."}
+                        </td>
+                      </tr>
+                    ) : pageRows.map((b, i) => (
+                      <tr key={b.id} className={`border-b border-border/60 transition-colors hover:bg-surface-alt/40 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-start gap-2">
+                            <div>
+                              <p className="font-medium text-foreground">{b.name}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <MapPin className="w-3 h-3" />
+                                {b.municipality}, {b.province}
+                              </p>
+                            </div>
+                            {b.latitude && b.longitude && (
+                              <span title="Has map coordinates" className="mt-0.5">
+                                <Map className="w-3 h-3 text-primary/50" />
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 hidden md:table-cell">
+                          {b.contact_person ? (
+                            <div>
+                              <p className="text-foreground">{b.contact_person}</p>
+                              {b.contact_phone && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Phone className="w-3 h-3" />{b.contact_phone}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">
-                      {formatDate(b.partnership_start)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge className={b.is_active
-                        ? "bg-success/10 text-success border-success/20 border"
-                        : "bg-danger/10 text-danger border-danger/20 border"
-                      }>
-                        {b.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          disabled={actionId === b.id}
-                          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-                        >
-                          {actionId === b.id
-                            ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                            : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(b)}>
-                              <Pencil className="w-3.5 h-3.5" /> Edit Details
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          {b.is_active && (
-                            <>
-                              <DropdownMenuSeparator />
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">
+                          {formatDate(b.partnership_start)}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={b.is_active
+                            ? "bg-success/10 text-success border-success/20 border"
+                            : "bg-danger/10 text-danger border-danger/20 border"
+                          }>
+                            {b.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              disabled={actionId === b.id}
+                              aria-label={`Actions for ${b.name}`}
+                              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                            >
+                              {actionId === b.id
+                                ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
                               <DropdownMenuGroup>
                                 <DropdownMenuItem
-                                  className="gap-2 cursor-pointer text-danger"
-                                  onClick={() => deactivate(b)}
+                                  className="gap-2 cursor-pointer"
+                                  data-testid={`barangay-view-details-${b.id}`}
+                                  onClick={() => openDetails(b)}
                                 >
-                                  <PowerOff className="w-3.5 h-3.5" /> Deactivate
+                                  <Eye className="w-3.5 h-3.5" /> View Full Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(b)}>
+                                  <Pencil className="w-3.5 h-3.5" /> Edit Details
                                 </DropdownMenuItem>
                               </DropdownMenuGroup>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
-            Showing {filtered.length} of {barangays.length} barangays
+                              {b.is_active && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuGroup>
+                                    <DropdownMenuItem
+                                      className="gap-2 cursor-pointer text-danger"
+                                      onClick={() => deactivate(b)}
+                                    >
+                                      <PowerOff className="w-3.5 h-3.5" /> Deactivate
+                                    </DropdownMenuItem>
+                                  </DropdownMenuGroup>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
         </CardContent>
       </Card>
+
+      {/* Read-only Barangay Details Dialog */}
+      <Dialog open={Boolean(detailTarget)} onOpenChange={(open) => { if (!open) closeDetails(); }}>
+        <DialogContent
+          className="sm:max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0"
+          data-testid="barangay-details-dialog"
+        >
+          <DialogHeader className="shrink-0 border-b border-border px-6 py-5 pr-12">
+            <DialogTitle className="font-heading text-xl">
+              {detailTarget?.name ?? "Barangay details"}
+            </DialogTitle>
+            <DialogDescription>
+              {detailTarget
+                ? `${detailTarget.municipality}, ${detailTarget.province} · Read-only profile`
+                : "Read-only barangay profile"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-6"
+            aria-busy={detailStatus === "loading"}
+          >
+            {detailStatus === "loading" && (
+              <div className="space-y-5" data-testid="barangay-details-loading">
+                <div className="h-8 w-32 animate-pulse rounded bg-muted" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {["location", "contact", "demographics", "record"].map((section) => (
+                    <div key={section} className="h-28 animate-pulse rounded-xl bg-muted/60" />
+                  ))}
+                </div>
+                <div className="h-36 animate-pulse rounded-xl bg-muted/60" />
+              </div>
+            )}
+
+            {(detailStatus === "error" || detailStatus === "denied" || detailStatus === "not-found") && (
+              <div
+                className="rounded-xl border border-danger/30 bg-danger/5 p-5 text-sm"
+                role="alert"
+                data-testid="barangay-details-error"
+              >
+                <p className="font-medium text-foreground">{detailError}</p>
+                {detailStatus === "error" && detailTarget && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => void loadDetails(detailTarget.id)}
+                  >
+                    Retry
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {detailStatus === "success" && detailData && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Partnership profile</p>
+                    <p className="text-lg font-semibold text-foreground">{detailData.name}</p>
+                  </div>
+                  <Badge className={detailData.is_active
+                    ? "bg-success/10 text-success border-success/20 border"
+                    : "bg-danger/10 text-danger border-danger/20 border"
+                  }>
+                    {detailData.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <section className="rounded-xl border border-border bg-surface-alt/30 p-4" aria-labelledby="detail-location-heading">
+                    <h3 id="detail-location-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Building2 className="h-4 w-4 text-primary" /> Location & partnership
+                    </h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Municipality</dt><dd className="text-right text-foreground">{detailData.municipality || "—"}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Province</dt><dd className="text-right text-foreground">{detailData.province || "—"}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Partner since</dt><dd className="text-right text-foreground">{formatDate(detailData.partnership_start)}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Coordinates</dt><dd className="text-right text-foreground">{detailData.latitude != null && detailData.longitude != null ? `${detailData.latitude}, ${detailData.longitude}` : "Not set"}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section className="rounded-xl border border-border bg-surface-alt/30 p-4" aria-labelledby="detail-contact-heading">
+                    <h3 id="detail-contact-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Phone className="h-4 w-4 text-primary" /> Contact information
+                    </h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Contact person</dt><dd className="text-right text-foreground break-words">{detailData.contact_person || "—"}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3" /> Phone</dt><dd className="text-right text-foreground break-all">{detailData.contact_phone || "—"}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="flex items-center gap-1 text-muted-foreground"><Mail className="h-3 w-3" /> Email</dt><dd className="text-right text-foreground break-all">{detailData.contact_email || "—"}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section className="rounded-xl border border-border bg-surface-alt/30 p-4" aria-labelledby="detail-demographics-heading">
+                    <h3 id="detail-demographics-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Users className="h-4 w-4 text-primary" /> Demographics
+                    </h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Population</dt><dd className="text-right text-foreground">{detailData.total_population != null ? detailData.total_population.toLocaleString() : "Not recorded"}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Households</dt><dd className="text-right text-foreground">{detailData.total_households != null ? detailData.total_households.toLocaleString() : "Not recorded"}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section className="rounded-xl border border-border bg-surface-alt/30 p-4" aria-labelledby="detail-record-heading">
+                    <h3 id="detail-record-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <CalendarDays className="h-4 w-4 text-primary" /> Record metadata
+                    </h3>
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Created</dt><dd className="text-right text-foreground">{formatDateTime(detailData.created_at)}</dd></div>
+                      <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Last updated</dt><dd className="text-right text-foreground">{formatDateTime(detailData.updated_at)}</dd></div>
+                    </dl>
+                  </section>
+                </div>
+
+                <section className="rounded-xl border border-border p-4" aria-labelledby="detail-history-heading">
+                  <h3 id="detail-history-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <History className="h-4 w-4 text-primary" /> Partnership history
+                  </h3>
+                  {detailData.partnership_history.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">No partnership history recorded.</p>
+                  ) : (
+                    <ol className="mt-4 space-y-4">
+                      {detailData.partnership_history.map((event) => (
+                        <li key={event.id} className="relative pl-5 before:absolute before:left-0 before:top-1.5 before:h-2 before:w-2 before:rounded-full before:bg-primary after:absolute after:left-[3px] after:top-4 after:h-[calc(100%+0.75rem)] after:w-px after:bg-border last:after:hidden">
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="text-sm font-medium text-foreground">{humanizeEventType(event.event_type)}</p>
+                            <time className="text-xs text-muted-foreground">{formatDate(event.date ?? event.event_date ?? event.created_at)}</time>
+                          </div>
+                          {(event.notes || event.description) && <p className="mt-1 text-sm text-muted-foreground break-words">{event.notes || event.description}</p>}
+                          {event.officer_name && <p className="mt-1 text-xs text-muted-foreground">Recorded by {event.officer_name}</p>}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+
+                {detailData.programs !== undefined && (
+                  <section className="rounded-xl border border-border p-4" aria-labelledby="detail-programs-heading">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 id="detail-programs-heading" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <Building2 className="h-4 w-4 text-primary" /> Programs
+                      </h3>
+                      <span className="text-xs text-muted-foreground">{detailData.programs.length} total</span>
+                    </div>
+                    {detailData.programs.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted-foreground">No programs are associated with this barangay.</p>
+                    ) : (
+                      <div className="mt-3 max-h-72 overflow-y-auto divide-y divide-border rounded-lg border border-border">
+                        {detailData.programs.map((program) => (
+                          <div key={program.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <a href={`/officer/programs/${program.id}/analytics`} className="inline-flex max-w-full items-center gap-1 text-sm font-medium text-foreground underline-offset-2 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                                <span className="truncate">{program.title}</span>
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <span className="sr-only">Open program analytics</span>
+                              </a>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {formatDate(program.start_date)} – {formatDate(program.end_date)}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="self-start capitalize sm:self-auto">{humanizeProgramStatus(program.status)}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 m-0 rounded-b-xl px-6 py-4">
+            <Button type="button" variant="outline" onClick={closeDetails}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add / Edit Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -492,7 +886,7 @@ export default function PartnershipManagementPage() {
           </SheetHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-5">
 
               {/* Location — cascading selects */}
               <div className="space-y-4">

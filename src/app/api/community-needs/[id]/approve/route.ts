@@ -1,14 +1,13 @@
 import { z } from "zod";
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notify, notifyMany } from "@/lib/notifications/dispatch";
+import { notify } from "@/lib/notifications/dispatch";
 import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 // POST /api/community-needs/[id]/approve
-// Approves a community need so PARAYA staff can see it.
-// Only the Barangay Captain of the matching barangay may approve.
+// Approves a Secretary-submitted community need after independent PARAYA review.
 export async function POST(request: Request, { params }: Ctx) {
   const auth = await authorizeCapability("community_need.validate");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -20,7 +19,6 @@ export async function POST(request: Request, { params }: Ctx) {
 
   const admin = createAdminClient();
 
-  // Load the need + the caller's role/barangay
   const { data: need } = await admin.from("community_needs")
       .select("id, title, category, barangay_id, submitted_by, approval_status")
       .eq("id", id)
@@ -28,24 +26,11 @@ export async function POST(request: Request, { params }: Ctx) {
 
   if (!need) return NextResponse.json({ error: "Need not found" }, { status: 404 });
 
-  if (!auth.actor.barangayId || auth.actor.barangayId !== need.barangay_id) {
-    return NextResponse.json({ error: "Only the Barangay Captain may approve needs from this barangay" }, { status: 403 });
-  }
-
-  if (need.approval_status === "approved") {
-    return NextResponse.json({ error: "Already approved" }, { status: 400 });
-  }
-
-  const { error } = await admin
-    .from("community_needs")
-    .update({
-      approval_status: "approved",
-      approved_by:     auth.actor.id,
-      approved_at:     new Date().toISOString(),
-      approval_notes:  body.notes?.trim() || null,
-      updated_at:      new Date().toISOString(),
-    })
-    .eq("id", id);
+  const { error } = await auth.supabase.rpc("phase1_decide_community_need", {
+    p_community_need_id: id,
+    p_decision: "approve",
+    p_notes: body.notes?.trim() || null,
+  });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -54,26 +39,9 @@ export async function POST(request: Request, { params }: Ctx) {
     await notify({
       user_id:    need.submitted_by,
       title:      "Community need approved",
-      message:    `Your submission "${need.title}" has been approved by the Barangay Captain and forwarded to PARAYA.`,
+      message:    `Your submission "${need.title}" has been approved by the PARAYA Officer.`,
       type:       "success",
       action_url: "/barangay/submit-needs",
-    });
-  }
-
-  // Notify PARAYA Researchers (they primarily own needs assessment per scope)
-  const { data: researchers } = await admin
-    .from("users")
-    .select("id")
-    .in("role", ["paraya_researcher", "paraya_director", "paraya_associate"])
-    .eq("status", "active")
-    .eq("is_active", true);
-  const researcherIds = (researchers ?? []).map((r) => r.id);
-  if (researcherIds.length > 0) {
-    await notifyMany(researcherIds, {
-      title:      "New community need received",
-      message:    `${need.title} (${need.category}) was approved by the Barangay Captain and is now visible in Community Needs.`,
-      type:       "info",
-      action_url: "/officer/community-profile",
     });
   }
 

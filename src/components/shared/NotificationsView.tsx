@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Bell, BellOff, Check, CheckCheck, Loader2, AlertCircle,
+  BellOff, Check, CheckCheck, Loader2, AlertCircle,
   Info, CheckCircle2, AlertTriangle, Megaphone, Trophy, ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
@@ -64,46 +64,56 @@ export function NotificationsView() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter]   = useState<"all" | "unread" | "read">("all");
   const [busy, setBusy]       = useState(false);
+  const [page, setPage] = useState(1);
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const inboxRequest = useRef<AbortController | null>(null);
+  const pageSize = 25;
 
   const fetchNotifs = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch("/api/notifications");
-    if (res.ok) {
+    inboxRequest.current?.abort();
+    const controller = new AbortController(); inboxRequest.current = controller;
+    setLoading(true); setLoadError(false);
+    try {
+      const res = await fetch(`/api/notifications?page=${page}&page_size=${pageSize}&filter=${filter}`, { cache: "no-store", signal: controller.signal });
+      if (!res.ok) throw new Error("Inbox unavailable");
       const j = await res.json();
+      if (controller.signal.aborted) return;
       setNotifs(j.data ?? []);
-    } else {
-      toast.error("Failed to load notifications.");
-    }
-    setLoading(false);
-  }, []);
+      setUnreadCount(j.unreadCount); setTotal(j.total); setHasMore(j.hasMore);
+    } catch { if (!controller.signal.aborted) { setLoadError(true); setUnreadCount(null); } }
+    finally { if (!controller.signal.aborted) setLoading(false); }
+  }, [filter, page]);
 
-  useEffect(() => { fetchNotifs(); }, [fetchNotifs]);
-
-  const filtered = useMemo(() => {
-    if (filter === "unread") return notifs.filter((n) => !n.is_read);
-    if (filter === "read")   return notifs.filter((n) =>  n.is_read);
-    return notifs;
-  }, [notifs, filter]);
-
-  const unreadCount = useMemo(() => notifs.filter((n) => !n.is_read).length, [notifs]);
+  useEffect(() => {
+    void fetchNotifs();
+    window.addEventListener("agape:notifications-updated", fetchNotifs);
+    return () => { inboxRequest.current?.abort(); window.removeEventListener("agape:notifications-updated", fetchNotifs); };
+  }, [fetchNotifs]);
 
   async function markRead(ids: string[]) {
     if (ids.length === 0) return;
     setBusy(true);
+    try {
     const res = await fetch("/api/notifications", {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ ids }),
     });
     if (res.ok) {
-      setNotifs((prev) => prev.map((n) => ids.includes(n.id) ? { ...n, is_read: true } : n));
+      // Reload server truth; marking unread-filter rows may change page boundaries.
+      setPage(1);
+      window.dispatchEvent(new Event("agape:notifications-updated"));
     } else {
       toast.error("Failed to update.");
     }
-    setBusy(false);
+    } catch { toast.error("Notifications could not be updated. Please retry."); }
+    finally { setBusy(false); }
   }
 
-  function markAllRead() {
+  function markDisplayedRead() {
     const unreadIds = notifs.filter((n) => !n.is_read).map((n) => n.id);
     if (unreadIds.length === 0) return;
     markRead(unreadIds);
@@ -115,34 +125,29 @@ export function NotificationsView() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
-            <Bell className="w-5 h-5 text-primary" /> Notifications
-            {unreadCount > 0 && (
+          {unreadCount !== null && unreadCount > 0 && (
               <Badge className="bg-primary text-primary-foreground border-0 text-xs ml-1">
                 {unreadCount} unread
               </Badge>
             )}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            In-app messages. Email + SMS delivery follows your notification preferences in Profile Settings.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as typeof filter)}
+            onChange={(e) => { setFilter(e.target.value as typeof filter); setPage(1); }}
+            aria-label="Filter notifications" disabled={busy}
             className="h-9 px-3 text-sm"
           >
             {FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
           <Button
-            onClick={markAllRead}
-            disabled={busy || unreadCount === 0}
+            onClick={markDisplayedRead}
+            disabled={busy || loading || loadError || !notifs.some(notification => !notification.is_read)}
             size="sm"
             variant="outline"
             className="gap-1.5"
           >
-            <CheckCheck className="w-4 h-4" /> Mark all read
+            <CheckCheck className="w-4 h-4" /> Mark displayed read
           </Button>
         </div>
       </div>
@@ -150,11 +155,11 @@ export function NotificationsView() {
       {/* List */}
       <Card className="border-border shadow-card">
         <CardContent className="p-0">
-          {loading ? (
+          {loadError ? <div role="alert" className="p-6 text-sm text-warning">Notifications could not be loaded. <Button variant="outline" size="sm" onClick={fetchNotifs}>Retry</Button></div> : loading ? (
             <div className="py-16 text-center text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading notifications…
             </div>
-          ) : filtered.length === 0 ? (
+          ) : notifs.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground space-y-2">
               <BellOff className="w-10 h-10 mx-auto opacity-30" />
               <p className="text-sm">
@@ -163,7 +168,7 @@ export function NotificationsView() {
             </div>
           ) : (
             <ul className="divide-y divide-border">
-              {filtered.map((n) => {
+              {notifs.map((n) => {
                 const meta = TYPE_META[n.type] ?? TYPE_META.info;
                 const Icon = meta.icon;
                 return (
@@ -183,7 +188,7 @@ export function NotificationsView() {
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
                         <p className="font-medium text-sm text-foreground">{n.title}</p>
                         <Badge
-                          className="text-[10px] capitalize"
+                          className="text-[11px] capitalize"
                           style={{
                             background: `${meta.color}18`,
                             color:      meta.color,
@@ -225,6 +230,13 @@ export function NotificationsView() {
           )}
         </CardContent>
       </Card>
+      {!loadError && <nav aria-label="Notification pages" className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+        <span>{total === 0 ? "0 notifications" : `Page ${page} of ${Math.max(1, Math.ceil(total / pageSize))} · ${total} ${filter === "all" ? "total" : filter} notifications`}</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={loading || busy || page <= 1} onClick={() => setPage(current => current - 1)}>Newer</Button>
+          <Button variant="outline" size="sm" disabled={loading || busy || !hasMore} onClick={() => setPage(current => current + 1)}>Older</Button>
+        </div>
+      </nav>}
     </div>
   );
 }

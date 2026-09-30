@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Calendar as CalendarIcon, MapPin, Clock, Loader2, ChevronLeft,
@@ -323,7 +325,7 @@ export default function VolunteerSchedulePage() {
             {DAYS_SHORT.map((d, i) => (
               <div
                 key={d}
-                className={`text-[11px] font-semibold uppercase tracking-wider text-center py-1 ${
+                className={`text-[12px] font-semibold uppercase tracking-wider text-center py-1 ${
                   i === 0 || i === 6 ? "text-danger/70" : "text-muted-foreground"
                 }`}
               >
@@ -374,7 +376,7 @@ export default function VolunteerSchedulePage() {
                     {shown.map((e, i) => e.kind === "program" ? (
                       <div
                         key={`p-${i}`}
-                        className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-primary truncate"
+                        className="text-[11px] leading-tight px-1.5 py-0.5 rounded bg-primary/10 text-primary truncate"
                         title={e.item.programs?.title}
                       >
                         {e.item.programs?.title}
@@ -382,14 +384,14 @@ export default function VolunteerSchedulePage() {
                     ) : (
                       <div
                         key={`c-${i}`}
-                        className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-accent/15 text-accent-foreground/80 truncate"
+                        className="text-[11px] leading-tight px-1.5 py-0.5 rounded bg-accent/15 text-accent-foreground/80 truncate"
                         title={`${e.item.subject} · ${fmtTime(e.item.start_time)}`}
                       >
                         <span className="font-medium">{fmtTime(e.item.start_time).replace(" ", "")}</span> {e.item.subject}
                       </div>
                     ))}
                     {overflow > 0 && (
-                      <div className="text-[10px] text-muted-foreground px-1.5">+{overflow} more</div>
+                      <div className="text-[11px] text-muted-foreground px-1.5">+{overflow} more</div>
                     )}
                   </div>
                 </div>
@@ -437,52 +439,56 @@ export default function VolunteerSchedulePage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="text-left py-2 font-medium">Day</th>
-                    <th className="text-left py-2 font-medium">Time</th>
-                    <th className="text-left py-2 font-medium">Subject</th>
-                    <th className="text-left py-2 font-medium hidden sm:table-cell">Location</th>
-                    <th className="py-2 w-20" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {classes.map((c) => (
-                    <tr key={c.id} className="border-b border-border/60 last:border-0">
-                      <td className="py-2.5 text-foreground/80">{DAYS_LONG[c.day_of_week]}</td>
-                      <td className="py-2.5 text-foreground/80 whitespace-nowrap">
-                        {fmtTime(c.start_time)} – {fmtTime(c.end_time)}
-                      </td>
-                      <td className="py-2.5 font-medium text-foreground">{c.subject}</td>
-                      <td className="py-2.5 text-muted-foreground hidden sm:table-cell">
-                        {c.location ?? "—"}
-                      </td>
-                      <td className="py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openEdit(c)}
-                            className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Edit class"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => deleteClass(c.id)}
-                            disabled={deletingId === c.id}
-                            className="w-7 h-7 rounded-md hover:bg-danger/10 flex items-center justify-center text-muted-foreground hover:text-danger transition-colors disabled:opacity-40"
-                            aria-label="Delete class"
-                          >
-                            {deletingId === c.id
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={classes} label="Classes">
+                {(pageRows) => (
+                  <table aria-label="Classes" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-2 font-medium">Day</th>
+                        <th className="text-left py-2 font-medium">Time</th>
+                        <th className="text-left py-2 font-medium">Subject</th>
+                        <th className="text-left py-2 font-medium hidden sm:table-cell">Location</th>
+                        <th className="py-2 w-20" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((c) => (
+                        <tr key={c.id} className="border-b border-border/60 last:border-0">
+                          <td className="py-2.5 text-foreground/80">{DAYS_LONG[c.day_of_week]}</td>
+                          <td className="py-2.5 text-foreground/80 whitespace-nowrap">
+                            {fmtTime(c.start_time)} – {fmtTime(c.end_time)}
+                          </td>
+                          <td className="py-2.5 font-medium text-foreground">{c.subject}</td>
+                          <td className="py-2.5 text-muted-foreground hidden sm:table-cell">
+                            {c.location ?? "—"}
+                          </td>
+                          <td className="py-2.5">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => openEdit(c)}
+                                className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                                aria-label="Edit class"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => deleteClass(c.id)}
+                                disabled={deletingId === c.id}
+                                className="w-7 h-7 rounded-md hover:bg-danger/10 flex items-center justify-center text-muted-foreground hover:text-danger transition-colors disabled:opacity-40"
+                                aria-label="Delete class"
+                              >
+                                {deletingId === c.id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <Trash2 className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>
@@ -525,8 +531,8 @@ export default function VolunteerSchedulePage() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-1 items-end flex-shrink-0">
-                        <Badge className={`${PROGRAM_BADGE[prog.status]} capitalize text-[10px]`}>{prog.status}</Badge>
-                        <Badge className={`${SIGNUP_BADGE[s.status]} capitalize text-[10px]`}>{s.status}</Badge>
+                        <Badge className={`${PROGRAM_BADGE[prog.status]} capitalize text-[11px]`}>{prog.status}</Badge>
+                        <Badge className={`${SIGNUP_BADGE[s.status]} capitalize text-[11px]`}>{s.status}</Badge>
                       </div>
                     </div>
                   );

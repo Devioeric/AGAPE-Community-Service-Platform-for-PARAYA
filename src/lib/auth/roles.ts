@@ -1,9 +1,8 @@
 // Central source of truth for user roles.
-// The approved login model has nine roles: 3 PARAYA staff, 3 barangay,
-// volunteer, finance_officer, and admin. Former institutional account roles
-// and legacy aliases remain in the type/routing maps temporarily so existing
-// identities can be migrated without losing attribution. They must not be
-// assignable to new users or receive new operational write authority.
+// The approved login model has six active roles: one PARAYA Officer, one Contributor,
+// one barangay Secretary role, volunteer, finance_officer, and admin. Retired and historical
+// values remain in the type/display maps so historical attribution is never
+// lost, but they are not assignable, routable, or operational.
 
 export type Role =
   | "paraya_director"
@@ -17,6 +16,7 @@ export type Role =
   | "office"
   | "student_org"
   | "department"
+  | "contributor"
   | "admin"
   // Legacy — kept as aliases during the transition
   | "paraya_officer"
@@ -25,21 +25,53 @@ export type Role =
 // ─── Role groups ────────────────────────────────────────────────────────────
 
 export const PARAYA_ROLES = [
-  "paraya_director",
-  "paraya_associate",
-  "paraya_researcher",
-  "paraya_officer", // legacy alias
+  "paraya_officer",
 ] as const;
 
-export const BARANGAY_ROLES = [
-  "barangay_captain",
+export const ACTIVE_LOGIN_ROLES = [
+  "paraya_officer",
+  "contributor",
+  "finance_officer",
   "barangay_secretary",
+  "volunteer",
+  "admin",
+] as const;
+
+export type ActiveLoginRole = (typeof ACTIVE_LOGIN_ROLES)[number];
+
+/** Server-side rollout gate for the consolidated Contributor portal. */
+export const CONTRIBUTOR_ROLE_FEATURE_FLAG = "AGAPE_CONTRIBUTOR_ROLE_V1_ENABLED";
+
+export function isContributorRoleEnabled(): boolean {
+  return process.env.AGAPE_CONTRIBUTOR_ROLE_V1_ENABLED === "true";
+}
+
+export function isRoleEnabled(role: string | null | undefined): boolean {
+  return role !== "contributor" || isContributorRoleEnabled();
+}
+
+export function isActiveLoginRole(role: string | null | undefined): role is ActiveLoginRole {
+  return !!role && (ACTIVE_LOGIN_ROLES as readonly string[]).includes(role);
+}
+
+export const BARANGAY_ROLES = [
+  "barangay_secretary",
+] as const;
+
+export const ACTIVE_BARANGAY_ROLES = BARANGAY_ROLES;
+
+/** Retained only for historical attribution and deterministic access denial. */
+export const RETIRED_BARANGAY_ROLES = [
+  "barangay_captain",
   "barangay_mother_leader",
-  "barangay_official", // legacy alias
+  "barangay_official",
 ] as const;
 
 /** Former institutional roles retained only for migration/read compatibility. */
 export const PARTNER_ROLES = ["office", "student_org", "department"] as const;
+
+/** Non-login identities; names and UUID references remain readable by staff. */
+export const HISTORICAL_LOGIN_ROLES = [...PARTNER_ROLES, "paraya_director", "paraya_associate", "paraya_researcher"] as const;
 
 /** Roles that can assign volunteers to programs / manage core ops. */
 export const STAFF_ROLES = [...PARAYA_ROLES] as const;
@@ -52,7 +84,7 @@ export function canClearFinance(role: string | null | undefined): boolean {
 }
 
 /** Roles that can moderate / take privileged write actions across the system. */
-export const MODERATOR_ROLES = ["paraya_director", "paraya_associate", "paraya_officer"] as const;
+export const MODERATOR_ROLES = ["paraya_officer"] as const;
 
 /** Only PARAYA officers encode and submit proposals. */
 export const PROPOSAL_SUBMITTER_ROLES = [...PARAYA_ROLES] as const;
@@ -65,6 +97,10 @@ export function isParayaStaff(role: string | null | undefined): boolean {
 
 export function isBarangayRole(role: string | null | undefined): boolean {
   return !!role && (BARANGAY_ROLES as readonly string[]).includes(role);
+}
+
+export function isRetiredBarangayRole(role: string | null | undefined): boolean {
+  return !!role && (RETIRED_BARANGAY_ROLES as readonly string[]).includes(role);
 }
 
 export function isPartner(role: string | null | undefined): boolean {
@@ -99,9 +135,9 @@ export function canReviewProposal(role: string | null | undefined): boolean {
   return canSubmitProposal(role);
 }
 
-/** Final proposal approval or rejection belongs to the Director alone. */
+/** Final proposal approval or rejection belongs to the consolidated Officer. */
 export function canMakeFinalProposalDecision(role: string | null | undefined): boolean {
-  return role === "paraya_director";
+  return role === "paraya_officer";
 }
 
 /** Finance may return a budget for revision, but never reject the project. */
@@ -118,9 +154,9 @@ export function canManageProgram(role: string | null | undefined): boolean {
 // ─── Display ────────────────────────────────────────────────────────────────
 
 export const ROLE_LABELS: Record<string, string> = {
-  paraya_director:        "PARAYA Director",
-  paraya_associate:       "PARAYA Associate",
-  paraya_researcher:      "PARAYA Researcher",
+  paraya_director:        "PARAYA Director (historical)",
+  paraya_associate:       "PARAYA Associate (historical)",
+  paraya_researcher:      "PARAYA Researcher (historical)",
   volunteer:              "Student Volunteer",
   barangay_captain:       "Barangay Captain",
   barangay_secretary:     "Barangay Secretary",
@@ -129,8 +165,8 @@ export const ROLE_LABELS: Record<string, string> = {
   office:                 "Office",
   student_org:            "Student Organization",
   department:             "Department",
+  contributor:            "Contributor",
   admin:                  "System Administrator",
-  // Legacy
   paraya_officer:         "PARAYA Officer",
   barangay_official:      "Barangay Official",
 };
@@ -144,26 +180,15 @@ export function roleLabel(role: string | null | undefined): string {
 
 /** Where a role's dashboard home lives. */
 export const ROLE_HOME: Record<string, string> = {
-  paraya_director:        "/officer",
-  paraya_associate:       "/officer",
-  paraya_researcher:      "/officer",
+  paraya_officer:         "/officer",
+  contributor:            "/contributor",
   volunteer:              "/volunteer",
-  barangay_captain:       "/barangay",
   barangay_secretary:     "/barangay",
-  barangay_mother_leader: "/barangay",
   // Finance Officer drops onto the officer dashboard for now — they need to
   // see proposals waiting for clearance. RBAC filters which actions they can
   // take inside it.
   finance_officer:        "/officer",
-  // Partner accounts share one dashboard segment. Per-role labelling lives
-  // inside the UI (header chip, dashboard header).
-  office:                 "/partner",
-  student_org:            "/partner",
-  department:             "/partner",
   admin:                  "/admin",
-  // Legacy aliases
-  paraya_officer:         "/officer",
-  barangay_official:      "/barangay",
 };
 
 /** Allowed top-level route prefix for the role (used by middleware). */
@@ -171,31 +196,19 @@ export const ROLE_PREFIX: Record<string, string> = ROLE_HOME;
 
 /** The path segment used for the role's section (officer / volunteer / barangay / partner / admin). */
 export const ROLE_SEGMENT: Record<string, string> = {
-  paraya_director:        "officer",
-  paraya_associate:       "officer",
-  paraya_researcher:      "officer",
-  volunteer:              "volunteer",
-  barangay_captain:       "barangay",
-  barangay_secretary:     "barangay",
-  barangay_mother_leader: "barangay",
-  finance_officer:        "officer",
-  office:                 "partner",
-  student_org:            "partner",
-  department:             "partner",
-  admin:                  "admin",
-  // Legacy aliases
   paraya_officer:         "officer",
-  barangay_official:      "barangay",
+  contributor:            "contributor",
+  volunteer:              "volunteer",
+  barangay_secretary:     "barangay",
+  finance_officer:        "officer",
+  admin:                  "admin",
 };
 
 /** Approved login roles assignable via Admin > Invite User (admin excluded). */
 export const ASSIGNABLE_ROLES: { value: Role; label: string; group: "paraya" | "barangay" | "volunteer" | "finance" | "partner" }[] = [
-  { value: "paraya_director",        label: "PARAYA Director",      group: "paraya"    },
-  { value: "paraya_associate",       label: "PARAYA Associate",     group: "paraya"    },
-  { value: "paraya_researcher",      label: "PARAYA Researcher",    group: "paraya"    },
+  { value: "paraya_officer",         label: "PARAYA Officer",       group: "paraya"    },
   { value: "finance_officer",        label: "Finance Officer",      group: "finance"   },
-  { value: "barangay_captain",       label: "Barangay Captain",     group: "barangay"  },
   { value: "barangay_secretary",     label: "Barangay Secretary",   group: "barangay"  },
-  { value: "barangay_mother_leader", label: "Mother Leader",        group: "barangay"  },
   { value: "volunteer",              label: "Student Volunteer",    group: "volunteer" },
+  { value: "contributor",            label: "Contributor",           group: "partner"   },
 ];

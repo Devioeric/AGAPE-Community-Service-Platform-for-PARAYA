@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export function profilingDisabledResponse() {
   return NextResponse.json(
-    { error: "Resident profiling is disabled until privacy and deployment gates are complete", code: "profiling_disabled" },
+    { error: "Community profile is disabled until privacy and deployment gates are complete", code: "profiling_disabled" },
     { status: 503 },
   );
 }

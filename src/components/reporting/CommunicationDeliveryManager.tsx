@@ -34,10 +34,6 @@ export function CommunicationDeliveryManager() {
   }
 
   return <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-semibold text-paraya-brown">Communication delivery</h1>
-      <p className="mt-1 text-sm text-gray-600">In-app notifications remain authoritative. External email and SMS stay off until explicitly configured.</p>
-    </div>
     {message && <p className="rounded-lg bg-paraya-cream px-4 py-3 text-sm">{message}</p>}
     <div className="grid gap-4 md:grid-cols-2">
       {(["email", "sms"] as const).map(channel => {

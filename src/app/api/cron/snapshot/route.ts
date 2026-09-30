@@ -3,6 +3,7 @@ import {
   generateSnapshot, previousPeriod, type PeriodType,
 } from "@/lib/analytics/snapshot";
 import { NextResponse } from "next/server";
+import { retainDashboardBaseline } from "@/lib/analytics/retain-dashboard-baseline";
 
 // POST /api/cron/snapshot?period=monthly|quarterly|yearly
 //
@@ -35,11 +36,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid period" }, { status: 400 });
   }
 
+  try {
   // Snapshot the most recently completed period
   const range = previousPeriod(period);
   const data  = await generateSnapshot(range);
 
   const admin = createAdminClient();
+  await retainDashboardBaseline(admin, range, data);
   const { error } = await admin
     .from("analytics_snapshots")
     .upsert({
@@ -50,13 +53,16 @@ export async function POST(request: Request) {
       trigger:      "cron",
     }, { onConflict: "period_type,period_start" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) throw new Error("Snapshot could not be saved");
 
   return NextResponse.json({
     success: true,
     period:  range,
     summary: data.totals,
   });
+  } catch {
+    return NextResponse.json({ error: "Unable to generate a complete analytics snapshot" }, { status: 503 });
+  }
 }
 
 // Vercel Cron sends GET to the configured path. Mirror POST for convenience

@@ -10,7 +10,7 @@ const observationSchema = z.object({
   follow_up_action: z.string().trim().max(1_000).nullable().optional(),
 }).strict();
 
-const SELECT = "id,observer_id,barangay_id,sitio,observation_date,observation,category,follow_up_action,promoted_to_need_id,created_at,updated_at,barangays(name)";
+const SELECT = "id,observer_id,barangay_id,sitio,observation_date,observation,category,follow_up_action,promoted_to_need_id,created_at,updated_at,barangays(name),users!observer_id(full_name),promoted_to_need:community_needs!promoted_to_need_id(id,title)";
 
 export async function GET(request: Request) {
   const auth = await authorizeCapability("observation.read");

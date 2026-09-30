@@ -1,205 +1,153 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isParayaStaff, isBarangayRole } from "@/lib/auth/roles";
-import { hasCapability, type PermissionOverrides } from "@/lib/auth/capabilities";
+import { hasCapability, type Capability, type PermissionOverrides } from "@/lib/auth/capabilities";
+import { capChatbotContext, CONTEXT_UNAVAILABLE } from "./chatbot-token-budget";
+import { communityProfileDataSchema } from "@/lib/community-profile/schema";
+import { keyFigures } from "@/lib/community-profile/server";
+import { formatPercent } from "@/lib/community-profile/stats";
 
 interface BuildContextInput {
-  /** User-session client — kept for symmetry with the route signature; not used for reads. */
   supabase: SupabaseClient;
-  userId:   string;
-  role:     string;
+  userId: string;
+  role: string;
   permissions: PermissionOverrides;
-}
-
-function semesterStart(now = new Date()): string {
-  const year  = now.getFullYear();
-  const month = now.getMonth();
-  return month >= 7 ? `${year}-08-01` : `${year}-01-01`;
-}
-
-function plusDays(days: number, now = new Date()): string {
-  const d = new Date(now);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  barangayId?: string | null;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+function plusDays(days: number): string {
+  const date = new Date(); date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function semesterStart(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${date.getMonth() >= 7 ? "08" : "01"}-01`;
+}
 
-export async function buildChatbotContext({
-  userId,
-  role,
-  permissions,
-}: BuildContextInput): Promise<string> {
-  // Use admin client: the route handler has already authenticated the user, and
-  // every query below is explicitly scoped by userId / role to mirror what the
-  // user is allowed to see in the UI. This avoids RLS blocking the chatbot from
-  // reading tables (like barangays / donations) that the rest of the app reads
-  // via the admin client as well.
+const CONTRIBUTOR_STATUS_LABEL: Record<string, string> = {
+  draft: "draft (not yet submitted)", submitted: "submitted, waiting for pre-screening", pre_screening: "in pre-screening",
+  evidence_review: "in evidence review", finance_review: "in finance review", director_review: "in final PARAYA Officer review",
+  revisions_requested: "returned for revisions", approved: "approved", rejected: "not approved",
+};
+
+/**
+ * Live data for a Contributor: only proposals this account created, with their
+ * workflow stage, schedule, requested cash, and the latest reviewer remark.
+ */
+export async function contributorProposalContext(userId: string): Promise<string> {
   const admin = createAdminClient();
-
-  if (role === "volunteer")        return buildVolunteerContext(admin, userId);
-  if (isParayaStaff(role))         return buildStaffContext(admin, role, permissions);
-  if (role === "finance_officer")  return buildFinanceContext(admin);
-  if (isBarangayRole(role))        return buildBarangayContext(admin, userId, role);
-  return "(no role-specific data available)";
-}
-
-async function buildVolunteerContext(supabase: SupabaseClient, userId: string): Promise<string> {
-  const [signups, hoursRes, upcoming] = await Promise.all([
-    supabase
-      .from("program_signups")
-      .select("status, programs(title, status, start_date, end_date)")
-      .eq("volunteer_id", userId)
-      .neq("status", "withdrawn")
-      .limit(5),
-    supabase
-      .from("activity_logs")
-      .select("hours")
-      .eq("volunteer_id", userId)
-      .eq("status", "approved")
-      .gte("date", semesterStart()),
-    supabase
-      .from("program_signups")
-      .select("programs(title, start_date)")
-      .eq("volunteer_id", userId)
-      .neq("status", "withdrawn")
-      .gte("programs.start_date", today())
-      .lte("programs.start_date", plusDays(7))
-      .limit(5),
+  const owned = await admin.from("project_proposals").select("id,title,updated_at").throwOnError()
+    .eq("created_by", userId).order("updated_at", { ascending: false }).limit(50);
+  const proposals = owned.data ?? [];
+  if (proposals.length === 0) return "Your proposals: none yet. You can create one on My Proposals.";
+  const ids = proposals.map((row) => row.id);
+  const [profiles, events] = await Promise.all([
+    admin.from("proposal_v2_profiles").select("proposal_id,workflow_status,starts_on,ends_on,active_budget_revision_id").throwOnError().in("proposal_id", ids),
+    admin.from("proposal_workflow_events_v2").select("proposal_id,action,remarks,occurred_at").throwOnError()
+      .in("proposal_id", ids).not("remarks", "is", null).order("occurred_at", { ascending: false }).limit(100),
   ]);
+  const profileById = new Map((profiles.data ?? []).map((row) => [row.proposal_id, row]));
+  const revisionIds = (profiles.data ?? []).map((row) => row.active_budget_revision_id).filter((id): id is string => typeof id === "string");
+  const budgets = revisionIds.length
+    ? await admin.from("proposal_budget_revisions").select("id,cash_total,in_kind_total").throwOnError().in("id", revisionIds)
+    : { data: [] as Array<{ id: string; cash_total: number | string; in_kind_total: number | string }> };
+  const budgetById = new Map((budgets.data ?? []).map((row) => [row.id, row]));
+  const remarkById = new Map<string, { remarks: string; occurred_at: string }>();
+  for (const event of events.data ?? []) if (!remarkById.has(event.proposal_id)) remarkById.set(event.proposal_id, event);
 
-  const totalHours = (hoursRes.data ?? []).reduce((s, l) => s + (Number(l.hours) ?? 0), 0);
-
-  const lines: string[] = [];
-  lines.push(`Approved service hours this semester: ${totalHours.toFixed(1)}`);
-
-  const joined = (signups.data ?? []).map((s) => {
-    const p = Array.isArray(s.programs) ? s.programs[0] : s.programs;
-    return p ? `- ${p.title} (${p.status}, starts ${p.start_date ?? "TBA"})` : null;
-  }).filter(Boolean);
-  lines.push(joined.length ? `Joined programs:\n${joined.join("\n")}` : "Joined programs: none");
-
-  const next = (upcoming.data ?? []).map((s) => {
-    const p = Array.isArray(s.programs) ? s.programs[0] : s.programs;
-    return p ? `- ${p.title} on ${p.start_date}` : null;
-  }).filter(Boolean);
-  lines.push(next.length ? `Upcoming this week:\n${next.join("\n")}` : "Upcoming this week: none");
-
-  return lines.join("\n\n");
-}
-
-async function buildStaffContext(supabase: SupabaseClient, role: string, permissions: PermissionOverrides): Promise<string> {
-  const lines: string[] = [];
-  if (hasCapability(role, permissions, "program.read")) {
-    const result = await supabase.from("programs").select("id", { count: "exact", head: true }).eq("status", "active");
-    lines.push(`Active programs: ${result.count ?? 0}`);
-  }
-  if (hasCapability(role, permissions, "proposal.read")) {
-    const result = await supabase.from("project_proposals").select("id", { count: "exact", head: true }).in("status", ["submitted", "under_review", "sdg_review", "finance_review"]);
-    lines.push(`Proposals awaiting review (any stage): ${result.count ?? 0}`);
-  }
-  if (hasCapability(role, permissions, "community_need.read")) {
-    const result = await supabase.from("community_needs").select("id", { count: "exact", head: true }).gte("created_at", plusDays(-30));
-    lines.push(`Community needs submitted in last 30 days: ${result.count ?? 0}`);
-  }
-  return lines.length ? lines.join("\n") : "No authorized operational aggregate is available.";
-}
-
-async function buildFinanceContext(supabase: SupabaseClient): Promise<string> {
-  const { count } = await supabase
-    .from("project_proposals")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "finance_review")
-    .eq("finance_clearance", false);
-
-  return `Proposals awaiting your finance clearance: ${count ?? 0}`;
-}
-
-async function buildBarangayContext(supabase: SupabaseClient, userId: string, role: string): Promise<string> {
-  const { data: profile } = await supabase
-    .from("users")
-    .select("barangay_id, barangays(name)")
-    .eq("id", userId)
-    .single();
-
-  const barangayId   = profile?.barangay_id;
-  const barangayName = profile?.barangays
-    ? (Array.isArray(profile.barangays) ? profile.barangays[0]?.name : (profile.barangays as { name?: string }).name)
-    : null;
-
-  const lines: string[] = [];
-  lines.push(`Barangay: ${barangayName ?? "(none assigned)"}`);
-
-  if (!barangayId) return lines.join("\n");
-
-  const [pendingApprovals, recentNeeds] = await Promise.all([
-    role === "barangay_captain"
-      ? supabase
-          .from("community_needs")
-          .select("id", { count: "exact", head: true })
-          .eq("barangay_id", barangayId)
-          .eq("approval_status", "pending")
-      : Promise.resolve({ count: null }),
-    supabase
-      .from("community_needs")
-      .select("category, priority, approval_status")
-      .eq("barangay_id", barangayId)
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
-
-  if (role === "barangay_captain") {
-    lines.push(`Community needs pending your approval: ${pendingApprovals.count ?? 0}`);
-  }
-
-  const needs = (recentNeeds.data ?? []).map(
-    (n) => `- ${n.category} (priority: ${n.priority}, status: ${n.approval_status})`
-  );
-  lines.push(needs.length ? `Recent community needs:\n${needs.join("\n")}` : "Recent community needs: none");
-
-  return lines.join("\n\n");
-}
-
-async function buildPartnerContext(supabase: SupabaseClient, userId: string): Promise<string> {
-  const [proposals, programs] = await Promise.all([
-    supabase
-      .from("project_proposals")
-      .select("title, status")
-      .eq("created_by", userId)
-      .order("created_at", { ascending: false })
-      .limit(5),
-    supabase
-      .from("programs")
-      .select("title, status, start_date, proposal_id, project_proposals!inner(created_by)")
-      .eq("project_proposals.created_by", userId)
-      .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
-
-  const lines: string[] = [];
-
-  const props = (proposals.data ?? []).map((p) => `- ${p.title} — ${p.status}`);
-  lines.push(props.length ? `Your proposals:\n${props.join("\n")}` : "Your proposals: none");
-
-  const progs = (programs.data ?? []).map((p) => `- ${p.title} (${p.status}, starts ${p.start_date ?? "TBA"})`);
-  lines.push(progs.length ? `Your programs:\n${progs.join("\n")}` : "Your programs: none");
-
-  return lines.join("\n\n");
-}
-
-async function buildAdminContext(supabase: SupabaseClient): Promise<string> {
-  const [users, auditToday] = await Promise.all([
-    supabase.from("users").select("id", { count: "exact", head: true }),
-    supabase.from("audit_logs").select("id", { count: "exact", head: true }).gte("created_at", today()),
-  ]);
-
+  const byStatus: Record<string, number> = {};
+  const lines = proposals.map((row) => {
+    const profile = profileById.get(row.id);
+    const status = profile?.workflow_status ?? "draft";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    const budget = profile?.active_budget_revision_id ? budgetById.get(profile.active_budget_revision_id) : undefined;
+    const cash = budget ? Number(budget.cash_total) : 0;
+    const remark = remarkById.get(row.id);
+    return [
+      `- ${row.title}: ${CONTRIBUTOR_STATUS_LABEL[status] ?? status}`,
+      profile?.starts_on ? `, ${profile.starts_on} to ${profile.ends_on ?? "?"}` : "",
+      Number.isFinite(cash) && cash > 0 ? `, cash requested PHP ${cash.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "",
+      remark ? `. Latest reviewer remark (${remark.occurred_at.slice(0, 10)}): "${remark.remarks.slice(0, 300)}"` : "",
+    ].join("");
+  });
   return [
-    `Total users: ${users.count ?? 0}`,
-    `Audit log entries today: ${auditToday.count ?? 0}`,
+    `Your proposals (${proposals.length}, only proposals you created):`,
+    `By stage: ${Object.entries(byStatus).map(([status, n]) => `${CONTRIBUTOR_STATUS_LABEL[status] ?? status} ${n}`).join("; ")}`,
+    lines.slice(0, 15).join("\n"),
   ].join("\n");
 }
 
-// Retained only for historical data-migration comparison. These builders are
-// intentionally unreachable from the chatbot authorization boundary.
-void buildPartnerContext;
-void buildAdminContext;
+/** The broad baseline is compact, capability-filtered, and never combined with topic data. */
+export async function buildChatbotContext(input: BuildContextInput): Promise<string> {
+  const { userId, role, permissions, barangayId } = input;
+  const can = (capability: Capability) => hasCapability(role, permissions, capability);
+  if (!can("ai.assist")) return "";
+  if (isBarangayRole(role) && !barangayId) return CONTEXT_UNAVAILABLE;
+  const admin = createAdminClient();
+  const jobs: Array<Promise<string>> = [];
+  const count = (label: string, query: PromiseLike<{ count: number | null; error: unknown }>) => {
+    jobs.push(Promise.resolve(query).then(result => {
+      if (result.error || result.count === null) return `${label}: unavailable; do not infer a count.`;
+      return `${label}: ${result.count}`;
+    }).catch(() => `${label}: unavailable; do not infer a count.`));
+  };
+  const selectCount = (table: string) => admin.from(table).select("id", { count: "exact", head: true });
+
+  if (isParayaStaff(role)) {
+    if (can("program.read")) count("Active programs", selectCount("programs").eq("status", "active"));
+    if (can("proposal.read")) count("Proposals awaiting review (any stage)", selectCount("project_proposals").in("status", ["submitted", "pre_screening", "sdg_review", "finance_review"]));
+    if (can("community_need.read")) count("Community needs submitted in last 30 days", selectCount("community_needs").gte("created_at", plusDays(-30)));
+    if (can("community_need.validate")) count("Community needs awaiting PARAYA Officer review", selectCount("community_needs").eq("approval_status", "pending_paraya_review"));
+    if (can("profiling.aggregate.read")) count("Barangays with a community profile", selectCount("barangay_community_profiles"));
+  } else if (isBarangayRole(role)) {
+    if (can("community_need.read")) {
+      count("Community needs awaiting PARAYA review", selectCount("community_needs").eq("barangay_id", barangayId!).eq("approval_status", "pending_paraya_review"));
+      count("Community needs needing revision", selectCount("community_needs").eq("barangay_id", barangayId!).eq("approval_status", "needs_revision"));
+    }
+    if (can("profiling.aggregate.read")) jobs.push((async () => {
+      const result = await admin.from("barangay_community_profiles").select("respondent_households, data").eq("barangay_id", barangayId!).maybeSingle();
+      if (result.error) return "Community profile: unavailable; do not infer figures.";
+      if (!result.data) return "Community profile: not recorded yet by PARAYA.";
+      const parsed = communityProfileDataSchema.safeParse(result.data.data);
+      const figures = keyFigures(parsed.success ? parsed.data : {}).map((figure) => `${figure.label} ${formatPercent(figure.percent)}`).join("; ");
+      return `Community profile (aggregate, sample-based): ${result.data.respondent_households ?? "unknown"} households surveyed; ${figures}.`;
+    })().catch(() => "Community profile: unavailable; do not infer figures."));
+  } else if (role === "contributor") {
+    if (can("contributor.proposal.read")) jobs.push(contributorProposalContext(userId).catch(() => CONTEXT_UNAVAILABLE));
+  } else if (role === "finance_officer") {
+    if (can("proposal.finance")) count("Proposals awaiting finance clearance", selectCount("project_proposals").eq("status", "finance_review").eq("finance_clearance", false));
+  } else if (role === "volunteer") {
+    if (can("activity_log.self")) {
+      jobs.push((async () => {
+        const result = await admin.from("activity_logs").select("hours").throwOnError()
+          .eq("volunteer_id", userId).eq("status", "approved").gte("date", semesterStart());
+        if (!result.data) return CONTEXT_UNAVAILABLE;
+        const hours = result.data.reduce((sum, row) => sum + Number(row.hours), 0);
+        return Number.isFinite(hours) ? `Approved service hours this semester: ${hours.toFixed(1)}` : CONTEXT_UNAVAILABLE;
+      })().catch(() => CONTEXT_UNAVAILABLE));
+    }
+    if (can("volunteer.self") && can("program.read")) {
+      jobs.push((async () => {
+        const [joined, upcoming] = await Promise.all([
+          admin.from("program_signups").select("status, programs(title, status, start_date)").throwOnError()
+            .eq("volunteer_id", userId).neq("status", "withdrawn").limit(5),
+          admin.from("program_signups").select("programs(title, start_date)").throwOnError()
+            .eq("volunteer_id", userId).neq("status", "withdrawn")
+            .gte("programs.start_date", today()).lte("programs.start_date", plusDays(7)).limit(5),
+        ]);
+        if (!joined.data || !upcoming.data) return CONTEXT_UNAVAILABLE;
+        const joinedLines = joined.data.flatMap(row => {
+          const program = Array.isArray(row.programs) ? row.programs[0] : row.programs;
+          return program ? [`- ${program.title} (${program.status}, starts ${program.start_date ?? "TBA"})`] : [];
+        });
+        const upcomingLines = upcoming.data.flatMap(row => {
+          const program = Array.isArray(row.programs) ? row.programs[0] : row.programs;
+          return program ? [`- ${program.title} on ${program.start_date}`] : [];
+        });
+        return `Joined programs:\n${joinedLines.join("\n") || "none"}\nUpcoming this week:\n${upcomingLines.join("\n") || "none"}`;
+      })().catch(() => CONTEXT_UNAVAILABLE));
+    }
+  }
+  return capChatbotContext((await Promise.all(jobs)).join("\n") || "No authorized operational aggregate is available.");
+}

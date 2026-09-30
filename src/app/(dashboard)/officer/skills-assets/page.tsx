@@ -1,10 +1,13 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useEffect, useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import {
-  Wrench, GraduationCap, Plus, Pencil, Trash2, Loader2, MapPin,
+  Wrench, GraduationCap, Plus, Pencil, Loader2, MapPin,
   Sprout, Cpu, HeartPulse, Hammer, Box, Building2, Mountain, Layers,
-  HelpCircle, Layout,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -104,6 +107,8 @@ const assetTypeMeta = (v: string) =>
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function SkillsAssetsPage() {
+  const pathname = usePathname();
+  const isBarangayPortal = pathname.startsWith("/barangay/");
   const [tab, setTab] = useState<Tab>("skills");
 
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -131,24 +136,31 @@ export default function SkillsAssetsPage() {
   });
   const [assetSaving, setAssetSaving] = useState(false);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   // ── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const q = brgyFilter ? `?barangay_id=${brgyFilter}` : "";
+    const q = !isBarangayPortal && brgyFilter ? `?barangay_id=${brgyFilter}` : "";
     const [bRes, sRes, aRes] = await Promise.all([
-      fetch("/api/partnerships"),
+      fetch(isBarangayPortal ? "/api/my-barangay" : "/api/partnerships"),
       fetch(`/api/skills${q}`),
       fetch(`/api/assets${q}`),
     ]);
 
-    if (bRes.ok) setBarangays((await bRes.json()).data ?? []);
+    if (bRes.ok) {
+      const result = await bRes.json();
+      if (isBarangayPortal) {
+        const barangay = result.data?.barangay as Barangay | undefined;
+        setBarangays(barangay ? [barangay] : []);
+        if (barangay && brgyFilter !== barangay.id) setBrgyFilter(barangay.id);
+      } else {
+        setBarangays(result.data ?? []);
+      }
+    }
     if (sRes.ok) setSkills((await sRes.json()).data ?? []);
     if (aRes.ok) setAssets((await aRes.json()).data ?? []);
     setLoading(false);
-  }, [brgyFilter]);
+  }, [brgyFilter, isBarangayPortal]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -184,10 +196,12 @@ export default function SkillsAssetsPage() {
     setSkillSaving(true);
     const url    = editingSkill ? `/api/skills/${editingSkill}` : "/api/skills";
     const method = editingSkill ? "PATCH" : "POST";
+    const { barangay_id, ...skillValues } = skillForm;
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...skillForm,
+        ...skillValues,
+        ...(!editingSkill && !isBarangayPortal ? { barangay_id } : {}),
         skill_name: skillForm.skill_name.trim(),
         proficiency_level: skillForm.proficiency_level || null,
         notes: skillForm.notes.trim() || null,
@@ -203,19 +217,6 @@ export default function SkillsAssetsPage() {
       toast.error(j.error ?? "Failed to save skill.");
     }
     setSkillSaving(false);
-  }
-
-  async function deleteSkill(id: string) {
-    if (!confirm("Delete this skill record?")) return;
-    setDeletingId(id);
-    const res = await fetch(`/api/skills/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      toast.success("Skill removed.");
-      setSkills((prev) => prev.filter((s) => s.id !== id));
-    } else {
-      toast.error("Failed to delete skill.");
-    }
-    setDeletingId(null);
   }
 
   // ── Asset CRUD ───────────────────────────────────────────────────────────
@@ -250,10 +251,12 @@ export default function SkillsAssetsPage() {
     setAssetSaving(true);
     const url    = editingAsset ? `/api/assets/${editingAsset}` : "/api/assets";
     const method = editingAsset ? "PATCH" : "POST";
+    const { barangay_id, ...assetValues } = assetForm;
     const res = await fetch(url, {
       method, headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...assetForm,
+        ...assetValues,
+        ...(!editingAsset && !isBarangayPortal ? { barangay_id } : {}),
         asset_name: assetForm.asset_name.trim(),
         condition: assetForm.condition || null,
         notes: assetForm.notes.trim() || null,
@@ -269,19 +272,6 @@ export default function SkillsAssetsPage() {
       toast.error(j.error ?? "Failed to save asset.");
     }
     setAssetSaving(false);
-  }
-
-  async function deleteAsset(id: string) {
-    if (!confirm("Delete this asset record?")) return;
-    setDeletingId(id);
-    const res = await fetch(`/api/assets/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      toast.success("Asset removed.");
-      setAssets((prev) => prev.filter((a) => a.id !== id));
-    } else {
-      toast.error("Failed to delete asset.");
-    }
-    setDeletingId(null);
   }
 
   // ── Stats ────────────────────────────────────────────────────────────────
@@ -303,16 +293,6 @@ export default function SkillsAssetsPage() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-foreground flex items-center gap-2">
-          <Layout className="w-5 h-5 text-primary" /> Skills &amp; Assets Documentation
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Document community-level skills and assets per partner barangay. Information is recorded at the barangay level — no individual profiling.
-        </p>
-      </div>
-
       {/* Tab bar + barangay filter */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border">
         <div className="flex items-center gap-1">
@@ -326,7 +306,7 @@ export default function SkillsAssetsPage() {
             )}
           >
             <Wrench className="w-4 h-4" /> Skills
-            <Badge className="ml-1 bg-muted/40 text-muted-foreground border-0 text-[10px]">
+            <Badge className="ml-1 bg-muted/40 text-muted-foreground border-0 text-[11px]">
               {skills.length}
             </Badge>
           </button>
@@ -340,7 +320,7 @@ export default function SkillsAssetsPage() {
             )}
           >
             <Box className="w-4 h-4" /> Assets
-            <Badge className="ml-1 bg-muted/40 text-muted-foreground border-0 text-[10px]">
+            <Badge className="ml-1 bg-muted/40 text-muted-foreground border-0 text-[11px]">
               {assets.length}
             </Badge>
           </button>
@@ -348,16 +328,20 @@ export default function SkillsAssetsPage() {
 
         <div className="flex items-center gap-2 pb-2">
           <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-          <select
-            value={brgyFilter}
-            onChange={(e) => setBrgyFilter(e.target.value)}
-            className="h-9 px-3 text-sm min-w-[200px]"
-          >
-            <option value="">All barangays</option>
-            {barangays.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          {isBarangayPortal ? (
+            <span className="text-sm font-medium">{barangays[0]?.name ?? "Assigned barangay"}</span>
+          ) : (
+            <select
+              value={brgyFilter}
+              onChange={(e) => setBrgyFilter(e.target.value)}
+              className="h-9 px-3 text-sm min-w-[200px]"
+            >
+              <option value="">All barangays</option>
+              {barangays.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          )}
           <Button
             onClick={tab === "skills" ? openAddSkill : openAddAsset}
             size="sm"
@@ -380,10 +364,10 @@ export default function SkillsAssetsPage() {
                   <CardContent className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <p className="text-[11px] text-muted-foreground truncate">{c.label}</p>
+                      <p className="text-[12px] text-muted-foreground truncate">{c.label}</p>
                     </div>
                     <p className="text-xl font-bold font-heading text-foreground">{c.count}</p>
-                    <p className="text-[10px] text-muted-foreground">{c.practitioners.toLocaleString()} people</p>
+                    <p className="text-[11px] text-muted-foreground">{c.practitioners.toLocaleString()} people</p>
                   </CardContent>
                 </Card>
               );
@@ -405,60 +389,61 @@ export default function SkillsAssetsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-y border-border bg-surface-alt/50">
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Skill</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Category</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
-                        <th className="text-right py-3 px-4 text-muted-foreground font-medium">Practitioners</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Proficiency</th>
-                        <th className="py-3 px-4 w-20" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {skills.map((s, i) => {
-                        const cat = skillCatMeta(s.category);
-                        const Icon = cat.icon;
-                        return (
-                          <tr key={s.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                            <td className="py-3 px-4">
-                              <p className="font-medium text-foreground">{s.skill_name}</p>
-                              {s.notes && <p className="text-xs text-muted-foreground line-clamp-1">{s.notes}</p>}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 text-xs text-foreground/80">
-                                <Icon className="w-3.5 h-3.5 text-muted-foreground" /> {cat.label}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                              {s.barangays?.name ?? "—"}
-                            </td>
-                            <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
-                              {s.practitioner_count.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              {s.proficiency_level ? (
-                                <Badge className={`${PROFICIENCY_BADGE[s.proficiency_level] ?? ""} text-[10px] capitalize`}>
-                                  {s.proficiency_level}
-                                </Badge>
-                              ) : <span className="text-xs text-muted-foreground/50">—</span>}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => openEditSkill(s)} className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Edit">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => deleteSkill(s.id)} disabled={deletingId === s.id} className="w-7 h-7 rounded-md hover:bg-danger/10 flex items-center justify-center text-muted-foreground hover:text-danger transition-colors disabled:opacity-40" aria-label="Delete">
-                                  {deletingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
+                  <PaginatedTable rows={skills} label="Skills" resetKey={brgyFilter} loading={loading}>
+                    {(pageRows) => (
+                      <table aria-label="Skills" className="w-full text-sm">
+                        <thead>
+                          <tr className="border-y border-border bg-surface-alt/50">
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Skill</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Category</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
+                            <th className="text-right py-3 px-4 text-muted-foreground font-medium">Practitioners</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Proficiency</th>
+                            <th className="py-3 px-4 w-20" />
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {pageRows.map((s, i) => {
+                            const cat = skillCatMeta(s.category);
+                            const Icon = cat.icon;
+                            return (
+                              <tr key={s.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                                <td className="py-3 px-4">
+                                  <p className="font-medium text-foreground">{s.skill_name}</p>
+                                  {s.notes && <p className="text-xs text-muted-foreground line-clamp-1">{s.notes}</p>}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className="inline-flex items-center gap-1 text-xs text-foreground/80">
+                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" /> {cat.label}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                                  {s.barangays?.name ?? "—"}
+                                </td>
+                                <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
+                                  {s.practitioner_count.toLocaleString()}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {s.proficiency_level ? (
+                                    <Badge className={`${PROFICIENCY_BADGE[s.proficiency_level] ?? ""} text-[11px] capitalize`}>
+                                      {s.proficiency_level}
+                                    </Badge>
+                                  ) : <span className="text-xs text-muted-foreground/50">—</span>}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button onClick={() => openEditSkill(s)} className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Edit">
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </PaginatedTable>
                 </div>
               )}
             </CardContent>
@@ -477,10 +462,10 @@ export default function SkillsAssetsPage() {
                   <CardContent className="px-3 py-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <p className="text-[11px] text-muted-foreground truncate">{t.label}</p>
+                      <p className="text-[12px] text-muted-foreground truncate">{t.label}</p>
                     </div>
                     <p className="text-xl font-bold font-heading text-foreground">{t.count}</p>
-                    <p className="text-[10px] text-muted-foreground">{t.quantity.toLocaleString()} units</p>
+                    <p className="text-[11px] text-muted-foreground">{t.quantity.toLocaleString()} units</p>
                   </CardContent>
                 </Card>
               );
@@ -501,60 +486,61 @@ export default function SkillsAssetsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-y border-border bg-surface-alt/50">
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Asset</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Type</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
-                        <th className="text-right py-3 px-4 text-muted-foreground font-medium">Quantity</th>
-                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Condition</th>
-                        <th className="py-3 px-4 w-20" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assets.map((a, i) => {
-                        const t = assetTypeMeta(a.asset_type);
-                        const Icon = t.icon;
-                        return (
-                          <tr key={a.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                            <td className="py-3 px-4">
-                              <p className="font-medium text-foreground">{a.asset_name}</p>
-                              {a.notes && <p className="text-xs text-muted-foreground line-clamp-1">{a.notes}</p>}
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center gap-1 text-xs text-foreground/80">
-                                <Icon className="w-3.5 h-3.5 text-muted-foreground" /> {t.label}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                              {a.barangays?.name ?? "—"}
-                            </td>
-                            <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
-                              {a.quantity.toLocaleString()}
-                            </td>
-                            <td className="py-3 px-4">
-                              {a.condition ? (
-                                <Badge className={`${CONDITION_BADGE[a.condition] ?? ""} text-[10px] capitalize`}>
-                                  {a.condition}
-                                </Badge>
-                              ) : <span className="text-xs text-muted-foreground/50">—</span>}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => openEditAsset(a)} className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Edit">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => deleteAsset(a.id)} disabled={deletingId === a.id} className="w-7 h-7 rounded-md hover:bg-danger/10 flex items-center justify-center text-muted-foreground hover:text-danger transition-colors disabled:opacity-40" aria-label="Delete">
-                                  {deletingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
+                  <PaginatedTable rows={assets} label="Assets" resetKey={brgyFilter} loading={loading}>
+                    {(pageRows) => (
+                      <table aria-label="Assets" className="w-full text-sm">
+                        <thead>
+                          <tr className="border-y border-border bg-surface-alt/50">
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Asset</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Type</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
+                            <th className="text-right py-3 px-4 text-muted-foreground font-medium">Quantity</th>
+                            <th className="text-left py-3 px-4 text-muted-foreground font-medium">Condition</th>
+                            <th className="py-3 px-4 w-20" />
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {pageRows.map((a, i) => {
+                            const t = assetTypeMeta(a.asset_type);
+                            const Icon = t.icon;
+                            return (
+                              <tr key={a.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                                <td className="py-3 px-4">
+                                  <p className="font-medium text-foreground">{a.asset_name}</p>
+                                  {a.notes && <p className="text-xs text-muted-foreground line-clamp-1">{a.notes}</p>}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <span className="inline-flex items-center gap-1 text-xs text-foreground/80">
+                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" /> {t.label}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                                  {a.barangays?.name ?? "—"}
+                                </td>
+                                <td className="py-3 px-4 text-right font-semibold text-foreground tabular-nums">
+                                  {a.quantity.toLocaleString()}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {a.condition ? (
+                                    <Badge className={`${CONDITION_BADGE[a.condition] ?? ""} text-[11px] capitalize`}>
+                                      {a.condition}
+                                    </Badge>
+                                  ) : <span className="text-xs text-muted-foreground/50">—</span>}
+                                </td>
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <button onClick={() => openEditAsset(a)} className="w-7 h-7 rounded-md hover:bg-surface-alt flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors" aria-label="Edit">
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </PaginatedTable>
                 </div>
               )}
             </CardContent>
@@ -573,14 +559,18 @@ export default function SkillsAssetsPage() {
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label>Barangay</Label>
-              <select
-                value={skillForm.barangay_id}
-                onChange={(e) => setSkillForm({ ...skillForm, barangay_id: e.target.value })}
-                className="w-full h-9 px-3 text-sm"
-              >
-                <option value="">— Select a barangay —</option>
-                {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              {isBarangayPortal ? (
+                <div className="flex h-9 items-center rounded-md border px-3 text-sm">{barangays[0]?.name ?? "Assigned barangay"}</div>
+              ) : (
+                <select
+                  value={skillForm.barangay_id}
+                  onChange={(e) => setSkillForm({ ...skillForm, barangay_id: e.target.value })}
+                  className="w-full h-9 px-3 text-sm"
+                >
+                  <option value="">— Select a barangay —</option>
+                  {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Skill name</Label>
@@ -653,14 +643,18 @@ export default function SkillsAssetsPage() {
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label>Barangay</Label>
-              <select
-                value={assetForm.barangay_id}
-                onChange={(e) => setAssetForm({ ...assetForm, barangay_id: e.target.value })}
-                className="w-full h-9 px-3 text-sm"
-              >
-                <option value="">— Select a barangay —</option>
-                {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              {isBarangayPortal ? (
+                <div className="flex h-9 items-center rounded-md border px-3 text-sm">{barangays[0]?.name ?? "Assigned barangay"}</div>
+              ) : (
+                <select
+                  value={assetForm.barangay_id}
+                  onChange={(e) => setAssetForm({ ...assetForm, barangay_id: e.target.value })}
+                  className="w-full h-9 px-3 text-sm"
+                >
+                  <option value="">— Select a barangay —</option>
+                  {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Asset name</Label>

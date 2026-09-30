@@ -1,21 +1,30 @@
 // Header titles per route. The labels follow the scope module names so the
-// header reads consistently with the sidebar groupings.
+// Keep this small presentation map aligned with the framework-neutral
+// navigation catalog. It intentionally remains dependency-free so title
+// resolution can also run in lightweight middleware/test contexts.
 const TITLES: Record<string, string> = {
   // Officer — PARAYA staff
   "/officer":                            "Dashboard",
+  "/officer/phase-2":                    "Structured Proposals & Finance",
+  "/officer/profiling":                  "Community Profile",
+  "/officer/profiling/legacy":           "Legacy Household Data",
+  "/officer/analytics/recommendations":  "Advisory Recommendations",
   // Partnership Management Module
   "/officer/partnerships":               "Partnership Management",
   // Project Proposal and Approval Workflow Module
   "/officer/proposals":                  "Project Proposals",
   "/officer/finance":                    "Finance Clearance",
   // Community Needs Assessment Module
-  "/officer/community-profile":          "Community Profile",
-  "/officer/surveys":                    "Survey Builder",
+  "/officer/community-profile":          "Legacy Household Data",
+  "/officer/community-needs/review":     "Community Needs Officer Review",
+  "/officer/community-needs":            "Community Needs",
+  "/officer/surveys":                    "Surveys",
   "/officer/surveys/analysis":           "Survey Analysis",
   "/officer/surveys/compare":            "Pre/Post Comparison",
+  "/officer/community-needs/observations": "Field Observations",
   "/officer/observations":               "Field Observations",
   // Volunteer Management Module
-  "/officer/volunteers":                 "Volunteer Directory",
+  "/officer/volunteers":                 "Volunteer Management",
   "/officer/attendance":                 "Attendance",
   // Skill and Asset Documentation Module
   "/officer/skills-assets":              "Skill & Asset Documentation",
@@ -24,7 +33,7 @@ const TITLES: Record<string, string> = {
   // Donation and Resource Management Module
   "/officer/donations":                  "Donation Management",
   // Analytics Module
-  "/officer/analytics":                  "Analytics Overview",
+  "/officer/analytics":                  "Analytics",
   "/officer/analytics/sdg":              "SDG Impact Tracker",
   "/officer/analytics/volunteers":       "Volunteer Analytics",
   "/officer/analytics/community-needs":  "Community Needs Analytics",
@@ -58,8 +67,10 @@ const TITLES: Record<string, string> = {
   // Barangay
   "/barangay":                           "Dashboard",
   "/barangay/partnership":               "Partnership Management",
+  "/barangay/profiling":                 "Community Profile",
   "/barangay/submit-needs":              "Submit Community Needs",
-  "/barangay/approvals":                 "Community Needs Approval Queue",
+  "/barangay/approvals":                 "Community Needs",
+  "/barangay/skills-assets":             "Skill & Asset Documentation",
   "/barangay/surveys":                   "Survey Responses",
   "/barangay/reports":                   "Reporting",
   "/barangay/forum":                     "Discussion Forum",
@@ -67,7 +78,13 @@ const TITLES: Record<string, string> = {
   "/barangay/notifications":             "Notifications",
   "/barangay/profile":                   "Profile Settings",
 
-  // Partner (Office / Student Organization / Department)
+  // Contributor (DYCI Office / Student Organization / Academic Department)
+  "/contributor":                        "Contributor Dashboard",
+  "/contributor/proposals":              "My Proposals",
+  "/contributor/notifications":         "Notifications",
+  "/contributor/profile":               "Profile Settings",
+
+  // Historical partner compatibility routes
   "/partner":                            "Dashboard",
   "/partner/proposals":                  "Project Proposals",
   "/partner/programs":                   "Program Tracking",
@@ -95,7 +112,7 @@ export function getPageTitle(pathname: string): string {
   let best = "";
   for (const k of Object.keys(TITLES)) {
     if (k === "/") continue;
-    if (pathname.startsWith(k) && k.length > best.length) best = k;
+    if ((pathname === k || pathname.startsWith(`${k}/`)) && k.length > best.length) best = k;
   }
   return best ? TITLES[best] : "AGAPE";
 }

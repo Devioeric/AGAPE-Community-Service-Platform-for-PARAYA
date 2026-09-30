@@ -6,7 +6,7 @@ import { Empty, Panel, Phase2Notice, StatusPill, inputClass, jsonRequest, phase2
 type Kind = "partnership" | "historical" | "proposal_budget" | "program_finance";
 type DocumentRow = { id: string; type: string; name: string; mimeType: string; sizeBytes: number; scanStatus: string; createdAt: string; reviewedAt?: string | null };
 
-export function DocumentManager({ kind, parentId, canUpload, canReview }: { kind: Kind; parentId: string; canUpload: boolean; canReview: boolean }) {
+export function DocumentManager({ kind, parentId, canUpload, canReview, onChanged }: { kind: Kind; parentId: string; canUpload: boolean; canReview: boolean; onChanged?: () => Promise<void> }) {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
   const [reviewing, setReviewing] = useState<string | null>(null);
@@ -20,8 +20,9 @@ export function DocumentManager({ kind, parentId, canUpload, canReview }: { kind
 
   async function upload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage(null);
-    const form = new FormData(event.currentTarget); form.set("parent_id", parentId);
-    try { await phase2Api(`/api/v2/documents/${kind}`, { method: "POST", body: form }); event.currentTarget.reset(); setMessage({ text: "Document uploaded to quarantine.", tone: "success" }); await load(); }
+    const element = event.currentTarget;
+    const form = new FormData(element); form.set("parent_id", parentId);
+    try { await phase2Api(`/api/v2/documents/${kind}`, { method: "POST", body: form }); element.reset(); setMessage({ text: "Document uploaded to quarantine.", tone: "success" }); await load(); await onChanged?.(); }
     catch (error) { setMessage({ text: error instanceof Error ? error.message : "Upload failed", tone: "error" }); }
   }
   async function review() {
@@ -30,7 +31,7 @@ export function DocumentManager({ kind, parentId, canUpload, canReview }: { kind
       const endpoint = decision === "risk_accept" ? `/api/v2/documents/${kind}/${reviewing}/risk-accept` : `/api/v2/documents/${kind}/${reviewing}/review`;
       const body = decision === "risk_accept" ? { reason } : { decision, reason };
       await phase2Api(endpoint, jsonRequest("POST", body));
-      setReviewing(null); setReason(""); setMessage({ text: "Document review recorded.", tone: "success" }); await load();
+      setReviewing(null); setReason(""); setMessage({ text: "Document review recorded.", tone: "success" }); await load(); await onChanged?.();
     } catch (error) { setMessage({ text: error instanceof Error ? error.message : "Review failed", tone: "error" }); }
   }
   async function download(documentId: string) {

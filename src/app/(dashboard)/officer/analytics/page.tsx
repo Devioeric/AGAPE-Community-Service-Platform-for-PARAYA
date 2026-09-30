@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useAnalyticsView } from "@/lib/analytics/use-analytics-view";
 import { createPortal } from "react-dom";
 import {
   Loader2, TrendingUp, Users, Clock, Gift, FileText,
   BarChart3, MapPin, CalendarDays, X, SlidersHorizontal,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SDG_PRESENTATION } from "@/lib/analytics/sdg-presentation";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -17,27 +19,10 @@ import {
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface AnalyticsData {
-  programs:  { total: number; byStatus: Record<string, number>; chartData: { status: string; count: number }[] };
-  volunteers: { total: number; active: number };
-  hours:      { total: number; byMonth: { month: string; hours: number }[] };
-  donations:  { total: number; totalQty: number; totalDistributed: number; byType: { type: string; qty: number }[] };
-  sdg:        { counts: { sdg: number; count: number }[] };
-  needs:      { byCategory: { category: string; count: number }[] };
-  proposals:  { total: number; byStatus: Record<string, number> };
-  topBarangays: { name: string; count: number }[];
-}
 
 interface Barangay { id: string; name: string }
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-
-const SDG_META: Record<number, { label: string; color: string; goal: string }> = {
-  4:  { label: "Quality Education",     color: "#C5192D", goal: "Education & Skills" },
-  9:  { label: "Industry & Innovation", color: "#FD6925", goal: "Innovation & Infrastructure" },
-  11: { label: "Sustainable Cities",    color: "#FD9D24", goal: "Community Development" },
-  17: { label: "Partnerships",          color: "#19486A", goal: "Multi-sector Collaboration" },
-};
 
 const PROGRAM_STATUS_COLORS: Record<string, string> = {
   active:    "#4A7C59",
@@ -54,7 +39,7 @@ const CHART_STYLE = {
   tooltip: {
     contentStyle: {
       background: "#FFFFFF", border: "1px solid #E5DDD0",
-      borderRadius: "8px", fontSize: "12px", color: "#2C2416",
+      borderRadius: "8px", fontSize: "13px", color: "#2C2416",
     },
   },
 };
@@ -67,7 +52,7 @@ const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 2023 }, (_, i) => CURRE
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const HBarLabel = ({ x, y, width, height, value }: { x?: number; y?: number; width?: number; height?: number; value?: number }) => (
-  <text x={(x ?? 0) + (width ?? 0) + 6} y={(y ?? 0) + (height ?? 0) / 2 + 4} fontSize={11} fill="#6B6356">
+  <text x={(x ?? 0) + (width ?? 0) + 6} y={(y ?? 0) + (height ?? 0) / 2 + 4} fontSize={12} fill="#6B6356">
     {value}
   </text>
 );
@@ -75,8 +60,6 @@ const HBarLabel = ({ x, y, width, height, value }: { x?: number; y?: number; wid
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OfficerAnalyticsPage() {
-  const [data, setData]           = useState<AnalyticsData | null>(null);
-  const [loading, setLoading]     = useState(true);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
 
   // Applied filters — these drive the API call
@@ -88,17 +71,10 @@ export default function OfficerAnalyticsPage() {
   const [draftBarangayId, setDraftBarangayId]   = useState("");
   const [draftYear, setDraftYear]               = useState("");
 
-  const fetchAnalytics = useCallback(async (bId: string, yr: string) => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (bId) params.set("barangay_id", bId);
-    if (yr)  params.set("year", yr);
-    const res = await fetch(`/api/analytics?${params}`);
-    if (res.ok) { const j = await res.json(); setData(j.data); }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchAnalytics(barangayId, year); }, [fetchAnalytics, barangayId, year]);
+  const params = new URLSearchParams();
+  if (barangayId) params.set("barangay_id", barangayId);
+  if (year) params.set("year", year);
+  const { data, loading, denied, retry } = useAnalyticsView("overview", params.toString());
 
   useEffect(() => {
     fetch("/api/partnerships").then((r) => r.json()).then((j) => setBarangays(j.data ?? []));
@@ -146,7 +122,7 @@ export default function OfficerAnalyticsPage() {
       Filters
       {activeFilterCount > 0 && (
         <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary
-                         text-white text-[10px] font-bold flex items-center justify-center">
+                         text-white text-[11px] font-bold flex items-center justify-center">
           {activeFilterCount}
         </span>
       )}
@@ -203,7 +179,7 @@ export default function OfficerAnalyticsPage() {
           </p>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-7">
+        <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-6 space-y-7">
 
           {/* Barangay */}
           <div>
@@ -315,8 +291,9 @@ export default function OfficerAnalyticsPage() {
         {headerSlot && createPortal(FiltersButton, headerSlot)}
         {FilterChips}
         {FilterSheet}
-        <div className="py-32 text-center text-muted-foreground">
-          Failed to load analytics data. Please refresh.
+        <div role="alert" className="py-32 text-center text-muted-foreground">
+          <p>{denied ? "You do not have access to this analytics view." : "Analytics data is temporarily unavailable."}</p>
+          {!denied && <button className="mt-3 rounded border border-border px-4 py-2 focus-visible:ring-2 focus-visible:ring-primary" onClick={retry}>Retry</button>}
         </div>
       </div>
     );
@@ -340,7 +317,7 @@ export default function OfficerAnalyticsPage() {
             icon: BarChart3, accent: "border-l-primary",
           },
           {
-            label: "Volunteers", value: data.volunteers.total,
+            label: "Volunteers — all accounts", value: data.volunteers.total,
             sub: `${data.volunteers.active} active`,
             icon: Users, accent: "border-l-success",
           },
@@ -381,7 +358,7 @@ export default function OfficerAnalyticsPage() {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {data.sdg.counts.map(({ sdg, count }) => {
-            const meta = SDG_META[sdg];
+            const meta = SDG_PRESENTATION[sdg] ?? { label: `SDG ${sdg}`, color: "#6B5B3E" };
             const pct  = Math.round((count / maxSdgCount) * 100);
             return (
               <Card key={sdg} className="border-border shadow-card border-t-4" style={{ borderTopColor: meta.color }}>
@@ -393,7 +370,7 @@ export default function OfficerAnalyticsPage() {
                     SDG {sdg}
                   </div>
                   <p className="text-sm font-semibold text-foreground leading-tight mb-0.5">{meta.label}</p>
-                  <p className="text-xs text-muted-foreground mb-3">{meta.goal}</p>
+                  <p className="text-xs text-muted-foreground mb-3">Recorded proposal alignment</p>
                   <p className="text-2xl font-bold font-heading text-foreground mb-1">{count}</p>
                   <p className="text-xs text-muted-foreground mb-2">aligned proposals</p>
                   <div className="h-1.5 rounded-full bg-border overflow-hidden">
@@ -422,8 +399,8 @@ export default function OfficerAnalyticsPage() {
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={data.hours.byMonth} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
                 <CartesianGrid {...CHART_STYLE.cartesianGrid} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
                 <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [`${Number(v)} hrs`, "Hours"]} />
                 <Bar dataKey="hours" fill="#6B5B3E" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -454,7 +431,7 @@ export default function OfficerAnalyticsPage() {
                   <Tooltip {...CHART_STYLE.tooltip} formatter={(v, name) => [Number(v), cap(String(name))]} />
                   <Legend
                     iconType="circle" iconSize={8}
-                    formatter={(value) => <span style={{ fontSize: 11, color: "#6B6356" }}>{cap(value)}</span>}
+                    formatter={(value) => <span style={{ fontSize: 12, color: "#6B6356" }}>{cap(value)}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -479,8 +456,8 @@ export default function OfficerAnalyticsPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data.donations.byType} layout="vertical" margin={{ top: 5, right: 40, left: 8, bottom: 5 }}>
                   <CartesianGrid {...CHART_STYLE.cartesianGrid} horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="type" width={90} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                  <XAxis type="number" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="type" width={90} tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
                   <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v).toLocaleString(), "Qty"]} />
                   <Bar dataKey="qty" fill="#C4A96A" radius={[0, 4, 4, 0]} label={<HBarLabel />} />
                 </BarChart>
@@ -512,7 +489,7 @@ export default function OfficerAnalyticsPage() {
                   <Tooltip {...CHART_STYLE.tooltip} formatter={(v, name) => [Number(v), String(name)]} />
                   <Legend
                     iconType="circle" iconSize={8}
-                    formatter={(value) => <span style={{ fontSize: 11, color: "#6B6356" }}>{value}</span>}
+                    formatter={(value) => <span style={{ fontSize: 12, color: "#6B6356" }}>{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>

@@ -18,6 +18,14 @@ export const PROHIBITED_PROFILE_KEYS = [
 ] as const;
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().nullable();
+// Resident identity fields are intentionally optional.  A profile may be
+// collected with a stable resident code and consent without retaining a
+// personal name.  Blank strings are normalized to null so callers cannot
+// accidentally persist an empty name or treat it as an identity value.
+const optionalResidentName = (max: number) => z.preprocess(
+  (value) => typeof value === "string" ? (value.trim() === "" ? null : value.trim()) : value,
+  z.string().min(1).max(max).optional().nullable(),
+);
 const controlledText = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values).optional().nullable();
 
 export const householdProfileSchema = z.object({
@@ -39,9 +47,9 @@ export const householdProfileSchema = z.object({
 export const residentProfileSchema = z.object({
   resident_id: z.string().uuid().optional().nullable(),
   household_row_key: z.string().trim().min(1).max(80),
-  first_name: z.string().trim().min(1).max(80),
+  first_name: optionalResidentName(80),
   middle_name: optionalText(80),
-  last_name: z.string().trim().min(1).max(80),
+  last_name: optionalResidentName(80),
   suffix: optionalText(20),
   birth_date: z.string().date().optional().nullable(),
   estimated_age: z.number().int().min(0).max(125).optional().nullable(),

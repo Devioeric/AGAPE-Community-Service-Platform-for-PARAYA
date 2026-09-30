@@ -14,7 +14,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const { id } = await params; const admin = createAdminClient();
   const { data: current } = await admin.from("barangay_assets").select("barangay_id").eq("id", id).maybeSingle();
   if (!current) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
-  if (auth.actor.role.startsWith("barangay_") && auth.actor.barangayId !== current.barangay_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (auth.actor.role === "barangay_secretary" && auth.actor.barangayId !== current.barangay_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { data, error } = await admin.from("barangay_assets").update({ ...parsed.data, updated_at: new Date().toISOString() }).eq("id", id).select("id,updated_at").single();
   return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ data });
 }

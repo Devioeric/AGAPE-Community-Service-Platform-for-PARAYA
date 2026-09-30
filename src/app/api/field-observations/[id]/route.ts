@@ -8,7 +8,7 @@ const patchSchema = z.object({
   barangay_id: z.string().uuid().nullable().optional(), sitio: z.string().trim().max(120).nullable().optional(),
   observation_date: z.string().date().optional(), observation: z.string().trim().min(10).max(4_000).optional(),
   category: z.enum(["environmental", "health", "economic", "social", "infrastructure", "education", "safety", "other"]).nullable().optional(),
-  follow_up_action: z.string().trim().max(1_000).nullable().optional(), promoted_to_need_id: z.string().uuid().nullable().optional(),
+  follow_up_action: z.string().trim().max(1_000).nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
 
 export async function PATCH(request: Request, { params }: Ctx) {

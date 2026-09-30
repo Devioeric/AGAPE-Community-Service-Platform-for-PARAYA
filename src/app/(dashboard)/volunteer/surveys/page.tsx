@@ -116,12 +116,6 @@ export default function VolunteerSurveysPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-foreground">Surveys for Beneficiary Interviews</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Answer surveys on behalf of beneficiaries you&apos;re interviewing in the field. Each submission is logged separately, so you can fill the same survey multiple times — once per beneficiary.
-        </p>
-      </div>
 
       {loading ? (
         <div className="py-20 text-center text-muted-foreground">
@@ -181,7 +175,7 @@ export default function VolunteerSurveysPage() {
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
             {detailLoading ? (
               <div className="py-20 text-center text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading questions…

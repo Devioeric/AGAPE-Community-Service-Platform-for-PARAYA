@@ -12,7 +12,7 @@ export async function GET(_request: Request, { params }: Ctx) {
   if (error) return phase4DatabaseError(error);
   return NextResponse.json({
     data: Array.isArray(data) ? data : [],
-    meta: { canAllowExternalEmail: auth.actor.role === "paraya_director" },
+    meta: { canAllowExternalEmail: auth.actor.role === "paraya_officer" },
   });
 }
 export async function POST(request: Request, { params }: Ctx) {

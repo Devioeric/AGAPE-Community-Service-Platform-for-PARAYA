@@ -44,6 +44,8 @@ export const BACKUP_TABLES: readonly string[] = [
   // Skills & assets
   "barangay_skills",
   "barangay_assets",
+  "barangay_community_profiles",
+  "community_profile_signal_decisions",
 
   // Donations
   "donations",

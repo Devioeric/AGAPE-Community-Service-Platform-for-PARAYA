@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Clock, CheckCircle, Loader2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
@@ -88,36 +90,40 @@ export default function VolunteerHoursPage() {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Date</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Description</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Program</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Hours</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log, i) => (
-                  <tr key={log.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                    <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
-                      {new Date(log.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                    </td>
-                    <td className="py-3 px-4 text-foreground max-w-xs">
-                      <p className="line-clamp-2">{log.description}</p>
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">
-                      {log.programs?.title ?? <span className="italic">General</span>}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-foreground">{log.hours}h</td>
-                    <td className="py-3 px-4">
-                      <Badge className={`${LOG_BADGE[log.status]} capitalize text-xs`}>{log.status}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PaginatedTable rows={logs} label="Activity logs">
+              {(pageRows) => (
+                <table aria-label="Activity logs" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Date</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Description</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Program</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Hours</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((log, i) => (
+                      <tr key={log.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                          {new Date(log.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td className="py-3 px-4 text-foreground max-w-xs">
+                          <p className="line-clamp-2">{log.description}</p>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">
+                          {log.programs?.title ?? <span className="italic">General</span>}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-foreground">{log.hours}h</td>
+                        <td className="py-3 px-4">
+                          <Badge className={`${LOG_BADGE[log.status]} capitalize text-xs`}>{log.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
         )}
       </div>

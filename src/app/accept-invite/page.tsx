@@ -159,7 +159,13 @@ export default function AcceptInvitePage() {
 
       // Redirect to the database-authoritative role returned by the endpoint.
       setTimeout(() => {
-        const home = ROLE_HOME[result.role!] ?? "/volunteer";
+        const home = ROLE_HOME[result.role!];
+        if (!home) {
+          void supabase.auth.signOut();
+          toast.error("This account role is unavailable. Contact an administrator.");
+          router.replace("/login");
+          return;
+        }
         router.replace(home);
         router.refresh();
       }, 2000);

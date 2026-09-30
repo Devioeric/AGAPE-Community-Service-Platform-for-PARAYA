@@ -1,6 +1,7 @@
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { matchSurveyQuestions, surveyDistribution, type SurveyAnswer } from "@/lib/surveys/analysis";
 
 // GET /api/surveys/compare?baseline=<id>&followup=<id>
 // Pre/post analysis at the *population* level — matches questions across two
@@ -23,11 +24,6 @@ interface DbQuestion {
   order_index:   number;
 }
 
-interface AnswerRow {
-  question_id: string;
-  answer_text: string;
-}
-
 interface ResponseRow {
   id:       string;
   excluded: boolean;
@@ -41,30 +37,33 @@ interface SurveyHead {
 }
 
 async function loadSurveyData(adminDb: ReturnType<typeof createAdminClient>, surveyId: string) {
-  const { data: survey } = await adminDb
+  const { data: survey, error: surveyError } = await adminDb
     .from("surveys")
     .select("id, title, description, status, survey_questions(id, question_text, question_type, options, section_title, order_index)")
     .eq("id", surveyId)
-    .single();
+    .maybeSingle();
 
+  if (surveyError) throw new Error("Survey comparison unavailable");
   if (!survey) return null;
 
-  const { data: responses } = await adminDb
+  const { data: responses, error: responseError } = await adminDb
     .from("survey_responses")
     .select("id, excluded")
     .eq("survey_id", surveyId);
+  if (responseError) throw new Error("Survey comparison unavailable");
 
   const allResponses = (responses ?? []) as ResponseRow[];
   const valid        = allResponses.filter((r) => !r.excluded);
   const validIds     = valid.map((r) => r.id);
 
-  let answers: AnswerRow[] = [];
+  let answers: SurveyAnswer[] = [];
   if (validIds.length > 0) {
-    const { data } = await adminDb
+    const { data, error } = await adminDb
       .from("survey_answers")
-      .select("question_id, answer_text")
+      .select("question_id, answer_text, answer_options")
       .in("response_id", validIds);
-    answers = (data ?? []) as AnswerRow[];
+    if (error) throw new Error("Survey comparison unavailable");
+    answers = (data ?? []) as SurveyAnswer[];
   }
 
   return {
@@ -81,42 +80,6 @@ async function loadSurveyData(adminDb: ReturnType<typeof createAdminClient>, sur
   };
 }
 
-function distributionFor(q: DbQuestion, answers: AnswerRow[]) {
-  const qAnswers = answers.filter((a) => a.question_id === q.id);
-  const dist: { label: string; count: number; pct: number }[] = [];
-  const total = qAnswers.length;
-
-  if (q.question_type === "multiple_choice") {
-    (q.options ?? []).forEach((opt) => {
-      const count = qAnswers.filter((a) => a.answer_text === opt).length;
-      dist.push({ label: opt, count, pct: total ? Math.round((count / total) * 1000) / 10 : 0 });
-    });
-  } else if (q.question_type === "checkbox") {
-    (q.options ?? []).forEach((opt) => {
-      const count = qAnswers.filter((a) => {
-        try { return (JSON.parse(a.answer_text) as string[]).includes(opt); }
-        catch { return a.answer_text?.includes(opt); }
-      }).length;
-      // For multi-select the percentage denominator is the response count.
-      dist.push({ label: opt, count, pct: total ? Math.round((count / total) * 1000) / 10 : 0 });
-    });
-  } else if (q.question_type === "rating") {
-    [1, 2, 3, 4, 5].forEach((n) => {
-      const count = qAnswers.filter((a) => a.answer_text === String(n)).length;
-      dist.push({ label: String(n), count, pct: total ? Math.round((count / total) * 1000) / 10 : 0 });
-    });
-  }
-
-  // Numeric average for rating questions
-  let avg: number | null = null;
-  if (q.question_type === "rating") {
-    const nums = qAnswers.map((a) => Number(a.answer_text)).filter((n) => !isNaN(n) && n > 0);
-    if (nums.length > 0) avg = Math.round((nums.reduce((s, x) => s + x, 0) / nums.length) * 100) / 100;
-  }
-
-  return { distribution: dist, response_count: total, average: avg };
-}
-
 export async function GET(request: Request) {
   const auth = await authorizeCapability("survey.analyze");
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -131,6 +94,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Baseline and follow-up cannot be the same survey." }, { status: 400 });
   }
 
+  try {
   const adminDb = createAdminClient();
   const [base, foll] = await Promise.all([
     loadSurveyData(adminDb, baselineId),
@@ -139,31 +103,11 @@ export async function GET(request: Request) {
 
   if (!base || !foll) return NextResponse.json({ error: "Survey not found" }, { status: 404 });
 
-  // Match questions by normalized text. Two questions with the same wording
-  // across the baseline and follow-up are treated as the same item.
-  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-  const baseByKey = new Map<string, DbQuestion>();
-  base.questions.forEach((q) => baseByKey.set(normalize(q.question_text), q));
-
-  const matched: {
-    question_text: string;
-    question_type: string;
-    section_title: string | null;
-    baseline:      ReturnType<typeof distributionFor>;
-    followup:      ReturnType<typeof distributionFor>;
-    // Signed shift between baseline and follow-up averages, when both exist.
-    avg_delta:     number | null;
-  }[] = [];
-  const followupOnly: DbQuestion[] = [];
-
-  for (const fq of foll.questions) {
-    const bq = baseByKey.get(normalize(fq.question_text));
-    if (!bq) { followupOnly.push(fq); continue; }
-    // Type must agree for the distributions to be comparable.
-    if (bq.question_type !== fq.question_type) continue;
-    const baseDist = distributionFor(bq, base.answers);
-    const follDist = distributionFor(fq, foll.answers);
-    matched.push({
+  const { pairs, baselineOnly, followupOnly } = matchSurveyQuestions(base.questions, foll.questions);
+  const matched = pairs.map(({ baseline: bq, followup: fq }) => {
+    const baseDist = surveyDistribution(bq, base.answers);
+    const follDist = surveyDistribution(fq, foll.answers);
+    return {
       question_text: fq.question_text,
       question_type: fq.question_type,
       section_title: fq.section_title,
@@ -172,10 +116,8 @@ export async function GET(request: Request) {
       avg_delta: (baseDist.average != null && follDist.average != null)
         ? Math.round((follDist.average - baseDist.average) * 100) / 100
         : null,
-    });
-    baseByKey.delete(normalize(fq.question_text));
-  }
-  const baselineOnly = Array.from(baseByKey.values());
+    };
+  });
 
   return NextResponse.json({
     data: {
@@ -192,4 +134,7 @@ export async function GET(request: Request) {
       },
     },
   });
+  } catch {
+    return NextResponse.json({ error: "Unable to load the survey comparison" }, { status: 503 });
+  }
 }

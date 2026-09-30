@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { isActiveAccount } from "@/lib/auth/account-status";
-import { ROLE_HOME } from "@/lib/auth/roles";
+import { isActiveLoginRole, isRetiredBarangayRole, ROLE_HOME } from "@/lib/auth/roles";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -35,6 +35,12 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    if (searchParams.get("reason") === "role_retired") {
+      toast.error("This barangay role has been retired; contact the administrator.");
+    }
+  }, [searchParams]);
 
   async function onSubmit(data: FormData) {
     setLoading(true);
@@ -55,22 +61,34 @@ export default function LoginPage() {
       return;
     }
 
+    const { data: hasRetiredBarangayRole } = await supabase.rpc(
+      "phase0_current_account_has_retired_barangay_role"
+    );
+
     const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("role, status, is_active")
       .eq("id", authData.user.id)
       .single();
 
-    if (profileError || !isActiveAccount(profile)) {
+    if (hasRetiredBarangayRole === true || profileError || !isActiveAccount(profile) || !isActiveLoginRole(profile?.role) || isRetiredBarangayRole(profile?.role)) {
       await supabase.auth.signOut();
       toast.error(
-        "This account is pending approval, suspended, or unavailable. Contact an administrator."
+        hasRetiredBarangayRole === true || isRetiredBarangayRole(profile?.role)
+          ? "This barangay role has been retired; contact the administrator."
+          : "This account is pending approval, suspended, or unavailable. Contact an administrator."
       );
       setLoading(false);
       return;
     }
 
-    const home = ROLE_HOME[profile?.role ?? "volunteer"] ?? "/volunteer";
+    const home = profile?.role ? ROLE_HOME[profile.role] : undefined;
+    if (!home) {
+      await supabase.auth.signOut();
+      toast.error("This account role is unavailable. Contact an administrator.");
+      setLoading(false);
+      return;
+    }
     const requested = searchParams.get("next");
     const destination =
       requested?.startsWith("/join/") && !requested.startsWith("//") ? requested : home;
@@ -96,9 +114,9 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <Card className="shadow-card border-border">
+      <Card className="shadow-card border-border gap-0 py-0">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="pt-6 space-y-5">
+          <CardContent className="space-y-5 px-4 py-6">
             <div className="space-y-1.5">
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -136,7 +154,7 @@ export default function LoginPage() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex-col gap-3 pb-6">
+          <CardFooter className="flex-col gap-3 px-4 py-5">
             <Button
               type="submit"
               disabled={loading}

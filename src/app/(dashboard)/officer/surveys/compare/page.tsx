@@ -109,16 +109,6 @@ export default function PrePostComparePage() {
   return (
     <div className="space-y-6">
 
-      <div>
-        <h1 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
-          <GitCompare className="w-5 h-5 text-primary" /> Pre / Post Comparison
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Compare two surveys at the population level. Questions whose wording matches across the
-          two surveys are aligned and their response distributions shown side by side.
-        </p>
-      </div>
-
       {/* ── Picker ─────────────────────────────────────────────────────── */}
       <Card className="border-border shadow-card">
         <CardContent className="p-4 space-y-3">
@@ -210,12 +200,12 @@ export default function PrePostComparePage() {
                   <AlertCircle className="w-4 h-4" /> Unmatched questions
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  These questions could not be aligned. Re-word them to match exactly if you want
-                  them included in the comparison.
+                  These questions have no unique compatible match. Duplicate wording, changed question types
+                  or changed answer choices are excluded to avoid a misleading comparison.
                 </p>
                 {data.unmatched.baseline_only.length > 0 && (
                   <div className="text-xs">
-                    <p className="font-medium text-foreground mt-1">Only in baseline:</p>
+                    <p className="font-medium text-foreground mt-1">Unpaired baseline questions:</p>
                     <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                       {data.unmatched.baseline_only.map((q) => <li key={q.id}>{q.question_text}</li>)}
                     </ul>
@@ -223,7 +213,7 @@ export default function PrePostComparePage() {
                 )}
                 {data.unmatched.followup_only.length > 0 && (
                   <div className="text-xs">
-                    <p className="font-medium text-foreground mt-1">Only in follow-up:</p>
+                    <p className="font-medium text-foreground mt-1">Unpaired follow-up questions:</p>
                     <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                       {data.unmatched.followup_only.map((q) => <li key={q.id}>{q.question_text}</li>)}
                     </ul>
@@ -248,7 +238,7 @@ export default function PrePostComparePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {m.section_title && (
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                           {m.section_title}
                         </p>
                       )}
@@ -317,16 +307,16 @@ function ComparisonChart({ matched }: { matched: MatchedQuestion }) {
     <ResponsiveContainer width="100%" height={Math.max(180, chartRows.length * 32)}>
       <BarChart data={chartRows} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E5DDD0" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
         <YAxis
-          tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false}
+          tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false}
           tickFormatter={(v) => `${v}%`}
           domain={[0, 100]}
         />
         <Tooltip
           contentStyle={{
             background: "#FFFFFF", border: "1px solid #E5DDD0",
-            borderRadius: "8px", fontSize: "12px", color: "#2C2416",
+            borderRadius: "8px", fontSize: "13px", color: "#2C2416",
           }}
           // recharts' Formatter typing is strict but the payload's actual
           // shape is forgiving; cast through unknown to avoid the noise.
@@ -337,7 +327,7 @@ function ComparisonChart({ matched }: { matched: MatchedQuestion }) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           }) as any}
         />
-        <Legend wrapperStyle={{ fontSize: "11px" }} />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
         <Bar dataKey="baseline" fill="#5B7FA5" radius={[3, 3, 0, 0]} maxBarSize={40}>
           {chartRows.map((_, i) => <Cell key={`b-${i}`} />)}
         </Bar>

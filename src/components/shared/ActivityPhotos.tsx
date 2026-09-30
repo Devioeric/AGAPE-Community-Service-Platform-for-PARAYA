@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
+import { hasCapability } from "@/lib/auth/capabilities";
+import { ACTIVITY_PHOTO_MAX_BYTES, ACTIVITY_PHOTO_TYPES } from "@/lib/programs/activity-photo-contract";
 
 // Inline photo gallery + uploader for one program activity.
 // Self-contained — owns its own photo list state so it can be dropped into any
@@ -16,7 +19,6 @@ interface ActivityPhoto {
   caption:      string | null;
   created_at:   string;
   uploaded_by?: string | null;
-  storage_path: string;
 }
 
 export function ActivityPhotos({
@@ -31,11 +33,14 @@ export function ActivityPhotos({
   onCountChange?: (n: number) => void;
   compact?:       boolean;
 }) {
+  const { role, permissions } = useDashboardActor();
+  const canManage = hasCapability(role, permissions, "program.manage");
   const [photos, setPhotos]     = useState<ActivityPhoto[]>([]);
   const [loading, setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing]   = useState<ActivityPhoto | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Parent passes onCountChange inline, so its identity changes every render.
   // Holding it in a ref keeps fetchPhotos stable — otherwise the effect chain
@@ -46,23 +51,35 @@ export function ActivityPhotos({
 
   const fetchPhotos = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/programs/${programId}/activities/${activityId}/photos`);
-    if (res.ok) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/programs/${programId}/activities/${activityId}/photos`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Photo request failed");
       const j = await res.json();
-      const list = (j.data ?? []) as ActivityPhoto[];
+      if (!Array.isArray(j.data)) throw new Error("Invalid photo list");
+      const list = j.data as ActivityPhoto[];
       setPhotos(list);
+      setViewing((current) => current ? list.find((photo) => photo.id === current.id) ?? null : null);
       onCountChangeRef.current?.(list.length);
+    } catch {
+      setError("Photos could not be loaded. Refresh the private links to try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [programId, activityId]);
 
   useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
 
   async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!canManage || !files || files.length === 0) return;
     setUploading(true);
     let success = 0;
+    try {
     for (const file of Array.from(files)) {
+      if (!ACTIVITY_PHOTO_TYPES.some((type) => type === file.type) || file.size === 0 || file.size > ACTIVITY_PHOTO_MAX_BYTES) {
+        toast.error("Choose a nonempty JPEG, PNG or WebP image up to 10 MB.");
+        continue;
+      }
       const form = new FormData();
       form.append("file", file);
       const res = await fetch(
@@ -76,28 +93,38 @@ export function ActivityPhotos({
         toast.error(j.error ?? `Failed to upload ${file.name}`);
       }
     }
+    } catch {
+      toast.error("The upload was interrupted. Check the photo list before retrying.");
+    } finally {
     if (success > 0) {
       toast.success(`Uploaded ${success} photo${success === 1 ? "" : "s"}.`);
       await fetchPhotos();
     }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function deletePhoto(id: string) {
-    if (!confirm("Remove this photo?")) return;
-    const res = await fetch(`/api/activity-photos/${id}`, { method: "DELETE" });
-    if (!res.ok) {
+    if (!canManage) return;
+    if (!confirm("Remove this photo from the activity? The private file will be retained pending safe administrator cleanup.")) return;
+    try {
+      const res = await fetch(`/api/activity-photos/${id}`, { method: "DELETE" });
       const j = await res.json().catch(() => ({}));
-      toast.error(j.error ?? "Failed to delete photo.");
-      return;
+      if (!res.ok) {
+        toast.error(j.error ?? "Failed to remove photo.");
+        return;
+      }
+      setPhotos((p) => {
+        const next = p.filter((x) => x.id !== id);
+        onCountChangeRef.current?.(next.length);
+        return next;
+      });
+      if (viewing?.id === id) setViewing(null);
+      if (j.cleanup_pending) toast.warning("Photo removed from the activity. Its private file is retained pending safe administrator cleanup.");
+    } catch {
+      toast.error("Photo removal was interrupted. Refresh the photo list before trying again.");
     }
-    setPhotos((p) => {
-      const next = p.filter((x) => x.id !== id);
-      onCountChangeRef.current?.(next.length);
-      return next;
-    });
-    if (viewing?.id === id) setViewing(null);
   }
 
   const tileSize = compact ? "w-16 h-16" : "w-20 h-20";
@@ -134,41 +161,44 @@ export function ActivityPhotos({
                   alt={p.caption ?? "Activity photo"}
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  onError={() => setError("A private photo link expired or could not load. Refresh links to try again.")}
                 />
               </button>
             ))}
 
             {/* Upload tile */}
-            <button
+            {canManage && <button
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
               className={cn(
                 tileSize,
-                "rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-primary transition-colors text-[10px]"
+                "rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary/5 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-primary transition-colors text-[11px]"
               )}
             >
               {uploading
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <><Plus className="w-4 h-4" /><span>Add</span></>}
-            </button>
-            <input
+            </button>}
+            {canManage && <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept={ACTIVITY_PHOTO_TYPES.join(",")}
               multiple
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
-            />
+            />}
           </>
         )}
       </div>
+      {error && <div role="alert" className="text-xs text-warning">{error} <button type="button" className="underline" disabled={loading} onClick={() => void fetchPhotos()}>Refresh links</button></div>}
 
       {/* Lightbox viewer */}
       {viewing && (
         <div
           role="dialog"
           aria-modal="true"
+          aria-label="Activity photo viewer"
           onClick={() => setViewing(null)}
           className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4"
         >
@@ -191,16 +221,17 @@ export function ActivityPhotos({
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button
+                {canManage && <button
                   type="button"
                   onClick={() => deletePhoto(viewing.id)}
                   className="h-8 px-2.5 text-xs rounded-lg border border-danger/30 text-danger hover:bg-danger/5 inline-flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete
-                </button>
+                </button>}
                 <button
                   type="button"
                   onClick={() => setViewing(null)}
+                  aria-label="Close photo viewer"
                   className="h-8 w-8 flex items-center justify-center rounded-lg border border-border hover:bg-muted"
                 >
                   <X className="w-3.5 h-3.5" />

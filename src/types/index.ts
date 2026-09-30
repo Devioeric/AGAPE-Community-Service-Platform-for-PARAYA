@@ -1,10 +1,12 @@
+import type { Role } from "@/lib/auth/roles";
+
 // ─────────────────────────────────────────────
 // Enums / Literals
 // ─────────────────────────────────────────────
 
-export type UserRole = "paraya_officer" | "volunteer" | "barangay_official" | "admin";
+export type UserRole = Role;
 export type AccountStatus = "active" | "suspended" | "pending";
-export type ProposalStatus = "draft" | "submitted" | "pre_screening" | "sdg_review" | "finance_review" | "approved" | "rejected";
+export type ProposalStatus = "draft" | "submitted" | "pre_screening" | "sdg_review" | "finance_review" | "revisions_requested" | "approved" | "rejected";
 export type ProgramStatus = "planning" | "active" | "completed" | "cancelled";
 export type ActivityLogStatus = "pending" | "approved" | "rejected";
 export type DonationType = "in_kind" | "cash" | "equipment" | "food" | "other";
@@ -115,10 +117,28 @@ export interface ProposalReview {
   proposal_id: string;
   reviewer_id: string;
   stage: string;
-  decision: "approved" | "rejected" | "needs_revision";
+  decision: ProposalReviewDecision;
   comments?: string;
   reviewed_at: string;
 }
+
+/**
+ * Append-only workflow events recorded in proposal_reviews.
+ *
+ * The first three values are the original review decisions.  The remaining
+ * values are lifecycle events emitted by the legacy proposal workflow RPC.
+ * Keeping them in one shared type prevents the UI/API contract from silently
+ * narrowing valid persisted history back to the old decision-only set.
+ */
+export type ProposalReviewDecision =
+  | "approved"
+  | "rejected"
+  | "needs_revision"
+  | "submitted"
+  | "prescreening_failed"
+  | "finance_cleared"
+  | "revisions_requested"
+  | "resubmitted";
 
 export interface ProposalSDGAlignment {
   id: string;

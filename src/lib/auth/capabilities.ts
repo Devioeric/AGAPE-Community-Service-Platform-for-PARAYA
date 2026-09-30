@@ -9,6 +9,7 @@ export const CAPABILITIES = [
   "historical_program.read", "historical_program.create", "historical_program.import", "historical_program.review",
   "proposal.read", "proposal.create", "proposal.review", "proposal.validation.record", "proposal.decide", "proposal.finance",
   "proposal.catalog.manage", "proposal.submit", "proposal.evidence.confirm", "proposal.handoff",
+  "contributor.partner.read", "contributor.proposal.read", "contributor.proposal.create", "contributor.proposal.revise", "contributor.proposal.edit", "contributor.proposal.submit", "contributor.budget.prepare",
   "program.read", "program.manage",
   "budget.read", "budget.prepare", "budget.review", "budget.actual.record", "budget.liquidation.review", "budget.category.manage",
   "integrity.finance.read", "integrity.finance.request", "integrity.provider.manage",
@@ -26,7 +27,7 @@ export const CAPABILITIES = [
   "report.read", "report.manage",
   "communication.read", "communication.write", "communication.manage", "communication.moderate", "communication.provider.manage",
   "ai.assist", "ai.recommendation.review", "ai.recommendation.configure",
-  "profiling.cycle.manage", "profiling.collect", "profiling.validate", "profiling.endorse",
+  "profiling.cycle.manage", "profiling.collect", "profiling.validate", "profiling.acknowledge", "profiling.endorse",
   "profiling.detail.read", "profiling.aggregate.read", "profiling.privacy.configure",
 ] as const;
 
@@ -60,7 +61,7 @@ export const PERMISSION_MODULES = {
   reports: { key: "reports", label: "Reports", description: "Structured and AI-assisted report drafts." },
   communication: { key: "communication", label: "Communication", description: "Notifications, forum, and coordination." },
   ai_assistance: { key: "ai_assistance", label: "AI assistance", description: "Role-scoped advisory AI assistance using approved data." },
-  profiling: { key: "profiling", label: "Resident profiling", description: "Sampled, consented, cycle-aware profiling." },
+  profiling: { key: "profiling", label: "Community profile", description: "Sampled, consented, cycle-aware profiling." },
 } as const satisfies Record<string, PermissionModule>;
 
 export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODULES> = {
@@ -75,6 +76,7 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
   "proposal.read": "proposals", "proposal.create": "proposals", "proposal.review": "proposals",
   "proposal.validation.record": "proposals", "proposal.decide": "proposals", "proposal.finance": "proposals",
   "proposal.catalog.manage": "proposals", "proposal.submit": "proposals",
+  "contributor.partner.read": "partnerships", "contributor.proposal.read": "proposals", "contributor.proposal.create": "proposals", "contributor.proposal.revise": "proposals", "contributor.proposal.edit": "proposals", "contributor.proposal.submit": "proposals", "contributor.budget.prepare": "budgets",
   "proposal.evidence.confirm": "proposals", "proposal.handoff": "proposals",
   "program.read": "programs", "program.manage": "programs",
   "budget.read": "budgets", "budget.prepare": "budgets", "budget.review": "budgets",
@@ -98,7 +100,7 @@ export const CAPABILITY_MODULE: Record<Capability, keyof typeof PERMISSION_MODUL
   "communication.read": "communication", "communication.write": "communication", "communication.manage": "communication", "communication.moderate": "communication", "communication.provider.manage": "communication",
   "ai.assist": "ai_assistance", "ai.recommendation.review": "ai_assistance", "ai.recommendation.configure": "ai_assistance",
   "profiling.cycle.manage": "profiling", "profiling.collect": "profiling", "profiling.validate": "profiling",
-  "profiling.endorse": "profiling", "profiling.detail.read": "profiling", "profiling.aggregate.read": "profiling",
+  "profiling.acknowledge": "profiling", "profiling.endorse": "profiling", "profiling.detail.read": "profiling", "profiling.aggregate.read": "profiling",
   "profiling.privacy.configure": "profiling",
 };
 
@@ -125,26 +127,39 @@ const PARAYA_OPERATE: Capability[] = [
   "report.manage", "communication.write", "communication.manage", "communication.moderate",
 ];
 
+// The consolidated Officer intentionally receives the union of the former
+// Director, Associate, and Researcher grants. Finance and infrastructure
+// administration remain separate roles.
+const PARAYA_OFFICER_CAPABILITIES: Capability[] = Array.from(new Set([
+  ...PARAYA_READ,
+  ...PARAYA_OPERATE,
+  ...PARTNER_V2_READ,
+  ...PARTNER_V2_OPERATE,
+  "proposal.decide", "proposal.catalog.manage", "proposal.evidence.confirm",
+  "partner.policy.manage", "partner.legacy_mapping.manage", "historical_program.review",
+  "budget.category.manage", "budget.actual.record", "integrity.finance.read", "integrity.finance.request",
+  "profiling.cycle.manage", "profiling.collect", "profiling.validate", "profiling.acknowledge", "profiling.endorse", "profiling.detail.read", "profiling.privacy.configure",
+  "community_need.submit", "community_need.validate", "ai.recommendation.review", "ai.recommendation.configure",
+])) as Capability[];
+
 export const ROLE_CAPABILITIES: Readonly<Partial<Record<Role, readonly Capability[]>>> = {
-  paraya_director: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE,
-    "proposal.decide", "proposal.catalog.manage", "proposal.evidence.confirm", "partner.policy.manage", "partner.legacy_mapping.manage",
-    "historical_program.review", "budget.category.manage", "integrity.finance.read", "integrity.finance.request",
-    "profiling.privacy.configure", "ai.recommendation.review", "ai.recommendation.configure"],
-  paraya_associate: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE, "budget.actual.record"],
-  paraya_researcher: [...PARAYA_READ, ...PARAYA_OPERATE, ...PARTNER_V2_READ, ...PARTNER_V2_OPERATE,
-    "historical_program.review", "proposal.evidence.confirm", "budget.actual.record",
-    "profiling.cycle.manage", "profiling.collect", "profiling.detail.read", "ai.recommendation.review"],
+  paraya_officer: PARAYA_OFFICER_CAPABILITIES,
+  // Contributors are intentionally limited to their own proposal drafts and
+  // submissions. They do not inherit the staff proposal or budget grants.
+  // ai.assist gives them the advisory assistant, whose live data is limited
+  // to their own proposals (see chatbot-context.ts).
+  contributor: ["contributor.partner.read", "contributor.proposal.read", "contributor.proposal.create", "contributor.proposal.revise", "contributor.proposal.edit", "contributor.proposal.submit", "contributor.budget.prepare", "ai.assist"],
   finance_officer: ["proposal.read", "proposal.finance", "budget.read", "budget.review", "budget.liquidation.review", "integrity.finance.read", "integrity.finance.request"],
-  barangay_captain: ["partnership.read", "historical_program.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "community_need.validate", "observation.read", "skill_asset.read", "report.read", "communication.read", "communication.write", "ai.assist", "profiling.detail.read", "profiling.aggregate.read", "profiling.endorse"],
-  barangay_secretary: ["partnership.read", "historical_program.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "report.read", "communication.read", "communication.write", "ai.assist", "profiling.detail.read", "profiling.aggregate.read", "profiling.validate"],
-  barangay_mother_leader: ["partnership.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "skill_asset.manage", "communication.read", "communication.write", "ai.assist", "profiling.collect"],
+  barangay_captain: [],
+  barangay_secretary: ["partnership.read", "historical_program.read", "proposal.validation.record", "survey.read", "survey.respond", "community_need.read", "community_need.submit", "observation.read", "skill_asset.read", "skill_asset.manage", "report.read", "communication.read", "communication.write", "ai.assist", "profiling.collect", "profiling.detail.read", "profiling.aggregate.read", "profiling.acknowledge"],
+  barangay_mother_leader: [],
   volunteer: ["program.read", "volunteer.self", "volunteer.preferences.manage", "survey.read", "survey.respond", "attendance.self", "activity_log.self", "communication.read", "communication.write", "ai.assist"],
   office: ["legacy_partner.history.read"], student_org: ["legacy_partner.history.read"], department: ["legacy_partner.history.read"],
   admin: ["admin.users.manage", "admin.audit.read", "admin.recovery.read", "integrity.provider.manage", "communication.provider.manage"],
-  paraya_officer: [], barangay_official: [],
+  paraya_director: [], paraya_associate: [], paraya_researcher: [], barangay_official: [],
 };
 
-export const UNMAPPED_LEGACY_LOGIN_ROLES = ["paraya_officer", "barangay_official"] as const;
+export const UNMAPPED_LEGACY_LOGIN_ROLES = ["barangay_official"] as const;
 
 /** Role grants are authoritative. A false module override can only subtract. */
 export function hasCapability(role: string | null | undefined, overrides: PermissionOverrides, capability: Capability): boolean {
@@ -166,6 +181,10 @@ export const PAGE_ACCESS_RULES: readonly PageAccessRule[] = [
   { prefix: "/officer/finance", any: ["budget.review"] },
   { prefix: "/officer/phase-2", any: ["partnership.read", "historical_program.read", "proposal.read", "budget.read"] },
   { prefix: "/officer/community-profile", any: ["profiling.detail.read"] },
+  { prefix: "/officer/profiling/legacy", any: ["profiling.detail.read"] },
+  { prefix: "/officer/community-needs/review", any: ["community_need.validate"] },
+  { prefix: "/officer/community-needs/observations", any: ["observation.read"] },
+  { prefix: "/officer/community-needs", any: ["community_need.manage"] },
   { prefix: "/officer/profiling", any: ["profiling.aggregate.read", "profiling.detail.read", "profiling.collect", "profiling.validate"] },
   { prefix: "/officer/surveys", any: ["survey.read"] },
   { prefix: "/officer/observations", any: ["observation.read"] },
@@ -177,12 +196,15 @@ export const PAGE_ACCESS_RULES: readonly PageAccessRule[] = [
   { prefix: "/officer/impact", any: ["impact.read"] },
   { prefix: "/officer/reports", any: ["report.read"] },
   { prefix: "/officer/forum", any: ["communication.read"] },
-  { prefix: "/officer/notifications", any: ["communication.read"] },
   { prefix: "/officer/chatbot", any: ["ai.assist"] },
-  { prefix: "/barangay/approvals", any: ["community_need.validate"] },
+  { prefix: "/contributor/proposals", any: ["contributor.proposal.read"] },
+  { prefix: "/contributor/chatbot", any: ["ai.assist"] },
+  { prefix: "/contributor", any: ["contributor.proposal.read", "contributor.partner.read"] },
   { prefix: "/barangay/reports", any: ["report.read"] },
   { prefix: "/barangay/partnership", any: ["partnership.read"] },
   { prefix: "/barangay/profiling", any: ["profiling.aggregate.read", "profiling.detail.read", "profiling.collect", "profiling.validate"] },
+  { prefix: "/barangay/skills-assets", any: ["skill_asset.manage"] },
+  { prefix: "/barangay/approvals", any: ["profiling.endorse"] },
   { prefix: "/barangay/submit-needs", any: ["community_need.submit"] },
   { prefix: "/barangay/surveys", any: ["survey.read"] },
   { prefix: "/barangay/forum", any: ["communication.read"] },
@@ -198,6 +220,17 @@ function pagePathMatches(pathname: string, prefix: string) {
 }
 
 export function canAccessPage(role: string, permissions: PermissionOverrides, pathname: string): boolean {
+  if (["barangay_captain", "barangay_mother_leader", "barangay_official"].includes(role)) return false;
+  const selfScopedNotificationRoles: Readonly<Record<string, readonly string[]>> = {
+    "/admin/notifications": ["admin"],
+    "/officer/notifications": ["paraya_officer", "finance_officer"],
+    "/barangay/notifications": ["barangay_secretary"],
+    "/volunteer/notifications": ["volunteer"],
+    "/contributor/notifications": ["contributor"],
+  };
+  for (const [prefix, allowedRoles] of Object.entries(selfScopedNotificationRoles)) {
+    if (pagePathMatches(pathname, prefix)) return allowedRoles.includes(role);
+  }
   const rule = PAGE_ACCESS_RULES.find((candidate) => pagePathMatches(pathname, candidate.prefix));
   return !rule || rule.any.some((capability) => hasCapability(role, permissions, capability));
 }

@@ -1,7 +1,9 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useEffect, useState } from "react";
-import { Users, ShieldCheck, Database, AlertCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
@@ -12,12 +14,7 @@ interface DashboardData {
   totalUsers:     number;
   pendingCount:   number;
   securityEvents: number;
-  roleCounts: {
-    paraya_officer:    number;
-    volunteer:         number;
-    barangay_official: number;
-    admin:             number;
-  };
+  roleCounts: Record<string, number>;
   auditLogs: {
     user:   string;
     action: string;
@@ -29,31 +26,19 @@ interface DashboardData {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const ROLE_COLORS: Record<string, string> = {
-  paraya_director:        "#6B5B3E",
-  paraya_associate:       "#8B7A5E",
-  paraya_researcher:      "#4A3F2B",
-  volunteer:              "#C4A96A",
-  barangay_captain:       "#4A7C59",
-  barangay_secretary:     "#6B9C7A",
-  barangay_mother_leader: "#8DB59E",
-  admin:                  "#5B7FA5",
-  // Legacy aliases
   paraya_officer:         "#6B5B3E",
-  barangay_official:      "#4A7C59",
+  finance_officer:        "#7A5B8B",
+  volunteer:              "#C4A96A",
+  barangay_secretary:     "#6B9C7A",
+  admin:                  "#5B7FA5",
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  paraya_director:        "PARAYA Director",
-  paraya_associate:       "PARAYA Associate",
-  paraya_researcher:      "PARAYA Researcher",
+  paraya_officer:         "PARAYA Officer",
+  finance_officer:        "Finance Officer",
   volunteer:              "Volunteers",
-  barangay_captain:       "Barangay Captain",
   barangay_secretary:     "Barangay Secretary",
-  barangay_mother_leader: "Mother Leader",
   admin:                  "Admins",
-  // Legacy aliases
-  paraya_officer:         "PARAYA Officers",
-  barangay_official:      "Barangay Officials",
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -75,19 +60,27 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  const dashboardSummary = <UnifiedDashboardSummary />;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-muted-foreground">Loading dashboard…</span>
+      <div className="space-y-6">
+        {dashboardSummary}
+        <div className="flex items-center justify-center py-32">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading dashboard details…</span>
+        </div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="py-32 text-center text-muted-foreground text-sm">
-        Failed to load dashboard data. Please refresh.
+      <div className="space-y-6">
+        {dashboardSummary}
+        <div className="py-32 text-center text-sm text-muted-foreground">
+          Failed to load dashboard details. Please refresh.
+        </div>
       </div>
     );
   }
@@ -100,56 +93,9 @@ export default function AdminDashboard() {
       color: ROLE_COLORS[role] ?? "#9C9488",
     }));
 
-  const kpiCards = [
-    {
-      label: "Total Users",
-      value: data.totalUsers,
-      sub:   `+${data.pendingCount} pending approval`,
-      icon:  Users,
-    },
-    {
-      label: "Security Events",
-      value: data.securityEvents,
-      sub:   "Last 7 days",
-      icon:  ShieldCheck,
-    },
-    {
-      label: "DB Backups",
-      value: "—",
-      sub:   "Managed by Supabase",
-      icon:  Database,
-    },
-    {
-      label: "Pending Approvals",
-      value: data.pendingCount,
-      sub:   "Awaiting activation",
-      icon:  AlertCircle,
-    },
-  ];
-
   return (
     <div className="space-y-6">
-      <UnifiedDashboardSummary />
-
-      {/* ── KPI Cards ──────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {kpiCards.map((stat) => (
-          <Card key={stat.label} className="border-border shadow-card border-l-4 border-l-accent">
-            <CardContent className="px-5 py-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1 font-heading">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {dashboardSummary}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -177,12 +123,12 @@ export default function AdminDashboard() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: "#fff", border: "1px solid #E5DDD0", borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: "#fff", border: "1px solid #E5DDD0", borderRadius: 8, fontSize: 13 }}
                     formatter={(v, name) => [Number(v), name]}
                   />
                   <Legend
                     iconType="circle" iconSize={8}
-                    formatter={(v) => <span style={{ fontSize: 11, color: "#6B6356" }}>{v}</span>}
+                    formatter={(v) => <span style={{ fontSize: 12, color: "#6B6356" }}>{v}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -201,30 +147,34 @@ export default function AdminDashboard() {
                 No audit events recorded yet.
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-6 py-2 text-muted-foreground font-medium">User</th>
-                    <th className="text-left px-2 py-2 text-muted-foreground font-medium">Action</th>
-                    <th className="text-left px-2 py-2 text-muted-foreground font-medium">Time</th>
-                    <th className="text-left px-2 pr-6 py-2 text-muted-foreground font-medium">Level</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.auditLogs.map((log, i) => (
-                    <tr key={i} className={i % 2 === 0 ? "bg-surface-alt/40" : ""}>
-                      <td className="px-6 py-2.5 text-xs text-muted-foreground max-w-[140px] truncate">{log.user}</td>
-                      <td className="px-2 py-2.5 font-medium text-foreground text-xs">{log.action}</td>
-                      <td className="px-2 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{log.time}</td>
-                      <td className="px-2 pr-6 py-2.5">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LEVEL_COLORS[log.level]}`}>
-                          {log.level}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={data.auditLogs} label="Recent audit entries">
+                {(pageRows) => (
+                  <table aria-label="Recent audit entries" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left px-6 py-2 text-muted-foreground font-medium">User</th>
+                        <th className="text-left px-2 py-2 text-muted-foreground font-medium">Action</th>
+                        <th className="text-left px-2 py-2 text-muted-foreground font-medium">Time</th>
+                        <th className="text-left px-2 pr-6 py-2 text-muted-foreground font-medium">Level</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((log, i) => (
+                        <tr key={i} className={i % 2 === 0 ? "bg-surface-alt/40" : ""}>
+                          <td className="px-6 py-2.5 text-xs text-muted-foreground max-w-[140px] truncate">{log.user}</td>
+                          <td className="px-2 py-2.5 font-medium text-foreground text-xs">{log.action}</td>
+                          <td className="px-2 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{log.time}</td>
+                          <td className="px-2 pr-6 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${LEVEL_COLORS[log.level]}`}>
+                              {log.level}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             )}
           </CardContent>
         </Card>

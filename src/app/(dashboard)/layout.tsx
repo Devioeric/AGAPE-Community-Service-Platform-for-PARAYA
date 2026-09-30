@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
+import { DashboardShell } from "@/components/layout/DashboardShell";
 import { DashboardLayoutClient } from "@/components/layout/DashboardLayoutClient";
 import { PageTransition } from "@/components/layout/PageTransition";
-import { ROLE_SEGMENT } from "@/lib/auth/roles";
+import { isContributorRoleEnabled, ROLE_SEGMENT } from "@/lib/auth/roles";
+import { DashboardActorProvider } from "@/components/layout/DashboardActorContext";
 
 export default async function DashboardLayout({
   children,
@@ -24,7 +24,8 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const segment = ROLE_SEGMENT[dbRole] ?? "volunteer";
+  const segment = ROLE_SEGMENT[dbRole];
+  if (!segment) redirect("/login?reason=role_unmapped");
 
   const userName  = fullName || email;
   const userEmail = email;
@@ -35,28 +36,19 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar
-        role={segment}
-        dbRole={dbRole}
-        userName={userName}
-        userEmail={userEmail}
-        permissions={permissions}
-      />
-      <div className="ml-[280px]">
-        <Header
-          userName={userName}
-          userEmail={userEmail}
-          role={segment}
-        />
-        <main className="pt-16 min-h-screen">
-          <div className="p-6">
+    <DashboardActorProvider actor={{ role: dbRole, permissions }}>
+    <DashboardShell
+      role={segment}
+      dbRole={dbRole}
+      userName={userName}
+      userEmail={userEmail}
+      permissions={permissions}
+      featureFlags={{ AGAPE_CONTRIBUTOR_ROLE_V1_ENABLED: isContributorRoleEnabled() }}
+    >
             <DashboardLayoutClient role={segment}>
               <PageTransition>{children}</PageTransition>
             </DashboardLayoutClient>
-          </div>
-        </main>
-      </div>
-    </div>
+    </DashboardShell>
+    </DashboardActorProvider>
   );
 }

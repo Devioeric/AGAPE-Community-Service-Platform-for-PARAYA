@@ -1,5 +1,7 @@
 import { authorizeCapability } from "@/lib/auth/authorize";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { parseProgramActivityUpdateInput } from "@/lib/programs/mutation-contracts";
+import { programMutationError } from "@/lib/programs/completion-contract";
 import { NextResponse } from "next/server";
 
 type Ctx = { params: Promise<{ id: string; actId: string }> };
@@ -15,7 +17,10 @@ export async function PATCH(request: Request, { params }: Ctx) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const { data, error } = await auth.supabase
+  // RLS blocks direct Officer table updates by design. This trusted route has
+  // already checked program.manage and the strict update contract.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("program_activities")
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq("id", actId)
@@ -23,7 +28,10 @@ export async function PATCH(request: Request, { params }: Ctx) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const failure = programMutationError(error);
+    return NextResponse.json({ error: failure.error, code: failure.code }, { status: failure.status });
+  }
   return NextResponse.json({ data });
 }
 

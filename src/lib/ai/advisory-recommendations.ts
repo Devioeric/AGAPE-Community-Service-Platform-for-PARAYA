@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { focusSdgs, isFocusSdg } from "../sdg-focus.js";
 
 export const needCategorySchema = z.enum([
   "health",
@@ -119,7 +120,7 @@ const interventionSchema = z.object({
   code: z.string().regex(/^[a-z][a-z0-9_]{2,79}$/),
   title: z.string().trim().min(1).max(160),
   description: z.string().trim().min(1).max(500),
-  suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
+  suggestedSdgs: z.array(z.number().int().refine(isFocusSdg)).max(4),
 }).strict();
 
 const resourceSchema = z.object({
@@ -290,7 +291,7 @@ export const advisoryRecommendationSchema = z.object({
     limitation: z.string().trim().min(1).max(500),
   }).strict(),
   partnershipGuidance: partnershipGuidanceSchema,
-  suggestedSdgs: z.array(z.number().int().min(1).max(17)).min(1).max(5),
+  suggestedSdgs: z.array(z.number().int().refine(isFocusSdg)).max(4),
   rationale: z.string().trim().min(1).max(500),
   confidence: z.enum(["high", "medium"]),
   evidence: z.object({
@@ -979,7 +980,7 @@ export function buildAdvisoryRecommendations(input: {
           code: alternative.code,
           title: alternative.title,
           description: alternative.description,
-          suggestedSdgs: alternative.sdgs,
+          suggestedSdgs: focusSdgs(alternative.sdgs),
         })),
         indicativeResources: rule.resources,
         planningBenchmarks: {
@@ -997,7 +998,7 @@ export function buildAdvisoryRecommendations(input: {
               : "Fewer than two usable budget or volunteer observations are available. No range was generated.",
         },
         partnershipGuidance,
-        suggestedSdgs: intervention.sdgs,
+        suggestedSdgs: focusSdgs(intervention.sdgs),
         rationale: hasPartialActiveCoverage
           ? `This approved ${need.category} need has an active linked program, but its recorded coverage is partial. Review the remaining affected group and current outcomes before deciding whether another response is appropriate.${priorProgramNote}`
           : hasPlan

@@ -4,6 +4,10 @@ import { recordAudit, getRequestIp } from "@/lib/audit/log";
 import { notify } from "@/lib/notifications/dispatch";
 import { BARANGAY_ROLES } from "@/lib/auth/roles";
 import { isAdminAssignableLoginRole } from "@/lib/auth/provisioning";
+import {
+  generateTemporaryPassword,
+  validateTemporaryPassword,
+} from "@/lib/auth/temporary-password";
 import { NextResponse } from "next/server";
 
 // Admin "Add User" — direct create with a temporary password.
@@ -16,7 +20,10 @@ export async function POST(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const admin    = createAdminClient();
 
-  const body = await request.json().catch(() => ({}));
+  const parsedBody = await request.json().catch(() => ({}));
+  const body = parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)
+    ? parsedBody as Record<string, unknown>
+    : {};
   const {
     email,
     full_name,
@@ -34,17 +41,36 @@ export async function POST(request: Request) {
   };
 
   // ── Validation ────────────────────────────────────────────────────────────
-  if (!email || !full_name || !password || !role) {
+  const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
+  if (
+    typeof email !== "string" ||
+    typeof full_name !== "string" ||
+    typeof role !== "string" ||
+    (hasPassword && typeof password !== "string")
+  ) {
     return NextResponse.json(
-      { error: "Email, full name, password, and role are required." },
+      { error: "Email, full name, and role are required." },
       { status: 400 }
     );
   }
-  if (full_name.trim().length < 2) {
-    return NextResponse.json({ error: "Full name must be at least 2 characters." }, { status: 400 });
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedName = full_name.trim();
+  if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+    return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  if (normalizedName.length < 2 || normalizedName.length > 200) {
+    return NextResponse.json({ error: "Full name must be between 2 and 200 characters." }, { status: 400 });
+  }
+  if (barangay_id !== undefined && barangay_id !== null && typeof barangay_id !== "string") {
+    return NextResponse.json({ error: "Invalid Barangay assignment." }, { status: 400 });
+  }
+  if (department !== undefined && department !== null && typeof department !== "string") {
+    return NextResponse.json({ error: "Invalid department value." }, { status: 400 });
+  }
+  const temporaryPassword = hasPassword ? password! : generateTemporaryPassword();
+  const passwordError = validateTemporaryPassword(temporaryPassword);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError, code: "invalid_temporary_password" }, { status: 400 });
   }
 
   if (!isAdminAssignableLoginRole(role)) {
@@ -56,6 +82,26 @@ export async function POST(request: Request) {
 
   const isBarangay  = (BARANGAY_ROLES as readonly string[]).includes(role);
   const isVolunteer = role === "volunteer";
+  if (role === "contributor") {
+    const { count, error: contributorCountError } = await admin
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "contributor")
+      .eq("status", "active")
+      .eq("is_active", true);
+    if (contributorCountError) {
+      return NextResponse.json({ error: "Unable to verify Contributor account capacity", code: "account_capacity_unavailable" }, { status: 503 });
+    }
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ error: "Only one active Contributor account is allowed", code: "active_contributor_exists" }, { status: 409 });
+    }
+  }
+  if (isBarangay && !barangay_id) {
+    return NextResponse.json(
+      { error: "A Barangay Secretary must be assigned to a barangay." },
+      { status: 400 },
+    );
+  }
 
   const auditIntentRecorded = await recordAudit({
     user_id:       auth.actor.id,
@@ -80,11 +126,14 @@ export async function POST(request: Request) {
 
   // ── Create auth user ──────────────────────────────────────────────────────
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email,
-    password,
+    email: normalizedEmail,
+    password: temporaryPassword,
     email_confirm: true,
+    // Direct administrator provisioning is already approved. Do not inherit
+    // the pending/banned state used by public self-registration.
+    ban_duration: "none",
     user_metadata: {
-      full_name,
+      full_name: normalizedName,
       role,
       barangay_id: isBarangay ? (barangay_id ?? null) : null,
     },
@@ -93,27 +142,52 @@ export async function POST(request: Request) {
 
   if (createErr || !created?.user) {
     return NextResponse.json(
-      { error: createErr?.message ?? "Failed to create user." },
-      { status: 400 }
+      { error: "Unable to create the authentication identity.", code: "auth_identity_creation_failed" },
+      { status: createErr?.status && createErr.status >= 400 && createErr.status < 500 ? createErr.status : 503 }
     );
   }
 
   // ── Upsert the application users row ──────────────────────────────────────
   const { error: dbError } = await admin.from("users").upsert({
     id:          created.user.id,
-    email,
-    full_name:   full_name.trim(),
+    email: normalizedEmail,
+    full_name:   normalizedName,
     role,
     barangay_id: isBarangay ? (barangay_id ?? null) : null,
     status:      "active",
     is_active:   true,
+    must_change_password: true,
     permissions: {},
   });
 
   if (dbError) {
     // Roll back the auth user so we don't leave an orphan
     await admin.auth.admin.deleteUser(created.user.id).catch(() => {});
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to create the application account", code: "profile_creation_failed" }, { status: 503 });
+  }
+
+  // Keep Auth and the application account in the same approved state. This
+  // explicit update protects local synthetic Auth implementations that apply a
+  // default ban unless the duration is set after creation.
+  const { error: authStateError } = await admin.auth.admin.updateUserById(created.user.id, {
+    ban_duration: "none",
+    app_metadata: { agape_role: role },
+  });
+  if (authStateError) {
+    await admin.from("users").delete().eq("id", created.user.id);
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
+    return NextResponse.json({ error: "The account could not be activated in the authentication provider.", code: "auth_activation_failed" }, { status: 503 });
+  }
+
+  const { data: verifiedProfile, error: verifyError } = await admin
+    .from("users")
+    .select("status, is_active, role")
+    .eq("id", created.user.id)
+    .maybeSingle();
+  if (verifyError || !verifiedProfile || verifiedProfile.status !== "active" || verifiedProfile.is_active !== true || verifiedProfile.role !== role) {
+    await admin.from("users").delete().eq("id", created.user.id);
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
+    return NextResponse.json({ error: "The account profile could not be verified as active.", code: "profile_activation_failed" }, { status: 503 });
   }
 
   // ── Volunteer profile row (non-fatal — table may have stricter NOT NULL constraints) ─
@@ -142,7 +216,7 @@ export async function POST(request: Request) {
     level:         "info",
     ip_address:    getRequestIp(request),
     metadata: {
-      email, role,
+      email: normalizedEmail, role,
       barangay_id: isBarangay ? (barangay_id ?? null) : null,
       department:  isVolunteer ? (department?.trim() ?? null) : null,
     },
@@ -152,10 +226,21 @@ export async function POST(request: Request) {
   await notify({
     user_id:    created.user.id,
     title:      "Welcome to AGAPE",
-    message:    "Your account has been created. Sign in with the temporary password your administrator shared, then update it from your profile.",
+    message:    "Your account has been created. Sign in with the temporary password your administrator shared, then complete the required password change.",
     type:       "announcement",
     action_url: "/",
   });
 
-  return NextResponse.json({ success: true, user_id: created.user.id });
+  // The plaintext credential is never persisted by the application and is
+  // returned only in this successful creation response. It cannot be retrieved
+  // later from User Management or the Auth provider.
+  return NextResponse.json(
+    {
+      success: true,
+      user_id: created.user.id,
+      temporary_password: temporaryPassword,
+      must_change_password: true,
+    },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

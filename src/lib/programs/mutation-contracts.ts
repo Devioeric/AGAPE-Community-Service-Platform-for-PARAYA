@@ -1,5 +1,14 @@
 /** Pure allowlist contracts for program and program-budget writes. */
 
+// Keep the write contract dependency-free so Node's direct contract tests can
+// load it without a Next/TS path resolver. The UI registry in
+// community-profile/targets.ts contains the same stable keys and labels.
+const PROFILE_TARGET_KEYS = new Set([
+  "low_income", "income_insufficient", "no_home_garden", "no_internet", "no_devices",
+  "no_education", "nutrition_concern", "no_health_insurance", "no_healthcare_access",
+  "unmet_medical_cost", "no_toilet", "no_flood_monitoring", "waste_burned", "no_community_org",
+]);
+
 export const PROGRAM_CONTENT_FIELDS = [
   "title",
   "description",
@@ -8,6 +17,7 @@ export const PROGRAM_CONTENT_FIELDS = [
   "end_date",
   "status",
   "max_volunteers",
+  "target_profile_figure",
 ] as const;
 
 export const PROGRAM_STATUSES = [
@@ -73,6 +83,8 @@ export interface ProgramContentInput {
   end_date?: string | null;
   status?: (typeof PROGRAM_STATUSES)[number];
   max_volunteers?: number | null;
+  /** Optional key from PROFILE_TARGETS: the community profile figure the program aims to lower. */
+  target_profile_figure?: string | null;
 }
 
 export interface ProgramBudgetContentInput {
@@ -207,6 +219,13 @@ function parseProgramContent(
       return { ok: false, error: "max_volunteers must be an integer from 0 to 100000 or null." };
     }
     output.max_volunteers = value as number | null;
+  }
+
+  if (Object.hasOwn(input, "target_profile_figure")) {
+    const value = input.target_profile_figure;
+    if (value === null || value === "") output.target_profile_figure = null;
+    else if (typeof value === "string" && PROFILE_TARGET_KEYS.has(value)) output.target_profile_figure = value;
+    else return { ok: false, error: "target_profile_figure must be a known community profile figure or null." };
   }
 
   if (mode === "create" && !Object.hasOwn(output, "status")) output.status = "draft";

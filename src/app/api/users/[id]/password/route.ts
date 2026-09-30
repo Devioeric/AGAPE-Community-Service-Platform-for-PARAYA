@@ -3,6 +3,7 @@ import { authorizeCapability } from "@/lib/auth/authorize";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit, getRequestIp } from "@/lib/audit/log";
 import { NextResponse } from "next/server";
+import { isActiveLoginRole } from "@/lib/auth/roles";
 
 type Body = {
   admin_password: string;
@@ -53,6 +54,9 @@ export async function POST(
   }
 
   const adminClient = createAdminClient();
+  const { data: accountTarget } = await adminClient.from("users").select("role, status, is_active").eq("id", id).maybeSingle();
+  if (!accountTarget) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (!isActiveLoginRole(accountTarget.role)) return NextResponse.json({ error: "Historical accounts cannot use password actions", code: "historical_account" }, { status: 409 });
 
   if (body.mode === "set") {
     const auditIntentRecorded = await recordAudit({

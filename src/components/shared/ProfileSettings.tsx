@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Loader2, Camera, KeyRound, User, Bell, Mail, MessageSquare, Smartphone,
+  Loader2, KeyRound, User, Bell, Mail, MessageSquare, Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -136,88 +136,153 @@ export function ProfileSettings({ userName, userEmail, userRole }: ProfileSettin
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Avatar + identity */}
-      <Card className="border-border shadow-card">
-        <CardHeader className="pb-4">
-          <CardTitle className="font-heading text-lg flex items-center gap-2">
-            <User className="w-4 h-4 text-accent" /> Profile
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Avatar */}
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <Avatar className="w-20 h-20">
-                <AvatarFallback className="text-2xl font-bold bg-primary/20 text-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary-dark transition-colors">
-                <Camera className="w-3.5 h-3.5 text-white" />
-              </button>
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-lg">{userName}</p>
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
-              <div className="mt-1.5">
-                <RoleBadge role={userRole} />
+    <div className="grid w-full max-w-6xl items-start gap-6 xl:grid-cols-2" data-testid="profile-settings">
+      <div className="min-w-0 space-y-6">
+        {/* Avatar + identity */}
+        <Card className="min-w-0 gap-5 border-border py-5 shadow-card sm:py-6">
+          <CardHeader className="px-5 pb-0 sm:px-6">
+            <CardTitle className="font-heading text-lg flex items-center gap-2">
+              <User className="w-4 h-4 text-accent" /> Profile
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 px-5 sm:px-6">
+            {/* Avatar */}
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="relative shrink-0">
+                <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
+                  <AvatarFallback className="text-2xl font-bold bg-primary/20 text-primary">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <div className="min-w-0 [overflow-wrap:anywhere]">
+                <p className="font-semibold text-foreground text-lg">{userName}</p>
+                <p className="text-sm text-muted-foreground">{userEmail}</p>
+                <div className="mt-1.5">
+                  <RoleBadge role={userRole} />
+                </div>
               </div>
             </div>
-          </div>
 
-          <Separator className="bg-border" />
+            <Separator className="bg-border" />
 
-          {/* Profile form */}
-          <form onSubmit={profileForm.handleSubmit(onSaveProfile)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="full_name">Full name</Label>
-              <Input
-                id="full_name"
-                className="focus-visible:ring-primary/30"
-                {...profileForm.register("full_name")}
-              />
-              {profileForm.formState.errors.full_name && (
-                <p className="text-xs text-danger">{profileForm.formState.errors.full_name.message}</p>
-              )}
-            </div>
+            {/* Profile form */}
+            <form onSubmit={profileForm.handleSubmit(onSaveProfile)} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="full_name">Full name</Label>
+                <Input
+                  id="full_name"
+                  className="focus-visible:ring-primary/30"
+                  {...profileForm.register("full_name")}
+                />
+                {profileForm.formState.errors.full_name && (
+                  <p className="text-xs text-danger">{profileForm.formState.errors.full_name.message}</p>
+                )}
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={userEmail}
-                disabled
-                className="bg-muted/40 text-muted-foreground cursor-not-allowed"
-              />
-              <p className="text-xs text-muted-foreground">Email cannot be changed. Contact an admin if needed.</p>
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={userEmail}
+                  disabled
+                  className="bg-muted/40 text-muted-foreground cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground">Email cannot be changed. Contact an admin if needed.</p>
+              </div>
 
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                disabled={savingProfile}
-                className="bg-primary hover:bg-primary-dark text-white"
-              >
-                {savingProfile && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                Save Changes
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="bg-primary hover:bg-primary-dark text-white"
+                >
+                  {savingProfile && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Save Changes
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Change password */}
+        <Card className="min-w-0 gap-5 border-border py-5 shadow-card sm:py-6">
+          <CardHeader className="px-5 pb-0 sm:px-6">
+            <CardTitle className="font-heading text-lg flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-accent" /> Change Password
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 sm:px-6">
+            <form onSubmit={passwordForm.handleSubmit(onChangePassword)} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="current_password">Current password</Label>
+                <Input
+                  id="current_password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="focus-visible:ring-primary/30"
+                  {...passwordForm.register("current_password")}
+                />
+                {passwordForm.formState.errors.current_password && (
+                  <p className="text-xs text-danger">{passwordForm.formState.errors.current_password.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="new_password">New password</Label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  className="focus-visible:ring-primary/30"
+                  {...passwordForm.register("new_password")}
+                />
+                {passwordForm.formState.errors.new_password && (
+                  <p className="text-xs text-danger">{passwordForm.formState.errors.new_password.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm_password">Confirm new password</Label>
+                <Input
+                  id="confirm_password"
+                  type="password"
+                  placeholder="Repeat new password"
+                  className="focus-visible:ring-primary/30"
+                  {...passwordForm.register("confirm_password")}
+                />
+                {passwordForm.formState.errors.confirm_password && (
+                  <p className="text-xs text-danger">{passwordForm.formState.errors.confirm_password.message}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={savingPassword}
+                  variant="outline"
+                  className="border-primary text-primary hover:bg-primary/5"
+                >
+                  {savingPassword && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Update Password
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Notification preferences */}
-      <Card className="border-border shadow-card">
-        <CardHeader className="pb-4">
+      <Card className="min-w-0 gap-5 border-border py-5 shadow-card sm:py-6">
+        <CardHeader className="px-5 pb-0 sm:px-6">
           <CardTitle className="font-heading text-lg flex items-center gap-2">
             <Bell className="w-4 h-4 text-accent" /> Notification Preferences
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-5 px-5 sm:px-6">
           <div className="space-y-1.5">
-            <Label htmlFor="phone" className="flex items-center gap-1.5">
+            <Label htmlFor="phone" className="flex flex-wrap items-center gap-1.5">
               <Smartphone className="w-3.5 h-3.5 text-muted-foreground" /> Mobile number
               <span className="text-muted-foreground font-normal">(for SMS)</span>
             </Label>
@@ -253,7 +318,7 @@ export function ProfileSettings({ userName, userEmail, userRole }: ProfileSettin
                     : "border-border bg-surface hover:bg-surface-alt/40",
                 )}
               >
-                <Icon className={cn("w-4 h-4 mt-0.5", prefs[key] ? "text-primary" : "text-muted-foreground")} />
+                <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", prefs[key] ? "text-primary" : "text-muted-foreground")} />
                 <div className="flex-1 min-w-0">
                   <p className={cn("text-sm font-medium", prefs[key] ? "text-foreground" : "text-muted-foreground")}>{label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
@@ -281,72 +346,6 @@ export function ProfileSettings({ userName, userEmail, userRole }: ProfileSettin
               Save Preferences
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Change password */}
-      <Card className="border-border shadow-card">
-        <CardHeader className="pb-4">
-          <CardTitle className="font-heading text-lg flex items-center gap-2">
-            <KeyRound className="w-4 h-4 text-accent" /> Change Password
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={passwordForm.handleSubmit(onChangePassword)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="current_password">Current password</Label>
-              <Input
-                id="current_password"
-                type="password"
-                placeholder="••••••••"
-                className="focus-visible:ring-primary/30"
-                {...passwordForm.register("current_password")}
-              />
-              {passwordForm.formState.errors.current_password && (
-                <p className="text-xs text-danger">{passwordForm.formState.errors.current_password.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="new_password">New password</Label>
-              <Input
-                id="new_password"
-                type="password"
-                placeholder="Min. 8 characters"
-                className="focus-visible:ring-primary/30"
-                {...passwordForm.register("new_password")}
-              />
-              {passwordForm.formState.errors.new_password && (
-                <p className="text-xs text-danger">{passwordForm.formState.errors.new_password.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm_password">Confirm new password</Label>
-              <Input
-                id="confirm_password"
-                type="password"
-                placeholder="Repeat new password"
-                className="focus-visible:ring-primary/30"
-                {...passwordForm.register("confirm_password")}
-              />
-              {passwordForm.formState.errors.confirm_password && (
-                <p className="text-xs text-danger">{passwordForm.formState.errors.confirm_password.message}</p>
-              )}
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                disabled={savingPassword}
-                variant="outline"
-                className="border-primary text-primary hover:bg-primary/5"
-              >
-                {savingPassword && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                Update Password
-              </Button>
-            </div>
-          </form>
         </CardContent>
       </Card>
     </div>

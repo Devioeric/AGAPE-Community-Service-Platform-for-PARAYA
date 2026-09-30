@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity, ClipboardList, Users, Clock,
@@ -158,24 +160,6 @@ export default function BarangayReportsPage() {
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-primary" /> {barangay.name}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {barangay.municipality}, {barangay.province} · Partner since {fmtDate(barangay.partnership_start)}
-          </p>
-        </div>
-        <Badge className={barangay.is_active
-          ? "bg-success/10 text-success border-success/20 border"
-          : "bg-muted text-muted-foreground border"
-        }>
-          {barangay.is_active ? "Active Partnership" : "Inactive"}
-        </Badge>
-      </div>
-
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -219,30 +203,34 @@ export default function BarangayReportsPage() {
             <div className="py-10 text-center text-sm text-muted-foreground">No programs hosted yet.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y border-border bg-surface-alt/50">
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Title</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Start</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">End</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.programs.map((p, i) => (
-                    <tr key={p.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                      <td className="py-3 px-4 font-medium text-foreground">{p.title}</td>
-                      <td className="py-3 px-4">
-                        <Badge className={`${PROGRAM_BADGE[p.status] ?? "bg-muted text-muted-foreground border"} text-[10px] capitalize`}>
-                          {p.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">{fmtDate(p.start_date)}</td>
-                      <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{fmtDate(p.end_date)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={data.programs} label="Barangay programs">
+                {(pageRows) => (
+                  <table aria-label="Barangay programs" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-y border-border bg-surface-alt/50">
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Title</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Start</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">End</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((p, i) => (
+                        <tr key={p.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                          <td className="py-3 px-4 font-medium text-foreground">{p.title}</td>
+                          <td className="py-3 px-4">
+                            <Badge className={`${PROGRAM_BADGE[p.status] ?? "bg-muted text-muted-foreground border"} text-[11px] capitalize`}>
+                              {p.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">{fmtDate(p.start_date)}</td>
+                          <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{fmtDate(p.end_date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>
@@ -268,41 +256,45 @@ export default function BarangayReportsPage() {
             <div className="py-10 text-center text-sm text-muted-foreground">No needs submitted from this barangay yet.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y border-border bg-surface-alt/50">
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Category</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Description</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Priority</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Submitted</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.needs.map((n, i) => (
-                    <tr key={n.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                      <td className="py-3 px-4 capitalize text-foreground">{n.category}</td>
-                      <td className="py-3 px-4 text-muted-foreground max-w-xs">
-                        {n.title && <p className="text-foreground text-sm font-medium">{n.title}</p>}
-                        {n.description && <p className="text-xs line-clamp-1">{n.description}</p>}
-                      </td>
-                      <td className="py-3 px-4">
-                        {n.priority ? (
-                          <Badge className={`${PRIORITY_BADGE[n.priority] ?? "bg-muted text-muted-foreground border"} text-[10px] capitalize`}>
-                            {n.priority}
-                          </Badge>
-                        ) : <span className="text-xs text-muted-foreground/50">—</span>}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground whitespace-nowrap hidden md:table-cell">{fmtDate(n.created_at)}</td>
-                      <td className="py-3 px-4">
-                        {n.resolved
-                          ? <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="w-3.5 h-3.5" /> Resolved</span>
-                          : <span className="inline-flex items-center gap-1 text-xs text-warning"><AlertCircle className="w-3.5 h-3.5" /> Pending</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={data.needs} label="Barangay needs">
+                {(pageRows) => (
+                  <table aria-label="Barangay needs" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-y border-border bg-surface-alt/50">
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Category</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Description</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Priority</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Submitted</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((n, i) => (
+                        <tr key={n.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                          <td className="py-3 px-4 capitalize text-foreground">{n.category}</td>
+                          <td className="py-3 px-4 text-muted-foreground max-w-xs">
+                            {n.title && <p className="text-foreground text-sm font-medium">{n.title}</p>}
+                            {n.description && <p className="text-xs line-clamp-1">{n.description}</p>}
+                          </td>
+                          <td className="py-3 px-4">
+                            {n.priority ? (
+                              <Badge className={`${PRIORITY_BADGE[n.priority] ?? "bg-muted text-muted-foreground border"} text-[11px] capitalize`}>
+                                {n.priority}
+                              </Badge>
+                            ) : <span className="text-xs text-muted-foreground/50">—</span>}
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground whitespace-nowrap hidden md:table-cell">{fmtDate(n.created_at)}</td>
+                          <td className="py-3 px-4">
+                            {n.resolved
+                              ? <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="w-3.5 h-3.5" /> Resolved</span>
+                              : <span className="inline-flex items-center gap-1 text-xs text-warning"><AlertCircle className="w-3.5 h-3.5" /> Pending</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>
@@ -328,22 +320,26 @@ export default function BarangayReportsPage() {
             <div className="py-10 text-center text-sm text-muted-foreground">No survey responses from this barangay yet.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y border-border bg-surface-alt/50">
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Survey</th>
-                    <th className="text-left py-3 px-4 text-muted-foreground font-medium">Submitted</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.surveyResponses.map((r, i) => (
-                    <tr key={r.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                      <td className="py-3 px-4 text-foreground">{r.survey_title}</td>
-                      <td className="py-3 px-4 text-muted-foreground">{fmtDate(r.submitted_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={data.surveyResponses} label="Survey responses">
+                {(pageRows) => (
+                  <table aria-label="Survey responses" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-y border-border bg-surface-alt/50">
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Survey</th>
+                        <th className="text-left py-3 px-4 text-muted-foreground font-medium">Submitted</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((r, i) => (
+                        <tr key={r.id} className={`border-b border-border/60 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                          <td className="py-3 px-4 text-foreground">{r.survey_title}</td>
+                          <td className="py-3 px-4 text-muted-foreground">{fmtDate(r.submitted_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>

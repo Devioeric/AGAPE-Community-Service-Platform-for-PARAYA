@@ -16,10 +16,8 @@ import {
 import { authorizeCapability } from "@/lib/auth/authorize";
 import { hasCapability } from "@/lib/auth/capabilities";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { validateProfilingAggregateDTO } from "@/lib/profiling/privacy";
 import { isPhase2ComponentEnabled } from "@/lib/phase2/feature";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ProfilingAggregateDTO } from "@/types/profiling";
 
 const querySchema = z.object({
   barangay_id: z.string().uuid().optional(),
@@ -226,52 +224,7 @@ export async function GET(request: Request) {
       }
     }
   }
-  const profilingByBarangay = new Map<string, { snapshotId: string; aggregate: ProfilingAggregateDTO }>();
-  if (barangayIds.length > 0) {
-    const cyclesResult = await admin
-      .from("profiling_cycles")
-      .select("id,barangay_id,collection_ends_on,status")
-      .in("barangay_id", barangayIds)
-      .in("status", ["completed", "archived"])
-      .order("collection_ends_on", { ascending: false })
-      .limit(500);
-    if (cyclesResult.error) {
-      console.error("[ai-recommendations] profiling cycle context query failed", { code: cyclesResult.error.code });
-      return NextResponse.json({ error: "Unable to load approved aggregate context" }, { status: 500 });
-    }
-    const cycleIds = (cyclesResult.data ?? []).map((cycle) => cycle.id);
-    if (cycleIds.length > 0) {
-      const evidenceResult = await admin
-        .from("profiling_evidence_snapshots")
-        .select("id,cycle_id,aggregate_schema_version,aggregate_data,generated_at")
-        .in("cycle_id", cycleIds)
-        .eq("aggregate_schema_version", "agape.profiling.aggregate.v2")
-        .order("generated_at", { ascending: false })
-        .limit(500);
-      if (evidenceResult.error) {
-        console.error("[ai-recommendations] profiling evidence context query failed", { code: evidenceResult.error.code });
-        return NextResponse.json({ error: "Unable to load approved aggregate context" }, { status: 500 });
-      }
-      const evidenceByCycle = new Map<string, { id: string; aggregate: ProfilingAggregateDTO }>();
-      for (const evidence of evidenceResult.data ?? []) {
-        if (evidenceByCycle.has(evidence.cycle_id)) continue;
-        try {
-          evidenceByCycle.set(evidence.cycle_id, {
-            id: evidence.id,
-            aggregate: validateProfilingAggregateDTO(evidence.aggregate_data),
-          });
-        } catch {
-          console.warn("[ai-recommendations] ignored invalid aggregate evidence", { snapshotId: evidence.id });
-        }
-      }
-      for (const cycle of cyclesResult.data ?? []) {
-        if (profilingByBarangay.has(cycle.barangay_id)) continue;
-        const evidence = evidenceByCycle.get(cycle.id);
-        if (!evidence || evidence.aggregate.cycle.id !== cycle.id) continue;
-        profilingByBarangay.set(cycle.barangay_id, { snapshotId: evidence.id, aggregate: evidence.aggregate });
-      }
-    }
-  }
+  // Profiling evidence snapshots were built from reconstructed household records; recommendations no longer cite them (decision 2026-09-30).
   const localCapacityByBarangay = new Map<string, {
     skillCategories: Array<{ category: "trade" | "education" | "health" | "agriculture" | "technology" | "other"; practitionerCount: number }>;
     assetCategories: Array<{ type: "facility" | "equipment" | "natural" | "infrastructure" | "other"; usableQuantity: number }>;
@@ -567,8 +520,6 @@ export async function GET(request: Request) {
         return Boolean(endDate && endDate >= recentProgramWindowStart && endDate <= historyAsOfDate);
       }).length;
       const barangay = need.barangays as unknown as { name: string } | null;
-      const profiling = profilingByBarangay.get(need.barangay_id);
-      const needCell = profiling?.aggregate.cells.find((cell) => cell.dimension === "needs" && cell.key === need.category) ?? null;
       const historicalBenchmark = historyByCategory.get(need.category);
       const plannedBeneficiaryCounts = (proposalPlanningLinksByNeed.get(need.id) ?? [])
         .filter((link) => PLANNED_PROPOSAL_STATUSES.has(proposalStatuses.get(link.proposalId) ?? ""))
@@ -595,19 +546,7 @@ export async function GET(request: Request) {
         largestLinkedPlannedBeneficiaryCount: plannedBeneficiaryCounts.length > 0
           ? Math.max(...plannedBeneficiaryCounts)
           : null,
-        profilingEvidence: profiling ? {
-          evidenceSnapshotId: profiling.snapshotId,
-          cycleId: profiling.aggregate.cycle.id,
-          cycleName: profiling.aggregate.cycle.name,
-          reportingDate: profiling.aggregate.cycle.reportingDate,
-          sampleMethod: profiling.aggregate.sample.method,
-          approvedHouseholds: profiling.aggregate.sample.approvedHouseholds,
-          approvedResidents: profiling.aggregate.sample.approvedResidents,
-          coveragePercent: profiling.aggregate.sample.coveragePercent,
-          responseRatePercent: profiling.aggregate.sample.responseRatePercent,
-          needCount: needCell?.count ?? null,
-          dataQuality: profiling.aggregate.dataQuality,
-        } : null,
+        profilingEvidence: null,
         historicalBenchmark: historicalBenchmark ? {
           matchedRecords: historicalBenchmark.matchedRecords,
           budgetTotals: historicalBenchmark.budgetTotals,

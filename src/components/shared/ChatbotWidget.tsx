@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, Fragment } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { MessageCircle, X, Send, Loader2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ChatMessage } from "@/lib/ai/chatbot";
-import { getAvailableModules } from "@/lib/ai/chatbot-modules";
+import { hasCapability, type PermissionOverrides } from "@/lib/auth/capabilities";
+import { useChatbotConversation } from "@/components/shared/useChatbotConversation";
+import { ChatbotTopicPicker } from "@/components/shared/ChatbotTopicPicker";
+import { ChatbotNavigationLinks } from "@/components/shared/ChatbotNavigationLinks";
 
 /** Tiny markdown-ish renderer: paragraphs, bullet lists, numbered lists, **bold**, *italic*, `code`.
  *  Scoped to what the chatbot is told to output — not a full markdown impl. */
@@ -28,7 +30,7 @@ function renderInline(text: string): React.ReactNode {
   return parts.length ? parts : text;
 }
 
-function FormattedMessage({ content }: { content: string }) {
+export function FormattedMessage({ content }: { content: string }) {
   const lines  = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -93,17 +95,16 @@ function FormattedMessage({ content }: { content: string }) {
 
 interface Props {
   role: string;
+  permissions?: PermissionOverrides;
 }
 
-export function ChatbotWidget({ role }: Props) {
+export function ChatbotWidget({ role, permissions }: Props) {
   const [open, setOpen]           = useState(false);
-  const [messages, setMessages]   = useState<ChatMessage[]>([]);
+  const { messages, navigation, loading, error, send, retry, clear } = useChatbotConversation(role, permissions);
   const [input, setInput]         = useState("");
-  const [loading, setLoading]     = useState(false);
   const [module, setModule]       = useState<string>("");  // "" = auto-detect
   const bottomRef                 = useRef<HTMLDivElement>(null);
-  const inputRef                  = useRef<HTMLInputElement>(null);
-  const modules                   = useMemo(() => getAvailableModules(role), [role]);
+  const inputRef                  = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -112,91 +113,14 @@ export function ChatbotWidget({ role }: Props) {
     }
   }, [messages, open]);
 
-  // Don't show chatbot on pages that don't need it (keeps it out of admin-only flows)
-  if (role === "admin") return null;
+  if (!hasCapability(role, permissions, "ai.assist")) return null;
 
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const userMsg: ChatMessage = { role: "user", content: text };
-    const historySnapshot = messages;
-    setMessages((prev) => [...prev, userMsg, { role: "assistant", content: "" }]);
     setInput("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/ai/chatbot", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          message:             text,
-          conversationHistory: historySnapshot,
-          module:              module || null,
-        }),
-      });
-
-      if (!res.ok || !res.body) {
-        const j = await res.json().catch(() => ({}));
-        setMessages((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = {
-            role:    "assistant",
-            content: j.error ?? "Sorry, I'm having trouble responding right now. Please try again.",
-          };
-          return next;
-        });
-        return;
-      }
-
-      const reader  = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer    = "";
-      let assistantText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const raw of lines) {
-          const line = raw.trim();
-          if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5).trim();
-          if (payload === "[DONE]") continue;
-          try {
-            const obj = JSON.parse(payload) as { chunk?: string; error?: string };
-            if (obj.error) {
-              assistantText = obj.error;
-            } else if (obj.chunk) {
-              assistantText += obj.chunk;
-            }
-            setMessages((prev) => {
-              const next = [...prev];
-              next[next.length - 1] = { role: "assistant", content: assistantText };
-              return next;
-            });
-          } catch {
-            // skip malformed line
-          }
-        }
-      }
-    } catch (err) {
-      console.error("[chatbot] fetch failed:", err);
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role:    "assistant",
-          content: "Sorry, the connection dropped. Please try again.",
-        };
-        return next;
-      });
-    } finally {
-      setLoading(false);
-    }
+    await send(text, module || null);
   }
 
   function handleKey(e: React.KeyboardEvent) {
@@ -207,7 +131,7 @@ export function ChatbotWidget({ role }: Props) {
     <>
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-20 right-6 z-50 w-80 sm:w-96 flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-border bg-surface">
+        <div className="fixed bottom-20 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] max-w-96 flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-border bg-surface">
           {/* Header */}
           <div className="flex items-center gap-2.5 px-4 py-3 bg-primary text-white shrink-0">
             <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
@@ -218,6 +142,7 @@ export function ChatbotWidget({ role }: Props) {
               <p className="text-xs text-white/70">AI-powered platform guide</p>
             </div>
             <button
+              aria-label="Close AGAPE Assistant"
               onClick={() => setOpen(false)}
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
             >
@@ -278,51 +203,36 @@ export function ChatbotWidget({ role }: Props) {
               </div>
             )}
 
+            {error && <div role="alert" className="text-sm text-danger"><p>{error}</p><Button variant="outline" size="sm" onClick={() => void retry()} disabled={loading}>Retry</Button></div>}
+            {!loading && <ChatbotNavigationLinks links={navigation} />}
+            {messages.length > 0 && <Button variant="ghost" size="sm" onClick={() => { clear(); setInput(""); setModule(""); }}>New chat</Button>}
             <div ref={bottomRef} />
           </div>
 
           {/* Input area */}
           <div className="shrink-0 border-t border-border bg-surface">
             {/* Topic picker */}
-            <div className="px-3 pt-2 pb-1 flex items-center gap-2">
-              <label htmlFor="chatbot-topic" className="text-[11px] text-muted-foreground shrink-0">Topic</label>
-              <select
-                id="chatbot-topic"
-                value={module}
-                onChange={(e) => setModule(e.target.value)}
-                disabled={loading}
-                className="flex-1 text-xs bg-surface-alt/50 border border-border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 cursor-pointer"
-              >
-                <option value="">Auto-detect</option>
-                {modules.map((m) => (
-                  <option key={m.key} value={m.key}>{m.label}</option>
-                ))}
-              </select>
-              {module && (
-                <button
-                  type="button"
-                  onClick={() => setModule("")}
-                  className="text-[11px] text-muted-foreground hover:text-primary transition-colors"
-                  title="Clear topic filter"
-                >
-                  Clear
-                </button>
-              )}
+            <div className="px-3 pt-2 pb-1">
+              <ChatbotTopicPicker role={role} permissions={permissions} value={module} onChange={setModule} disabled={loading} />
             </div>
 
             {/* Message input */}
             <div className="px-3 pt-1 pb-3 flex gap-2">
-              <input
+              <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
                 disabled={loading}
                 placeholder="Ask me anything…"
+                aria-label="Message the AGAPE Assistant"
+                maxLength={2000}
+                rows={1}
                 className="flex-1 text-sm bg-surface-alt/50 border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground disabled:opacity-50"
               />
               <Button
                 size="sm"
+                aria-label="Send message"
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
                 className="w-9 h-9 p-0 rounded-xl bg-primary hover:bg-primary-light text-white flex-shrink-0"

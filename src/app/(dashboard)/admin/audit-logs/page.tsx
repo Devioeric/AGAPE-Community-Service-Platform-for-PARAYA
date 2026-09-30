@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, Filter, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -158,53 +160,54 @@ export default function AuditLogsPage() {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium whitespace-nowrap">Timestamp</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">User</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Action</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Resource</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">IP</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Level</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading audit logs…
-                    </td>
-                  </tr>
-                ) : logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                      No audit entries{search || level !== "all" ? " match your filters" : " recorded yet"}.
-                    </td>
-                  </tr>
-                ) : logs.map((log, i) => (
-                  <tr key={log.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                    <td className="py-3 px-4 text-muted-foreground whitespace-nowrap font-mono text-xs">{fmtTimestamp(log.created_at)}</td>
-                    <td className="py-3 px-4 text-foreground max-w-[180px] truncate">{log.user_email ?? "system"}</td>
-                    <td className="py-3 px-4 font-medium text-foreground whitespace-nowrap">{log.action}</td>
-                    <td className="py-3 px-4 text-muted-foreground hidden md:table-cell max-w-[220px] truncate font-mono text-xs">
-                      {log.resource_type
-                        ? <>{log.resource_type}{log.resource_id ? ` / ${log.resource_id.slice(0, 8)}` : ""}</>
-                        : "—"}
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell font-mono text-xs">{log.ip_address ?? "—"}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${LEVEL_STYLES[log.level]}`}>
-                        {LEVEL_LABEL[log.level]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
-            {loading ? "Loading…" : `Showing ${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
+            <PaginatedTable rows={logs} label="Audit entries" resetKey={JSON.stringify([search, level])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Audit entries" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium whitespace-nowrap">Timestamp</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">User</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Action</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Resource</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">IP</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Level</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center text-muted-foreground">
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading audit logs…
+                        </td>
+                      </tr>
+                    ) : logs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center text-muted-foreground">
+                          No audit entries{search || level !== "all" ? " match your filters" : " recorded yet"}.
+                        </td>
+                      </tr>
+                    ) : pageRows.map((log, i) => (
+                      <tr key={log.id} className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                        <td className="py-3 px-4 text-muted-foreground whitespace-nowrap font-mono text-xs">{fmtTimestamp(log.created_at)}</td>
+                        <td className="py-3 px-4 text-foreground max-w-[180px] truncate">{log.user_email ?? "system"}</td>
+                        <td className="py-3 px-4 font-medium text-foreground whitespace-nowrap">{log.action}</td>
+                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell max-w-[220px] truncate font-mono text-xs">
+                          {log.resource_type
+                            ? <>{log.resource_type}{log.resource_id ? ` / ${log.resource_id.slice(0, 8)}` : ""}</>
+                            : "—"}
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell font-mono text-xs">{log.ip_address ?? "—"}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${LEVEL_STYLES[log.level]}`}>
+                            {LEVEL_LABEL[log.level]}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
         </CardContent>
       </Card>

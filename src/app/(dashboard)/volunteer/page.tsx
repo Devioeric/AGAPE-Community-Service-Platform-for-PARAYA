@@ -1,19 +1,15 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useEffect, useState } from "react";
-import { Clock, Activity, Calendar, Loader2, Bell, FileText } from "lucide-react";
+import { Loader2, Bell, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface DashboardData {
-  stats: {
-    totalHours:         number;
-    activitiesJoined:   number;
-    activitiesThisMonth: number;
-    upcomingEvents:     number;
-  };
   announcements: {
     id:         string;
     type:       string;
@@ -74,69 +70,36 @@ export default function VolunteerDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  const dashboardSummary = <UnifiedDashboardSummary />;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32 gap-2 text-muted-foreground">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="text-sm">Loading dashboard…</span>
+      <div className="space-y-6">
+        {dashboardSummary}
+        <div className="flex items-center justify-center gap-2 py-32 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Loading dashboard details…</span>
+        </div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="py-32 text-center text-muted-foreground text-sm">
-        Failed to load dashboard. Please refresh the page.
+      <div className="space-y-6">
+        {dashboardSummary}
+        <div className="py-32 text-center text-sm text-muted-foreground">
+          Failed to load dashboard details. Please refresh the page.
+        </div>
       </div>
     );
   }
 
-  const { stats, announcements, recentLogs } = data;
-
-  const statCards = [
-    {
-      label: "Total Hours",
-      value: stats.totalHours.toLocaleString(),
-      icon:  Clock,
-      sub:   "This semester",
-    },
-    {
-      label: "Activities Joined",
-      value: stats.activitiesJoined,
-      icon:  Activity,
-      sub:   `${stats.activitiesThisMonth} this month`,
-    },
-    {
-      label: "Upcoming Events",
-      value: stats.upcomingEvents,
-      icon:  Calendar,
-      sub:   "Next 7 days",
-    },
-  ];
+  const { announcements, recentLogs } = data;
 
   return (
     <div className="space-y-6">
-      <UnifiedDashboardSummary />
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label} className="border-border shadow-card border-l-4 border-l-accent">
-            <CardContent className="px-5 py-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1 font-heading">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {dashboardSummary}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -182,34 +145,38 @@ export default function VolunteerDashboard() {
                 <p className="text-sm">No activity logged yet.</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 text-muted-foreground font-medium">Date</th>
-                    <th className="text-left py-2 text-muted-foreground font-medium">Program</th>
-                    <th className="text-left py-2 text-muted-foreground font-medium">Hours</th>
-                    <th className="text-left py-2 text-muted-foreground font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentLogs.map((row, i) => (
-                    <tr key={row.id} className={i % 2 === 0 ? "bg-surface-alt/40" : ""}>
-                      <td className="py-2.5 text-muted-foreground">{fmtDate(row.date)}</td>
-                      <td className="py-2.5 font-medium text-foreground">{row.program}</td>
-                      <td className="py-2.5 text-foreground">{row.hours}h</td>
-                      <td className="py-2.5">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                            STATUS_COLORS[row.status] ?? "bg-muted/30 text-muted-foreground"
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={recentLogs} label="Recent activity">
+                {(pageRows) => (
+                  <table aria-label="Recent activity" className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 text-muted-foreground font-medium">Date</th>
+                        <th className="text-left py-2 text-muted-foreground font-medium">Program</th>
+                        <th className="text-left py-2 text-muted-foreground font-medium">Hours</th>
+                        <th className="text-left py-2 text-muted-foreground font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((row, i) => (
+                        <tr key={row.id} className={i % 2 === 0 ? "bg-surface-alt/40" : ""}>
+                          <td className="py-2.5 text-muted-foreground">{fmtDate(row.date)}</td>
+                          <td className="py-2.5 font-medium text-foreground">{row.program}</td>
+                          <td className="py-2.5 text-foreground">{row.hours}h</td>
+                          <td className="py-2.5">
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                                STATUS_COLORS[row.status] ?? "bg-muted/30 text-muted-foreground"
+                              }`}
+                            >
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             )}
           </CardContent>
         </Card>

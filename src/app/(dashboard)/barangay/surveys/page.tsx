@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { SectionTabs } from "@/components/layout/SectionTabs";
 
 interface Survey {
   id: string;
@@ -116,10 +117,7 @@ export default function BarangaySurveysPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-foreground">Available Surveys</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Complete surveys assigned by PARAYA officers to help with community planning.</p>
-      </div>
+      <SectionTabs section="barangay.needs-assessment" label="Community Needs Assessment sections" />
 
       {loading ? (
         <div className="py-20 text-center text-muted-foreground">
@@ -177,7 +175,7 @@ export default function BarangaySurveysPage() {
             {detail?.description && <p className="text-sm text-muted-foreground mt-1">{detail.description}</p>}
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
             {detailLoading ? (
               <div className="py-20 text-center text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading questions…

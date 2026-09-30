@@ -100,9 +100,9 @@ export default function SignupPage() {
         </p>
       </div>
 
-      <Card className="shadow-card border-border">
+      <Card className="shadow-card border-border gap-0 py-0">
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="pt-6 space-y-4">
+          <CardContent className="space-y-5 px-4 py-6">
             <div className="space-y-1.5">
               <Label htmlFor="fullName">Full name</Label>
               <Input
@@ -167,7 +167,7 @@ export default function SignupPage() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex-col gap-3 pb-6">
+          <CardFooter className="flex-col gap-3 px-4 py-5">
             <Button
               type="submit"
               disabled={loading}

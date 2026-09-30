@@ -20,20 +20,14 @@ export async function GET() {
   const pendingCount = (users ?? []).filter((u) => u.status === "pending").length;
 
   const roleCounts: Record<string, number> = {
-    paraya_director:        0,
-    paraya_associate:       0,
-    paraya_researcher:      0,
-    volunteer:              0,
-    barangay_captain:       0,
-    barangay_secretary:     0,
-    barangay_mother_leader: 0,
-    admin:                  0,
-    // Legacy aliases, still counted separately during the transition
     paraya_officer:         0,
-    barangay_official:      0,
+    finance_officer:        0,
+    volunteer:              0,
+    barangay_secretary:     0,
+    admin:                  0,
   };
   for (const u of users ?? []) {
-    if (u.role in roleCounts) roleCounts[u.role]++;
+    if (u.status === "active" && u.role in roleCounts) roleCounts[u.role]++;
   }
 
   // ── Security events (last 7 days) ─────────────────────────────────────────────

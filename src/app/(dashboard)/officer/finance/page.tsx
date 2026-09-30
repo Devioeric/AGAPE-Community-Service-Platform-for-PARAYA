@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, Banknote, CheckCircle2, XCircle, ExternalLink, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -117,13 +119,6 @@ export default function FinanceQueuePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold text-foreground">Finance Clearance</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Proposals waiting on budget clearance. Approving here marks finance_clearance and unblocks PARAYA to advance the proposal to approved status.
-        </p>
-      </div>
-
       {/* Pending queue */}
       <Card className="border-border shadow-card">
         <CardHeader className="flex flex-row items-center justify-between pb-4 pt-5 px-6">
@@ -203,31 +198,35 @@ export default function FinanceQueuePage() {
             <p className="text-sm text-muted-foreground py-6 text-center">No clearances yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
-                  <tr>
-                    <th className="py-2 px-3">Proposal</th>
-                    <th className="py-2 px-3">Barangay</th>
-                    <th className="py-2 px-3">Budget</th>
-                    <th className="py-2 px-3">Cleared</th>
-                    <th className="py-2 px-3">Current status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((r) => (
-                    <tr key={r.id} className="border-b border-border last:border-0">
-                      <td className="py-3 px-3 font-medium text-foreground">
-                        {r.title}
-                        {r.finance_notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{r.finance_notes}</p>}
-                      </td>
-                      <td className="py-3 px-3 text-muted-foreground">{r.barangays?.name ?? "—"}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{fmtPeso(r.budget)}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{fmtDate(r.finance_cleared_at)}</td>
-                      <td className="py-3 px-3 capitalize text-muted-foreground">{r.status.replace(/_/g, " ")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <PaginatedTable rows={recent} label="Finance decisions">
+                {(pageRows) => (
+                  <table aria-label="Finance decisions" className="w-full text-sm">
+                    <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="py-2 px-3">Proposal</th>
+                        <th className="py-2 px-3">Barangay</th>
+                        <th className="py-2 px-3">Budget</th>
+                        <th className="py-2 px-3">Cleared</th>
+                        <th className="py-2 px-3">Current status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((r) => (
+                        <tr key={r.id} className="border-b border-border last:border-0">
+                          <td className="py-3 px-3 font-medium text-foreground">
+                            {r.title}
+                            {r.finance_notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{r.finance_notes}</p>}
+                          </td>
+                          <td className="py-3 px-3 text-muted-foreground">{r.barangays?.name ?? "—"}</td>
+                          <td className="py-3 px-3 text-muted-foreground">{fmtPeso(r.budget)}</td>
+                          <td className="py-3 px-3 text-muted-foreground">{fmtDate(r.finance_cleared_at)}</td>
+                          <td className="py-3 px-3 capitalize text-muted-foreground">{r.status.replace(/_/g, " ")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </PaginatedTable>
             </div>
           )}
         </CardContent>
@@ -307,7 +306,7 @@ export default function FinanceQueuePage() {
             )}
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
             {/* Key facts grid */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>

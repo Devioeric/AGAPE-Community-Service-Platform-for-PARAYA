@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -15,66 +17,15 @@ import {
   LineChart, Line, PieChart, Pie, Cell,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { parseProgramAnalytics, programBudgetWorkbookRows, type ProgramAnalytics } from "@/lib/programs/analytics-contract";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
+import { hasCapability } from "@/lib/auth/capabilities";
 
 // Per-program analytics dashboard. Backed by /api/programs/[id]/analytics
 // which does the seven-table rollup server-side.
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface ProgramAnalytics {
-  program: {
-    id:                   string;
-    title:                string;
-    description:          string | null;
-    status:               string;
-    start_date:           string | null;
-    end_date:             string | null;
-    budget:               number | null;
-    target_beneficiaries: number | null;
-    barangay_name:        string | null;
-  };
-  kpis: {
-    activities_total:     number;
-    activities_completed: number;
-    attendance_total:     number;
-    signups_active:       number;
-    hours_approved:       number;
-    hours_pending:        number;
-    budget_planned:       number;
-    budget_actual:        number;
-    budget_utilization:   number;
-  };
-  activities: {
-    id:         string; title: string; date: string; status: string;
-    is_past:    boolean; attendance: number;
-  }[];
-  activities_by_status: Record<string, number>;
-  signups_by_status:    Record<string, number>;
-  hours_timeline:       { month: string; hours: number }[];
-  followups: {
-    stages:  { stage: "immediate" | "6_month" | "12_month"; total: number; completed: number }[];
-    records: {
-      id: string; followup_type: string; status: string;
-      scheduled_date: string; completed_date: string | null; notes: string | null;
-    }[];
-  };
-  budget_lines: {
-    id: string; category: string;
-    planned_amount: number | null; actual_amount: number | null; notes: string | null;
-  }[];
-  impact: {
-    indicators: {
-      id: string; indicator_type: string; value: number | null; unit: string;
-      recorded_date: string; notes: string | null;
-    }[];
-    indicator_totals: Record<string, { value: number; unit: string }>;
-    qualitative: {
-      id: string; type: string; content: string;
-      subject_name: string | null; recorded_date: string;
-    }[];
-    qualitative_by_type: Record<string, number>;
-  };
-}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -83,7 +34,7 @@ const CHART_STYLE = {
   tooltip: {
     contentStyle: {
       background: "#FFFFFF", border: "1px solid #E5DDD0",
-      borderRadius: "8px", fontSize: "12px", color: "#2C2416",
+      borderRadius: "8px", fontSize: "13px", color: "#2C2416",
     },
   },
 };
@@ -140,24 +91,41 @@ const currency = (n: number | null | undefined) => {
 
 export default function ProgramAnalyticsPage({ params }: { params: { id: string } }) {
   const { id } = params;
+  const actor = useDashboardActor();
+  const canReadImpact = hasCapability(actor.role, actor.permissions, "impact.read");
   const [data, setData]       = useState<ProgramAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+  const [canRetry, setCanRetry] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/programs/${id}/analytics`)
+    setData(null);
+    setError(null);
+    setCanRetry(true);
+    fetch(`/api/programs/${id}/analytics`, { cache: "no-store", signal: controller.signal })
       .then(async (r) => {
+        if (controller.signal.aborted) return;
         if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          setError(j.error ?? "Failed to load analytics");
+          setCanRetry(![401, 403, 404].includes(r.status));
+          setError(r.status === 401 ? "Your session has expired. Please sign in again."
+            : r.status === 403 ? "You do not have access to program analytics."
+            : r.status === 404 ? "Program not found."
+            : "Program analytics could not be loaded. Please retry.");
           return;
         }
         const j = await r.json();
-        setData(j.data);
+        const parsed = parseProgramAnalytics(j.data);
+        if (!controller.signal.aborted) setData(parsed);
       })
-      .finally(() => setLoading(false));
-  }, [id]);
+      .catch(() => {
+        if (!controller.signal.aborted) setError("Program analytics could not be loaded. Please retry.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [id, retry]);
 
   if (loading) {
     return (
@@ -172,7 +140,10 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
         <Link href="/officer/programs" className="text-sm text-primary hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Programs
         </Link>
-        <Card className="border-danger/20"><CardContent className="p-6 text-sm text-danger">{error ?? "Not found"}</CardContent></Card>
+        <Card className="border-danger/20"><CardContent className="p-6 text-sm text-danger space-y-3">
+          <p role="alert">{error ?? "Program analytics could not be loaded."}</p>
+          {canRetry && <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Retry</Button>}
+        </CardContent></Card>
       </div>
     );
   }
@@ -218,13 +189,7 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
         },
         {
           name: "Budget",
-          rows: snapshot.budget_lines.map((b) => ({
-            Category: b.category,
-            Planned:  b.planned_amount ?? 0,
-            Actual:   b.actual_amount  ?? 0,
-            Variance: (b.planned_amount ?? 0) - (b.actual_amount ?? 0),
-            Notes:    b.notes ?? "",
-          })),
+          rows: programBudgetWorkbookRows(snapshot.budget_lines),
         },
         {
           name: "Impact Indicators",
@@ -374,7 +339,7 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
       </div>
 
       {/* ── Budget vs Actual ──────────────────────────────────────────────── */}
-      {(kpis.budget_planned > 0 || kpis.budget_actual > 0) && (
+      {(data.budget_lines.length > 0 || kpis.budget_planned > 0 || kpis.budget_actual > 0) && (
         <Card className="border-border shadow-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -414,24 +379,28 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
 
             {data.budget_lines.length > 0 && (
               <div className="border border-border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-surface-alt/50 border-b border-border">
-                    <tr>
-                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Category</th>
-                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Planned</th>
-                      <th className="text-right py-2 px-3 text-muted-foreground font-medium">Actual</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.budget_lines.map((b) => (
-                      <tr key={b.id} className="border-b border-border/60 last:border-0">
-                        <td className="py-2 px-3 text-foreground">{b.category}</td>
-                        <td className="py-2 px-3 text-right tabular-nums">{currency(b.planned_amount)}</td>
-                        <td className="py-2 px-3 text-right tabular-nums">{currency(b.actual_amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <PaginatedTable rows={data.budget_lines} label="Budget items">
+                  {(pageRows) => (
+                    <table aria-label="Budget items" className="w-full text-sm">
+                      <thead className="bg-surface-alt/50 border-b border-border">
+                        <tr>
+                          <th className="text-left py-2 px-3 text-muted-foreground font-medium">Category</th>
+                          <th className="text-right py-2 px-3 text-muted-foreground font-medium">Planned</th>
+                          <th className="text-right py-2 px-3 text-muted-foreground font-medium">Actual</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageRows.map((b) => (
+                          <tr key={b.id} className="border-b border-border/60 last:border-0">
+                            <td className="py-2 px-3 text-foreground">{b.category}</td>
+                            <td className="py-2 px-3 text-right tabular-nums">{currency(b.allocated)}</td>
+                            <td className="py-2 px-3 text-right tabular-nums">{currency(b.spent)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </PaginatedTable>
               </div>
             )}
           </CardContent>
@@ -454,8 +423,8 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={data.hours_timeline} margin={{ top: 5, right: 16, left: -10, bottom: 5 }}>
                   <CartesianGrid {...CHART_STYLE.cartesianGrid} vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [v, "hours"]} />
                   <Line
                     type="monotone" dataKey="hours" stroke="#6B5B3E" strokeWidth={2}
@@ -527,8 +496,8 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
                 margin={{ top: 5, right: 16, left: 80, bottom: 5 }}
               >
                 <CartesianGrid {...CHART_STYLE.cartesianGrid} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} width={120} />
+                <XAxis type="number" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} width={120} />
                 <Tooltip {...CHART_STYLE.tooltip} />
                 <Bar dataKey="attendance" fill="#C4A96A" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -564,12 +533,13 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
                 ))}
               </div>
             )}
-            {data.impact.indicators.length > 0 && (
+            {data.impact.indicators.length > 0 && canReadImpact && (
               <Link
-                href="/officer/impact"
+                href={`/officer/impact/programs/${id}`}
+                prefetch={false}
                 className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-2"
               >
-                Manage indicators →
+                Open impact report →
               </Link>
             )}
           </CardContent>
@@ -652,7 +622,7 @@ export default function ProgramAnalyticsPage({ params }: { params: { id: string 
                   </div>
                   <Badge
                     className={cn(
-                      "border text-[10px] capitalize",
+                      "border text-[11px] capitalize",
                       f.status === "completed"   ? "bg-success/10 text-success border-success/20"
                       : f.status === "in_progress" ? "bg-warning/10 text-warning border-warning/20"
                       :                            "bg-info/10    text-info    border-info/20"

@@ -85,9 +85,8 @@ export const DYCI_STUDENT_ORGS = [
 //   (a) what shows in the admin permissions toggle dialog
 //   (b) which keys can be turned on/off per-user (via users.permissions JSONB)
 //
-// The 3 PARAYA roles share a common base (full system access) and the 3
-// barangay roles share their own base. The exact defaults differ per role —
-// e.g., Captain gets the approval queue, Mother Leader gets sitio profiling.
+// The PARAYA roles share a common module catalog. Barangay Secretary is the
+// sole authenticated barangay role; historical barangay roles have no modules.
 
 type Module = { key: string; label: string; description: string };
 
@@ -96,7 +95,7 @@ type Module = { key: string; label: string; description: string };
 // admin permissions toggle dialog speaks the same language as the Scope and
 // Delimitation document.
 const PARAYA_FULL_MODULES: Module[] = [
-  { key: "profiling",         label: "Resident Profiling",               description: "Role-scoped cycle and approved-sample profiling access" },
+  { key: "profiling",         label: "Community Profile",               description: "Role-scoped cycle and approved-sample profiling access" },
   { key: "partnerships",      label: "Partnership Management",          description: "Manage barangay partnerships and contact directories" },
   { key: "proposals",         label: "Project Proposal & Approval Workflow", description: "Create proposals, run the validation queue, and clear them through the approval pipeline" },
   { key: "community_profile", label: "Community Needs Assessment",      description: "Conduct household profiling, field observations, and survey analysis" },
@@ -125,10 +124,10 @@ const VOLUNTEER_MODULES: Module[] = [
 ];
 
 const BARANGAY_MODULES: Module[] = [
-  { key: "profiling",    label: "Resident Profiling",           description: "Collect, validate, endorse, or view profiles according to barangay role" },
+  { key: "profiling",    label: "Community Profile",           description: "Collect and import profiles, correct returned packages, and acknowledge validated cycles" },
   { key: "partnership",  label: "Partnership Management",      description: "View own barangay profile, contacts, and partnership history" },
   { key: "submit_needs", label: "Community Needs Assessment",  description: "Submit and update community needs assessments" },
-  { key: "approvals",    label: "Community Needs Approval",    description: "Captain-only: review and approve community needs submitted by Secretary or Mother Leader" },
+  { key: "skills_assets", label: "Skill & Asset Documentation", description: "Manage skills and assets for the assigned barangay" },
   { key: "surveys",      label: "Survey Responses",            description: "Respond to surveys published by PARAYA officers" },
   { key: "reports",      label: "Reporting",                   description: "Access barangay-specific program and impact reports" },
   { key: "forum",        label: "Communication (Forum)",       description: "Participate in the discussion forum with PARAYA staff and volunteers" },
@@ -136,15 +135,11 @@ const BARANGAY_MODULES: Module[] = [
 
 export const ROLE_MODULES: Record<string, Module[]> = {
   // New roles
-  paraya_director:        PARAYA_FULL_MODULES,
-  paraya_associate:       PARAYA_FULL_MODULES,
-  paraya_researcher:      PARAYA_FULL_MODULES,
-  volunteer:              VOLUNTEER_MODULES,
-  barangay_captain:       BARANGAY_MODULES,
-  barangay_secretary:     BARANGAY_MODULES,
-  barangay_mother_leader: BARANGAY_MODULES,
-
-  // Legacy aliases — kept identical so existing users continue working
   paraya_officer:         PARAYA_FULL_MODULES,
-  barangay_official:      BARANGAY_MODULES,
+  volunteer:              VOLUNTEER_MODULES,
+  barangay_secretary:     BARANGAY_MODULES,
+  barangay_captain:       [],
+  barangay_mother_leader: [],
+
+  barangay_official:      [],
 };

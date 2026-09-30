@@ -1,16 +1,21 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Search, Loader2, Plus, MoreHorizontal, Package,
-  Gift, TrendingDown, Calendar, MapPin,
+  Gift, TrendingDown, Calendar, MapPin, Archive, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { hasCapability } from "@/lib/auth/capabilities";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -103,10 +108,13 @@ const today = () => new Date().toISOString().split("T")[0];
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OfficerDonationsPage() {
+  const { role, permissions } = useDashboardActor();
+  const canManage = hasCapability(role, permissions, "donation.manage");
   const [donations, setDonations]   = useState<Donation[]>([]);
   const [barangays, setBarangays]   = useState<Barangay[]>([]);
   const [programs, setPrograms]     = useState<Program[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dateFrom, setDateFrom]     = useState("");
@@ -121,10 +129,15 @@ export default function OfficerDonationsPage() {
   const [detailOpen, setDetailOpen]       = useState(false);
   const [detailDon, setDetailDon]         = useState<DonationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   // Distribution dialog
   const [distFormOpen, setDistFormOpen] = useState(false);
   const [distSaving, setDistSaving]     = useState(false);
+  const [correction, setCorrection] = useState<{ donationId: string; distributionId?: string } | null>(null);
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionSaving, setCorrectionSaving] = useState(false);
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
 
   const donationForm = useForm<DonationForm>({
     resolver: zodResolver(donationSchema),
@@ -139,25 +152,75 @@ export default function OfficerDonationsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    try {
     const [donRes, barRes, progRes] = await Promise.all([
       fetch("/api/donations"),
       fetch("/api/partnerships"),
       fetch("/api/programs"),
     ]);
-    if (donRes.ok)  { const j = await donRes.json();  setDonations(j.data ?? []); }
+    if (!donRes.ok) throw new Error("Donation inventory request failed");
+    const donationBody = await donRes.json();
+    if (!Array.isArray(donationBody.data)) throw new Error("Invalid donation inventory");
+    setDonations(donationBody.data);
     if (barRes.ok)  { const j = await barRes.json();  setBarangays(j.data ?? []); }
     if (progRes.ok) { const j = await progRes.json(); setPrograms(j.data  ?? []); }
-    setLoading(false);
+    } catch {
+      setLoadError("Donation inventory could not be refreshed. Try again.");
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const fetchDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
-    const res = await fetch(`/api/donations/${id}`);
-    if (res.ok) { const j = await res.json(); setDetailDon(j.data); }
-    setDetailLoading(false);
+    setDetailError(null);
+    try {
+      const res = await fetch(`/api/donations/${id}`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Donation request failed");
+      const j = await res.json();
+      if (!j.data?.id) throw new Error("Invalid donation details");
+      setDetailDon(j.data);
+    } catch {
+      setDetailError("Donation details could not be loaded. Close this panel and reopen the record to try again.");
+    } finally { setDetailLoading(false); }
   }, []);
+
+  function openCorrection(donationId: string, distributionId?: string) {
+    if (!canManage) return;
+    setCorrection({ donationId, distributionId });
+    setCorrectionReason("");
+    setCorrectionError(null);
+  }
+
+  async function saveCorrection() {
+    if (!correction || !canManage || correctionReason.trim().length < 3 || correctionSaving) return;
+    setCorrectionSaving(true);
+    setCorrectionError(null);
+    const target = correction;
+    try {
+      const url = target.distributionId
+        ? `/api/donations/${target.donationId}/distributions/${target.distributionId}/void`
+        : `/api/donations/${target.donationId}/archive`;
+      const response = await fetch(url, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: correctionReason.trim() }),
+      });
+      if (!response.ok) throw new Error("Correction failed");
+      setCorrection(null);
+      if (target.distributionId) {
+        toast.success("Distribution voided. Its history is retained.");
+        await fetchDetail(target.donationId);
+      } else {
+        setDetailOpen(false);
+        setDetailDon(null);
+        toast.success("Donation archived. Its history is retained.");
+      }
+      await fetchAll();
+    } catch {
+      setCorrectionError("The correction could not be saved. Reload the record and try again.");
+    } finally { setCorrectionSaving(false); }
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
@@ -285,6 +348,7 @@ export default function OfficerDonationsPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && <div role="alert" className="rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm">{loadError} <Button size="sm" variant="outline" onClick={() => void fetchAll()}>Retry</Button></div>}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -333,83 +397,87 @@ export default function OfficerDonationsPage() {
                   Clear
                 </Button>
               )}
-              <Button onClick={openCreate} className="bg-primary hover:bg-primary-light text-white">
+              {canManage && <Button onClick={openCreate} className="bg-primary hover:bg-primary-light text-white">
                 <Plus className="w-4 h-4 mr-1.5" /> Record Donation
-              </Button>
+              </Button>}
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Donor</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Item</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Qty</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Date</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Distributed</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
-                  </td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
-                    {donations.length === 0 ? "No donations recorded yet." : "No donations match your search."}
-                  </td></tr>
-                ) : filtered.map((d, i) => {
-                  const distQty = d.donation_distributions.reduce((s, x) => s + (x.quantity ?? 0), 0);
-                  const remaining = (d.quantity ?? 0) - distQty;
-                  return (
-                    <tr
-                      key={d.id}
-                      className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
-                      onClick={() => openDetail(d)}
-                    >
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-foreground">{d.donor_name}</p>
-                        <Badge className={`${DONOR_BADGE[d.donor_type] ?? ""} capitalize text-xs mt-0.5`}>{d.donor_type}</Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="text-foreground">{d.item_type}</p>
-                        {d.programs && <p className="text-xs text-muted-foreground mt-0.5">{d.programs.title}</p>}
-                      </td>
-                      <td className="py-3 px-4 text-foreground hidden sm:table-cell">
-                        {(d.quantity ?? 0).toLocaleString()} {d.unit}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                        {fmtDate(d.received_date)}
-                      </td>
-                      <td className="py-3 px-4 hidden lg:table-cell">
-                        <span className={`text-sm font-medium ${remaining > 0 ? "text-warning" : "text-success"}`}>
-                          {distQty.toLocaleString()} / {(d.quantity ?? 0).toLocaleString()}
-                        </span>
-                        {remaining > 0 && (
-                          <p className="text-xs text-muted-foreground">{remaining.toLocaleString()} remaining</p>
-                        )}
-                      </td>
-                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
-                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            <DropdownMenuGroup>
-                              <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(d)}>View Details</DropdownMenuItem>
-                              <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(d)}>Edit</DropdownMenuItem>
-                            </DropdownMenuGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
+            <PaginatedTable rows={filtered} label="Donations" resetKey={JSON.stringify([search, typeFilter, dateFrom, dateTo])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Donations" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Donor</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Item</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Qty</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Date</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Distributed</th>
+                      <th className="py-3 px-4 w-10" />
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+                      </td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
+                        {donations.length === 0 ? "No donations recorded yet." : "No donations match your search."}
+                      </td></tr>
+                    ) : pageRows.map((d, i) => {
+                      const distQty = d.donation_distributions.reduce((s, x) => s + (x.quantity ?? 0), 0);
+                      const remaining = (d.quantity ?? 0) - distQty;
+                      return (
+                        <tr
+                          key={d.id}
+                          className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
+                          onClick={() => openDetail(d)}
+                        >
+                          <td className="py-3 px-4">
+                            <p className="font-medium text-foreground">{d.donor_name}</p>
+                            <Badge className={`${DONOR_BADGE[d.donor_type] ?? ""} capitalize text-xs mt-0.5`}>{d.donor_type}</Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <p className="text-foreground">{d.item_type}</p>
+                            {d.programs && <p className="text-xs text-muted-foreground mt-0.5">{d.programs.title}</p>}
+                          </td>
+                          <td className="py-3 px-4 text-foreground hidden sm:table-cell">
+                            {(d.quantity ?? 0).toLocaleString()} {d.unit}
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                            {fmtDate(d.received_date)}
+                          </td>
+                          <td className="py-3 px-4 hidden lg:table-cell">
+                            <span className={`text-sm font-medium ${remaining > 0 ? "text-warning" : "text-success"}`}>
+                              {distQty.toLocaleString()} / {(d.quantity ?? 0).toLocaleString()}
+                            </span>
+                            {remaining > 0 && (
+                              <p className="text-xs text-muted-foreground">{remaining.toLocaleString()} remaining</p>
+                            )}
+                          </td>
+                          <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
+                                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(d)}>View Details</DropdownMenuItem>
+                                  <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(d)}>Edit</DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
           <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
             {filtered.length} of {donations.length} donations
@@ -426,7 +494,7 @@ export default function OfficerDonationsPage() {
             </SheetTitle>
           </SheetHeader>
           <form onSubmit={donationForm.handleSubmit(onDonationSubmit)} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-5">
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
@@ -530,7 +598,7 @@ export default function OfficerDonationsPage() {
       {/* ── Donation Detail Sheet ───────────────────────────────────────────────── */}
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
         <SheetContent className="w-full sm:max-w-3xl p-0 flex flex-col">
-          {detailLoading || !detailDon ? (
+          {detailError ? <div role="alert" className="p-6 text-sm text-danger">{detailError}</div> : detailLoading || !detailDon ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
@@ -554,16 +622,19 @@ export default function OfficerDonationsPage() {
                       )}
                     </div>
                   </div>
+                  {canManage && <div className="flex gap-2">
                   <Button
                     size="sm" variant="outline"
                     onClick={() => { setDetailOpen(false); openEdit(detailDon); }}
                   >
                     Edit
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => openCorrection(detailDon.id)}><Archive className="mr-1 h-3.5 w-3.5" />Archive</Button>
+                  </div>}
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+              <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-6">
 
                 {/* Item summary */}
                 <div className="grid grid-cols-3 gap-3">
@@ -621,13 +692,13 @@ export default function OfficerDonationsPage() {
                     <p className="text-sm font-semibold text-foreground">
                       Distribution Records ({detailDon.donation_distributions.length})
                     </p>
-                    <Button
+                    {canManage && <Button
                       size="sm"
                       onClick={() => { distForm.reset({ distribution_type: "regular", distribution_date: today() }); setDistFormOpen(true); }}
                       className="bg-primary hover:bg-primary-light text-white h-8 text-xs"
                     >
                       <Plus className="w-3.5 h-3.5 mr-1" /> Distribute
-                    </Button>
+                    </Button>}
                   </div>
 
                   {detailDon.donation_distributions.length === 0 ? (
@@ -651,6 +722,7 @@ export default function OfficerDonationsPage() {
                         </div>
                         {dist.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{dist.notes}</p>}
                       </div>
+                      {canManage && <Button size="sm" variant="outline" onClick={() => openCorrection(detailDon.id, dist.id)} aria-label={`Void distribution to ${dist.distributed_to}`}><RotateCcw className="mr-1 h-3.5 w-3.5" />Void</Button>}
                     </div>
                   ))}
                 </div>
@@ -719,7 +791,19 @@ export default function OfficerDonationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Confirmation ─────────────────────────────────────────────────── */}
+      <Dialog open={correction !== null} onOpenChange={(open) => { if (!open && !correctionSaving) setCorrection(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{correction?.distributionId ? "Void distribution" : "Archive donation"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{correction?.distributionId ? "This removes the distribution from active totals and restores its quantity to the remaining balance." : "This removes the donation from the active inventory."} The original record, your identity and the reason remain in history.</p>
+          <label htmlFor="donation-correction-reason" className="text-sm font-medium">Reason</label>
+          <Textarea id="donation-correction-reason" value={correctionReason} onChange={(event) => setCorrectionReason(event.target.value)} minLength={3} maxLength={1000} disabled={correctionSaving} />
+          {correctionError && <p role="alert" className="text-sm text-danger">{correctionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" disabled={correctionSaving} onClick={() => setCorrection(null)}>Cancel</Button>
+            <Button disabled={correctionSaving || correctionReason.trim().length < 3} onClick={() => void saveCorrection()}>{correctionSaving ? "Saving…" : correction?.distributionId ? "Confirm void" : "Confirm archive"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

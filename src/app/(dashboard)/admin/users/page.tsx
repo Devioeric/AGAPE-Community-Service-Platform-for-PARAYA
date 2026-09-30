@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search, UserPlus, MoreHorizontal, CheckCircle,
@@ -24,7 +26,7 @@ import { toast } from "sonner";
 import { DYCI_DEPARTMENTS } from "@/lib/constants";
 import { permissionModulesForRole } from "@/lib/auth/capabilities";
 
-import { ASSIGNABLE_ROLES, isBarangayRole, type Role } from "@/lib/auth/roles";
+import { ASSIGNABLE_ROLES, isBarangayRole, isRetiredBarangayRole, roleLabel, type Role } from "@/lib/auth/roles";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,11 +39,16 @@ interface User {
   email:       string;
   role:        UserRole;
   status:      UserStatus;
+  is_active:   boolean;
   barangay_id: string | null;
   permissions: Record<string, boolean>;
   created_at:  string;
   updated_at:  string;
   barangays:   { name: string } | null;
+  must_change_password?: boolean;
+  historical?: boolean;
+  role_label?: string;
+  partner_memberships?: Array<{ id: string; name: string; type: string }>;
 }
 
 interface Barangay { id: string; name: string }
@@ -51,14 +58,11 @@ interface Barangay { id: string; name: string }
 const ROLE_FILTERS = [
   { value: "all",                      label: "All Roles" },
   // Grouped by org
-  { value: "paraya_director",          label: "PARAYA — Director" },
-  { value: "paraya_associate",         label: "PARAYA — Associate" },
-  { value: "paraya_researcher",        label: "PARAYA — Researcher" },
+  { value: "paraya_officer",           label: "PARAYA — Officer" },
+  { value: "contributor",              label: "Contributor" },
   { value: "finance_officer",          label: "Finance Officer" },
   { value: "volunteer",                label: "Volunteers" },
-  { value: "barangay_captain",         label: "Barangay — Captain" },
   { value: "barangay_secretary",       label: "Barangay — Secretary" },
-  { value: "barangay_mother_leader",   label: "Barangay — Mother Leader" },
   { value: "admin",                    label: "Admins" },
 ];
 const STATUS_FILTERS = [
@@ -80,6 +84,13 @@ function formatDate(iso: string) {
   if (dd === td) return "Today";
   if (dd === yd) return "Yesterday";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatPartnerType(type: string) {
+  return type === "dyci_office" ? "DYCI Office"
+    : type === "student_organization" ? "Student Organization"
+      : type === "academic_department" ? "Academic Department"
+        : type;
 }
 
 // ─── Module Toggle component ────────────────────────────────────────────────────
@@ -109,8 +120,10 @@ function ModuleToggle({
 
 export default function AdminUsersPage() {
   const [users, setUsers]               = useState<User[]>([]);
+  const [historicalUsers, setHistoricalUsers] = useState<User[]>([]);
   const [barangays, setBarangays]       = useState<Barangay[]>([]);
   const [loading, setLoading]           = useState(true);
+  const [loadError, setLoadError]       = useState(false);
   const [actionId, setActionId]         = useState<string | null>(null);
   const [search, setSearch]             = useState("");
   const [roleFilter, setRoleFilter]     = useState("all");
@@ -126,6 +139,7 @@ export default function AdminUsersPage() {
   const [addPassword, setAddPassword]   = useState("");
   const [addShowPw, setAddShowPw]       = useState(false);
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const [createdTemporaryPassword, setCreatedTemporaryPassword] = useState<string | null>(null);
 
   // ── Edit dialog ───────────────────────────────────────────────────────────────
   const [editUser, setEditUser]         = useState<User | null>(null);
@@ -135,6 +149,8 @@ export default function AdminUsersPage() {
   const [editStatus, setEditStatus]     = useState<UserStatus>("active");
   const [editPerms, setEditPerms]       = useState<Record<string, boolean>>({});
   const [editSaving, setEditSaving]     = useState(false);
+  const [historyUser, setHistoryUser] = useState<User | null>(null);
+  const [historyRows, setHistoryRows] = useState<Array<{ id: string; previous_role: string | null; new_role: string | null; effective_start: string; change_reason: string }>>([]);
 
   // ── Password reset dialog ─────────────────────────────────────────────────────
   const [pwUser, setPwUser]             = useState<User | null>(null);
@@ -150,9 +166,15 @@ export default function AdminUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/users");
-    if (res.ok) setUsers((await res.json()).data ?? []);
-    else toast.error("Failed to load users.");
+    setLoadError(false);
+    const [res, historicalRes] = await Promise.all([
+      fetch("/api/users?page=1&page_size=50"),
+      fetch("/api/users?include_historical=true&page=1&page_size=50"),
+    ]);
+    if (res.ok && historicalRes.ok) {
+      setUsers((await res.json()).data ?? []);
+      setHistoricalUsers((await historicalRes.json()).data ?? []);
+    } else { setLoadError(true); toast.error("Failed to load the user directory. Retry to try again."); }
     setLoading(false);
   }, []);
 
@@ -186,12 +208,28 @@ export default function AdminUsersPage() {
       );
     }), [users, search, roleFilter, statusFilter]);
 
+  const activeFiltered = useMemo(
+    () => filtered.filter((user) => !user.historical && !isRetiredBarangayRole(user.role)),
+    [filtered],
+  );
+  const retiredUsers = useMemo(
+    () => historicalUsers,
+    [historicalUsers],
+  );
+  const barangaysWithoutSecretary = useMemo(
+    () => barangays.filter((barangay) => !users.some((user) =>
+      user.role === "barangay_secretary" && user.barangay_id === barangay.id && user.status === "active" && user.is_active
+    )),
+    [barangays, users],
+  );
+
   const counts = useMemo(() => ({
     total:     users.length,
     active:    users.filter((u) => u.status === "active").length,
     pending:   users.filter((u) => u.status === "pending").length,
     suspended: users.filter((u) => u.status === "suspended").length,
-  }), [users]);
+    historical: historicalUsers.length,
+  }), [users, historicalUsers]);
 
   // ── Status quick-actions ──────────────────────────────────────────────────────
 
@@ -202,7 +240,7 @@ export default function AdminUsersPage() {
       body: JSON.stringify({ status }),
     });
     if (res.ok) {
-      setUsers((prev) => prev.map((u) => u.id === id ? { ...u, status } : u));
+      setUsers((prev) => prev.map((u) => u.id === id ? { ...u, status, is_active: status === "active" } : u));
       toast.success(`User ${label}.`);
     } else {
       toast.error("Action failed.");
@@ -213,19 +251,30 @@ export default function AdminUsersPage() {
   // ── Add User (direct create) ──────────────────────────────────────────────────
 
   function generatePassword() {
-    // 12 chars, mix of upper/lower/digit/symbol
+    // 16 chars, mix of upper/lower/digit/symbol. This is only a convenience
+    // preview; the server validates it and can generate one when left blank.
     const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";  // exclude I, O for legibility
     const lower = "abcdefghijkmnpqrstuvwxyz";  // exclude l, o
     const digit = "23456789";                   // exclude 0, 1
     const sym   = "!@#$%&*";
     const all   = upper + lower + digit + sym;
+    const randomIndex = (max: number) => {
+      const values = new Uint32Array(1);
+      window.crypto.getRandomValues(values);
+      return values[0] % max;
+    };
     let pw = "";
-    pw += upper[Math.floor(Math.random() * upper.length)];
-    pw += lower[Math.floor(Math.random() * lower.length)];
-    pw += digit[Math.floor(Math.random() * digit.length)];
-    pw += sym[Math.floor(Math.random() * sym.length)];
-    for (let i = 0; i < 8; i++) pw += all[Math.floor(Math.random() * all.length)];
-    return pw.split("").sort(() => Math.random() - 0.5).join("");
+    pw += upper[randomIndex(upper.length)];
+    pw += lower[randomIndex(lower.length)];
+    pw += digit[randomIndex(digit.length)];
+    pw += sym[randomIndex(sym.length)];
+    for (let i = 0; i < 12; i++) pw += all[randomIndex(all.length)];
+    const chars = pw.split("");
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randomIndex(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join("");
   }
 
   function openAdd() {
@@ -234,9 +283,20 @@ export default function AdminUsersPage() {
     setAddRole("volunteer");
     setAddBrgy("");
     setAddDepartment("");
-    setAddPassword(generatePassword());
+    // Leave the credential blank by default so the server generates it with
+    // cryptographically secure randomness. Admins may still choose Regenerate
+    // or enter a custom value, which the server validates before use.
+    setAddPassword("");
     setAddShowPw(false);
+    setCreatedTemporaryPassword(null);
     setAddOpen(true);
+  }
+
+  function closeAddDialog() {
+    // Do not retain a plaintext credential after the dialog is dismissed.
+    setAddOpen(false);
+    setCreatedTemporaryPassword(null);
+    setAddPassword("");
   }
 
   function handleAddRoleChange(newRole: string) {
@@ -258,7 +318,8 @@ export default function AdminUsersPage() {
   async function submitAdd() {
     if (!addEmail.trim())          { toast.error("Email is required.");                return; }
     if (addName.trim().length < 2) { toast.error("Full name is required.");            return; }
-    if (addPassword.length < 8)    { toast.error("Password must be at least 8 characters."); return; }
+    if (addPassword.length > 0 && addPassword.length < 12) { toast.error("Temporary password must be at least 12 characters."); return; }
+    if (addRole === "barangay_secretary" && !addBrgy) { toast.error("Select the Secretary's barangay."); return; }
 
     const isBarangay  = isBarangayRole(addRole);
     const isVolunteer = addRole === "volunteer";
@@ -269,7 +330,7 @@ export default function AdminUsersPage() {
       body: JSON.stringify({
         email:       addEmail.trim(),
         full_name:   addName.trim(),
-        password:    addPassword,
+        ...(addPassword ? { password: addPassword } : {}),
         role:        addRole,
         barangay_id: isBarangay ? (addBrgy || null) : null,
         department:  isVolunteer ? (addDepartment.trim() || null) : null,
@@ -277,8 +338,13 @@ export default function AdminUsersPage() {
     });
 
     if (res.ok) {
+      const payload = await res.json().catch(() => ({}));
       toast.success(`Account created for ${addName.trim()}.`);
-      setAddOpen(false);
+      if (typeof payload.temporary_password === "string") {
+        setAddPassword(payload.temporary_password);
+        setCreatedTemporaryPassword(payload.temporary_password);
+        setAddShowPw(true);
+      }
       fetchUsers();
     } else {
       const j = await res.json().catch(() => ({}));
@@ -303,6 +369,14 @@ export default function AdminUsersPage() {
     setEditPerms(defaults);
   }
 
+  async function openHistory(user: User) {
+    const response = await fetch(`/api/users/${user.id}/history`);
+    if (!response.ok) { toast.error("Unable to load account history."); return; }
+    const payload = await response.json();
+    setHistoryRows(payload.history ?? []);
+    setHistoryUser(user);
+  }
+
   function togglePerm(key: string, val: boolean) {
     setEditPerms((prev) => ({ ...prev, [key]: val }));
   }
@@ -320,6 +394,10 @@ export default function AdminUsersPage() {
     if (!editUser) return;
     if (editName.trim().length < 2) {
       toast.error("Full name must be at least 2 characters.");
+      return;
+    }
+    if (editRole === "barangay_secretary" && editStatus === "active" && !editBrgy) {
+      toast.error("Select the active Secretary's barangay.");
       return;
     }
     setEditSaving(true);
@@ -348,7 +426,7 @@ export default function AdminUsersPage() {
           ? { ...u, full_name: editName.trim(),
               role: (editUser.role === "admin" ? "admin" : editRole) as UserRole,
               barangay_id: isBarangayRole(editRole) ? (editBrgy || null) : null,
-              status: editStatus, permissions: compactPerms }
+              status: editStatus, is_active: editStatus === "active", permissions: compactPerms }
           : u
       ));
       setEditUser(null);
@@ -418,6 +496,7 @@ export default function AdminUsersPage() {
           { label: "Active",      value: counts.active,    accent: "border-l-success" },
           { label: "Pending",     value: counts.pending,   accent: "border-l-warning" },
           { label: "Suspended",   value: counts.suspended, accent: "border-l-danger"  },
+          { label: "Historical",  value: counts.historical, accent: "border-l-muted-foreground" },
         ].map((c) => (
           <Card key={c.label} className={`border-border shadow-card border-l-4 ${c.accent}`}>
             <CardContent className="px-4 py-2.5">
@@ -430,7 +509,25 @@ export default function AdminUsersPage() {
         ))}
       </div>
 
+      <Card className="border-border shadow-card">
+        <CardHeader><CardTitle className="font-heading text-lg">Barangay role readiness</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border p-3"><p className="text-sm font-medium">Retired historical accounts</p><p className="text-2xl font-bold">{retiredUsers.length}</p><p className="text-xs text-muted-foreground">Preserved for attribution; no reactivation or conversion is available.</p></div>
+            <div className="rounded-xl border p-3"><p className="text-sm font-medium">Barangays missing an active Secretary</p><p className="text-2xl font-bold">{barangaysWithoutSecretary.length}</p><p className="text-xs text-muted-foreground">Create or invite a Secretary explicitly before enabling barangay workflows.</p></div>
+          </div>
+          {barangaysWithoutSecretary.length > 0 && <p className="text-sm text-warning">Needs Secretary: {barangaysWithoutSecretary.map((barangay) => barangay.name).join(", ")}</p>}
+          {retiredUsers.length > 0 && <div className="divide-y rounded-xl border">{retiredUsers.map((user) => <div className="flex items-center justify-between gap-3 p-3 text-sm" key={user.id}><div><span className="font-medium">{user.full_name}</span><span className="ml-2 text-xs text-muted-foreground">{user.email}</span><p className="text-xs text-muted-foreground">ID {user.id}</p></div><div className="flex items-center gap-3"><span className="text-muted-foreground">{user.role_label ?? roleLabel(user.role)} — historical, read-only</span><Button variant="outline" size="sm" onClick={() => openHistory(user)}>View history</Button></div></div>)}</div>}
+        </CardContent>
+      </Card>
+
       {/* Users table */}
+      {loadError && !loading && (
+        <Card><CardContent className="flex items-center justify-between gap-4 py-6 text-sm">
+          <span className="text-danger">The user directory could not be loaded. Existing account data was not changed.</span>
+          <Button variant="outline" onClick={fetchUsers}><RefreshCw className="mr-2 h-4 w-4" />Retry</Button>
+        </CardContent></Card>
+      )}
       <Card className="border-border shadow-card">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -474,120 +571,139 @@ export default function AdminUsersPage() {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">User</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Role</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Barangay</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Joined</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading users…
-                  </td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="py-16 text-center text-muted-foreground">No users match your search.</td></tr>
-                ) : filtered.map((user, i) => (
-                  <tr key={user.id} className={`border-b border-border/60 transition-colors hover:bg-surface-alt/40 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8 flex-shrink-0">
-                          <AvatarFallback className="text-xs bg-primary/15 text-primary font-bold">
-                            {user.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground truncate">{user.full_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4"><RoleBadge role={user.role} /></td>
-                    <td className="py-3 px-4 hidden sm:table-cell">
-                      {user.barangays?.name
-                        ? <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" /> {user.barangays.name}
-                          </span>
-                        : <span className="text-xs text-muted-foreground/40">—</span>}
-                    </td>
-                    <td className="py-3 px-4"><StatusBadge status={user.status} /></td>
-                    <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{formatDate(user.created_at)}</td>
-                    <td className="py-3 px-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          disabled={actionId === user.id}
-                          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-                        >
-                          {actionId === user.id
-                            ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                            : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuGroup>
-                            <DropdownMenuLabel className="text-xs text-muted-foreground font-normal truncate">
-                              {user.full_name}
-                            </DropdownMenuLabel>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(user)}>
-                              <Pencil className="w-3.5 h-3.5" /> Edit User
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openPasswordReset(user)}>
-                              <KeyRound className="w-3.5 h-3.5" /> Reset Password
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer">
-                              <Mail className="w-3.5 h-3.5" /> Send Email
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            {user.status === "pending" && (
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer text-success"
-                                onClick={() => updateStatus(user.id, "active", "approved")}
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" /> Approve
-                              </DropdownMenuItem>
-                            )}
-                            {user.status === "suspended" && (
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer text-info"
-                                onClick={() => updateStatus(user.id, "active", "reactivated")}
-                              >
-                                <ShieldCheck className="w-3.5 h-3.5" /> Reactivate
-                              </DropdownMenuItem>
-                            )}
-                            {user.status === "active" && (
-                              <DropdownMenuItem
-                                className="gap-2 cursor-pointer text-danger"
-                                onClick={() => updateStatus(user.id, "suspended", "suspended")}
-                              >
-                                <XCircle className="w-3.5 h-3.5" /> Suspend
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PaginatedTable rows={activeFiltered} label="Accounts" resetKey={JSON.stringify([search, roleFilter, statusFilter])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Accounts" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">User</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Role</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Partner entities</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Barangay</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Joined</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={7} className="py-16 text-center text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading users…
+                      </td></tr>
+                    ) : activeFiltered.length === 0 ? (
+                      <tr><td colSpan={7} className="py-16 text-center text-muted-foreground">No users match your search.</td></tr>
+                    ) : pageRows.map((user, i) => (
+                      <tr key={user.id} className={`border-b border-border/60 transition-colors hover:bg-surface-alt/40 ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8 flex-shrink-0">
+                              <AvatarFallback className="text-xs bg-primary/15 text-primary font-bold">
+                                {user.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium text-foreground truncate">{user.full_name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4"><RoleBadge role={user.role} /></td>
+                        <td className="py-3 px-4 hidden lg:table-cell">
+                          {user.role === "contributor" && user.partner_memberships && user.partner_memberships.length > 0
+                            ? <div className="space-y-1">
+                                {user.partner_memberships.map((entity) => (
+                                  <div key={entity.id} className="text-xs text-muted-foreground">
+                                    <span className="font-medium text-foreground">{entity.name}</span>
+                                    <span className="ml-1">· {formatPartnerType(entity.type)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            : user.role === "contributor"
+                              ? <span className="text-xs text-muted-foreground">No active partner memberships</span>
+                              : <span className="text-xs text-muted-foreground/40">—</span>}
+                        </td>
+                        <td className="py-3 px-4 hidden sm:table-cell">
+                          {user.barangays?.name
+                            ? <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <MapPin className="w-3 h-3" /> {user.barangays.name}
+                              </span>
+                            : <span className="text-xs text-muted-foreground/40">—</span>}
+                        </td>
+                        <td className="py-3 px-4"><StatusBadge status={user.status} /></td>
+                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">{formatDate(user.created_at)}</td>
+                        <td className="py-3 px-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              disabled={actionId === user.id}
+                              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors disabled:opacity-50"
+                            >
+                              {actionId === user.id
+                                ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                : <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal truncate">
+                                  {user.full_name}
+                                </DropdownMenuLabel>
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openEdit(user)}>
+                                  <Pencil className="w-3.5 h-3.5" /> Edit User
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openPasswordReset(user)}>
+                                  <KeyRound className="w-3.5 h-3.5" /> Reset Password
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => openPasswordReset(user)}>
+                                  <Mail className="w-3.5 h-3.5" /> Send password reset email
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                {user.status === "pending" && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-success"
+                                    onClick={() => updateStatus(user.id, "active", "approved")}
+                                  >
+                                    <CheckCircle className="w-3.5 h-3.5" /> Approve
+                                  </DropdownMenuItem>
+                                )}
+                                {user.status === "suspended" && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-info"
+                                    onClick={() => updateStatus(user.id, "active", "reactivated")}
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5" /> Reactivate
+                                  </DropdownMenuItem>
+                                )}
+                                {user.status === "active" && (
+                                  <DropdownMenuItem
+                                    className="gap-2 cursor-pointer text-danger"
+                                    onClick={() => updateStatus(user.id, "suspended", "suspended")}
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" /> Suspend
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
           <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground">
-            <span>Showing {filtered.length} of {users.length} users</span>
+            <span>{retiredUsers.length} historical accounts are listed separately above.</span>
           </div>
         </CardContent>
       </Card>
 
       {/* ── Add User Dialog (direct create with temp password) ─────────────────── */}
-      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) setAddOpen(false); }}>
+      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) closeAddDialog(); }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="font-heading flex items-center gap-2">
@@ -595,6 +711,46 @@ export default function AdminUsersPage() {
             </DialogTitle>
           </DialogHeader>
 
+          {createdTemporaryPassword ? (
+            <div className="flex-1 space-y-4 py-4">
+              <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+                <p className="font-medium text-foreground">Account created successfully.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Give this temporary password to the user securely. It will not be shown again after this dialog is closed.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="created-temp-password">Temporary password (one-time display)</Label>
+                <div className="relative">
+                  <Input
+                    id="created-temp-password"
+                    readOnly
+                    type={addShowPw ? "text" : "password"}
+                    value={createdTemporaryPassword}
+                    className="pr-20 font-mono text-sm"
+                  />
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setAddShowPw((value) => !value)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground rounded"
+                      title={addShowPw ? "Hide" : "Show"}
+                    >
+                      {addShowPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyPassword}
+                      className="p-1.5 text-muted-foreground hover:text-foreground rounded"
+                      title="Copy password"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
 
             {/* Email */}
@@ -634,13 +790,13 @@ export default function AdminUsersPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="add-brgy" className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" /> Barangay assignment
-                  <span className="text-muted-foreground font-normal">(optional)</span>
+                  <span className="text-danger font-normal">(required)</span>
                 </Label>
                 <select
                   id="add-brgy" value={addBrgy} onChange={(e) => setAddBrgy(e.target.value)}
                   className="w-full h-9 px-3 rounded-xl border border-border bg-transparent text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer appearance-none"
                 >
-                  <option value="">No barangay assignment</option>
+                  <option value="">Select a barangay</option>
                   {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
@@ -682,7 +838,7 @@ export default function AdminUsersPage() {
                   type={addShowPw ? "text" : "password"}
                   value={addPassword}
                   onChange={(e) => setAddPassword(e.target.value)}
-                  placeholder="Min. 8 characters"
+                  placeholder="Leave blank to generate securely"
                   className="pr-20 focus-visible:ring-primary/30 font-mono text-sm"
                 />
                 <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5">
@@ -707,7 +863,8 @@ export default function AdminUsersPage() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Share this password with the user securely. They can change it from their profile after first login.
+                Leave blank to let the server generate a secure temporary password. The account is active immediately,
+                but the user must change the password on first login.
               </p>
             </div>
 
@@ -715,17 +872,24 @@ export default function AdminUsersPage() {
               The account will be created as <strong>active</strong> immediately — no email confirmation required.
             </div>
           </div>
+          )}
 
           <DialogFooter className="shrink-0 pt-2 border-t border-border">
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button
-              onClick={submitAdd} disabled={addSubmitting || !addEmail || !addName || !addPassword}
-              className="bg-primary hover:bg-primary-dark text-white"
-            >
-              {addSubmitting
-                ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating…</>
-                : <><UserPlus className="w-4 h-4 mr-2" /> Create Account</>}
-            </Button>
+            {createdTemporaryPassword ? (
+              <Button variant="outline" onClick={closeAddDialog}>Done</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={closeAddDialog}>Cancel</Button>
+                <Button
+                  onClick={submitAdd} disabled={addSubmitting || !addEmail || !addName}
+                  className="bg-primary hover:bg-primary-dark text-white"
+                >
+                  {addSubmitting
+                    ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating…</>
+                    : <><UserPlus className="w-4 h-4 mr-2" /> Create Account</>}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -788,12 +952,13 @@ export default function AdminUsersPage() {
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5" /> Barangay assignment
+                  <span className="text-danger font-normal">(required while active)</span>
                 </Label>
                 <select
                   value={editBrgy} onChange={(e) => setEditBrgy(e.target.value)}
                   className="w-full h-9 px-3 rounded-xl border border-border bg-transparent text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer appearance-none"
                 >
-                  <option value="">No barangay assignment</option>
+                  <option value="">Select a barangay</option>
                   {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
@@ -852,6 +1017,23 @@ export default function AdminUsersPage() {
             {isAdminEdit && (
               <div className="p-3 rounded-xl bg-warning/5 border border-warning/20 text-xs text-warning">
                 Admin accounts are confined to infrastructure functions. They do not receive routine access to resident profiles or operational modules.
+              </div>
+            )}
+
+            {editUser?.role === "contributor" && (
+              <div className="space-y-1.5 rounded-xl border border-border bg-surface px-4 py-3">
+                <Label>Active partner entities</Label>
+                {editUser.partner_memberships && editUser.partner_memberships.length > 0 ? (
+                  <div className="space-y-1">
+                    {editUser.partner_memberships.map((entity) => (
+                      <p key={entity.id} className="text-sm text-foreground">
+                        {entity.name} <span className="text-xs text-muted-foreground">· {formatPartnerType(entity.type)}</span>
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No active partner memberships are linked to this Contributor. Memberships are read-only here and are managed through the authorized assignment workflow.</p>
+                )}
               </div>
             )}
           </div>
@@ -1008,6 +1190,21 @@ export default function AdminUsersPage() {
                   : <><KeyRound className="w-4 h-4 mr-2" /> Update Password</>}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!historyUser} onOpenChange={(open) => !open && setHistoryUser(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Account history</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{historyUser?.full_name} · historical identity retained for attribution.</p>
+          <div className="max-h-80 space-y-3 overflow-y-auto py-2">
+            {historyRows.length === 0 ? <p className="text-sm text-muted-foreground">No role transitions recorded.</p> : historyRows.map((row) => (
+              <div key={row.id} className="rounded-md border p-3 text-sm">
+                <p className="font-medium">{row.previous_role ?? "Created"} → {row.new_role ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">{new Date(row.effective_start).toLocaleString()} · {row.change_reason}</p>
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
 

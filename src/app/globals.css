@@ -115,6 +115,7 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    font-size: 1.0625rem;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -123,6 +124,10 @@
     @apply font-sans;
     scroll-behavior: smooth;
   }
+
+  /* Keep the application type scale a touch more readable without changing
+     the selected DM Sans / Playfair Display families. Component-specific
+     compact labels are adjusted alongside the shared Tailwind scale. */
 
   h1, h2, h3 {
     @apply font-heading;
@@ -134,6 +139,146 @@
            outline-none transition-all duration-150
            focus:ring-2 focus:ring-primary/30 focus:border-primary/40
            cursor-pointer appearance-none;
+  }
+}
+
+/* Shared shadcn motion language. Components remain responsive without making
+   layout changes feel abrupt, while stateful overlays keep their own enter/
+   exit animations from the shadcn primitives. */
+@layer components {
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="tabs-trigger"],
+  [data-slot="dropdown-menu-trigger"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="dropdown-menu-sub-trigger"],
+  [data-slot="command-item"],
+  [data-slot="checkbox"],
+  [data-slot="radio-group-item"],
+  [data-slot="switch"],
+  [data-slot="sidebar-menu-button"],
+  [data-slot="sidebar-menu-action"],
+  [data-slot="breadcrumb-link"] {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-slot="card"] {
+    transition: box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 180ms ease, background-color 180ms ease;
+  }
+
+  [data-slot="card"]:has([data-slot="button"]:not(:disabled)):hover {
+    box-shadow: 0 4px 16px rgba(107, 91, 62, 0.12);
+  }
+
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="input-group"],
+  select {
+    transition-property: color, background-color, border-color, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+
+  [data-slot="tabs-content"][data-state="open"],
+  [data-slot="collapsible-content"][data-open],
+  [data-slot="alert"] {
+    animation: agape-content-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="avatar-image"] {
+    transition: opacity 180ms ease-out;
+  }
+
+  [data-slot="progress-indicator"] {
+    transition: width 350ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Base UI keeps menu popups mounted while their state changes. These
+     selectors provide the same motion even when a consumer overrides the
+     generated Tailwind animation classes. */
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"] {
+    transform-origin: var(--transform-origin, top center);
+  }
+
+  [data-slot="dropdown-menu-content"][data-open],
+  [data-slot="dropdown-menu-sub-content"][data-open] {
+    animation: agape-menu-enter 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="dropdown-menu-content"][data-closed],
+  [data-slot="dropdown-menu-sub-content"][data-closed] {
+    animation: agape-menu-exit 130ms ease-in both;
+  }
+
+  /* Sheet is the shared drawer primitive used by forms and detail panels.
+     Keep these selectors explicit because Base UI exposes `data-open` and
+     `data-closed` attributes (rather than Radix's `data-state`), and because
+     compound Tailwind variants can be omitted from a just-in-time build. */
+  [data-slot="sheet-content"] {
+    will-change: transform, opacity;
+  }
+
+  [data-slot="sheet-content"][data-side="right"][data-open] {
+    animation: sheet-in-right 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="sheet-content"][data-side="right"][data-closed] {
+    animation: sheet-out-right 280ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+  }
+
+  [data-slot="sheet-content"][data-side="left"][data-open] {
+    animation: sheet-in-left 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="sheet-content"][data-side="left"][data-closed] {
+    animation: sheet-out-left 280ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+  }
+
+  [data-slot="sheet-content"][data-side="top"][data-open] {
+    animation: sheet-in-top 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="sheet-content"][data-side="top"][data-closed] {
+    animation: sheet-out-top 280ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+  }
+
+  [data-slot="sheet-content"][data-side="bottom"][data-open] {
+    animation: sheet-in-bottom 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  [data-slot="sheet-content"][data-side="bottom"][data-closed] {
+    animation: sheet-out-bottom 280ms cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+  }
+}
+
+@keyframes agape-content-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes agape-menu-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes agape-menu-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-2px) scale(0.98); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -164,6 +309,36 @@
   }
   .animate-sheet-out-right {
     animation: sheet-out-right 0.4s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  }
+  .animate-sheet-in-left {
+    animation: sheet-in-left 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .animate-sheet-out-left {
+    animation: sheet-out-left 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  }
+  .animate-sheet-in-top {
+    animation: sheet-in-top 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .animate-sheet-out-top {
+    animation: sheet-out-top 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  }
+  .animate-sheet-in-bottom {
+    animation: sheet-in-bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .animate-sheet-out-bottom {
+    animation: sheet-out-bottom 0.3s cubic-bezier(0.55, 0.06, 0.68, 0.19) forwards;
+  }
+  .animate-sheet-modal-in {
+    animation: sheet-modal-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-sheet-modal-out {
+    animation: sheet-modal-out 0.16s cubic-bezier(0.55, 0.06, 0.68, 0.19) both;
+  }
+  .animate-sheet-modal-to-side {
+    animation: sheet-modal-to-side 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-nav-submenu-in {
+    animation: nav-submenu-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   /* Hide an element only when printing — used for sidebar/header/action buttons */
@@ -226,6 +401,46 @@
   from { transform: translateX(0);    opacity: 1; }
   to   { transform: translateX(100%); opacity: 0; }
 }
+@keyframes sheet-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes sheet-out-left {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+@keyframes sheet-in-top {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes sheet-out-top {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(-100%); opacity: 0; }
+}
+@keyframes sheet-in-bottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes sheet-out-bottom {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+@keyframes sheet-modal-in {
+  from { opacity: 0.88; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes sheet-modal-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
+}
+@keyframes sheet-modal-to-side {
+  from { opacity: 0.9; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes nav-submenu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Print stylesheet ─────────────────────────────────────────────────────
    Browser "Save as PDF" produces a clean export of just the main content.
@@ -259,5 +474,147 @@
   /* Avoid awkward page breaks inside cards/rows */
   .shadow-card, tr, li {
     break-inside: avoid;
+  }
+}
+
+/* Sheet content can switch between its existing edge panel and a centered view. */
+.sheet-presentation-content[data-presentation="modal"] {
+  inset: 0;
+  box-sizing: border-box;
+  position: fixed;
+  width: min(60rem, calc(100vw - 2rem)) !important;
+  min-width: 0;
+  max-width: 60rem !important;
+  height: auto;
+  min-height: 0;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 32px rgba(107, 91, 62, 0.2);
+}
+
+.sheet-presentation-content[data-presentation="modal"] [data-slot="sheet-header"],
+.sheet-presentation-content[data-presentation="modal"] [data-slot="sheet-footer"] {
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.sheet-presentation-content[data-presentation="modal"] [data-slot="sheet-title"] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sheet-presentation-content [data-sheet-scroll-region] {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Keep every modal scroll region consistent with the navigation scrollbar.
+   Explicit no-scrollbar command lists retain their intentional behavior. */
+[data-modal-scroll-container],
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar),
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar),
+.sheet-presentation-content [data-sheet-scroll-region] {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+[data-modal-scroll-container]:hover,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar):hover,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar):hover,
+.sheet-presentation-content [data-sheet-scroll-region]:hover {
+  scrollbar-color: rgba(107, 91, 62, 0.25) transparent;
+}
+
+[data-modal-scroll-container]::-webkit-scrollbar,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar)::-webkit-scrollbar,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar)::-webkit-scrollbar,
+.sheet-presentation-content [data-sheet-scroll-region]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+[data-modal-scroll-container]::-webkit-scrollbar-track,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar)::-webkit-scrollbar-track,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar)::-webkit-scrollbar-track,
+.sheet-presentation-content [data-sheet-scroll-region]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-modal-scroll-container]::-webkit-scrollbar-thumb,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar)::-webkit-scrollbar-thumb,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar)::-webkit-scrollbar-thumb,
+.sheet-presentation-content [data-sheet-scroll-region]::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+[data-modal-scroll-container]:hover::-webkit-scrollbar-thumb,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar):hover::-webkit-scrollbar-thumb,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar):hover::-webkit-scrollbar-thumb,
+.sheet-presentation-content [data-sheet-scroll-region]:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(107, 91, 62, 0.25);
+}
+
+[data-modal-scroll-container]::-webkit-scrollbar-thumb:hover,
+[data-modal-scroll-container] .overflow-y-auto:not(.no-scrollbar)::-webkit-scrollbar-thumb:hover,
+[data-modal-scroll-container] .overflow-auto:not(.no-scrollbar)::-webkit-scrollbar-thumb:hover,
+.sheet-presentation-content [data-sheet-scroll-region]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 91, 62, 0.45);
+}
+
+.sheet-presentation-content[data-has-presentation-actions="true"] [data-slot="sheet-header"] {
+  padding-right: 5.5rem;
+}
+
+/* Desktop navigation collapse uses one shared geometry variable so the rail,
+   breadcrumb header, and page content move together. Hydration starts without
+   motion to avoid a full-page slide while the saved preference is restored. */
+.agape-shell[data-sidebar-ready="true"] .agape-sidebar,
+.agape-shell[data-sidebar-ready="true"] .agape-dashboard-header,
+.agape-shell[data-sidebar-ready="true"] .agape-dashboard-content {
+  transition-property: width, left, margin-left;
+  transition-duration: 220ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.agape-sidebar {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.sidebar-nav-tooltip {
+  border: 1px solid rgba(196, 169, 106, 0.35);
+  box-shadow: 0 4px 14px rgba(44, 36, 22, 0.18);
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.agape-breadcrumb [data-slot="breadcrumb-separator"] {
+  color: var(--muted-foreground);
+}
+
+.agape-breadcrumb [data-slot="breadcrumb-page"] {
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agape-shell[data-sidebar-ready="true"] .agape-sidebar,
+  .agape-shell[data-sidebar-ready="true"] .agape-dashboard-header,
+  .agape-shell[data-sidebar-ready="true"] .agape-dashboard-content {
+    transition-duration: 0ms;
+    transition-property: none;
   }
 }

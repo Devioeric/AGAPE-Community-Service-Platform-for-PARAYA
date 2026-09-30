@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
+import { MapContainer, Marker, Popup, GeoJSON } from "react-leaflet";
+import { CartoBasemap } from "./CartoBasemap";
 import type { Layer, PathOptions } from "leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import L from "leaflet";
@@ -122,7 +123,7 @@ export default function BarangayMap({ barangays, height = "420px" }: BarangayMap
           border: none !important;
           box-shadow: none !important;
           color: #4A3F2B;
-          font-size: 9px;
+          font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.06em;
           text-shadow: 0 0 3px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.7);
@@ -149,12 +150,7 @@ export default function BarangayMap({ barangays, height = "420px" }: BarangayMap
           scrollWheelZoom={false}
         >
           {/* Light minimal base map */}
-          <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            subdomains="abcd"
-            maxZoom={19}
-          />
+          <CartoBasemap />
 
           {/* Only partner barangay boundaries */}
           {partnerBoundaries.features.length > 0 && (
@@ -187,7 +183,7 @@ export default function BarangayMap({ barangays, height = "420px" }: BarangayMap
                   )}
                   {b.contact_phone && <p className="text-xs opacity-80">{b.contact_phone}</p>}
                   <p className="text-xs opacity-50 mt-1.5">Partner since {fmtDate(b.partnership_start)}</p>
-                  <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                  <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${
                     b.is_active ? "bg-[#4A3F2B] text-[#C4A96A]" : "bg-gray-800 text-gray-400"
                   }`}>
                     {b.is_active ? "Active" : "Inactive"}

@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Handshake, ClipboardCheck, Users, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UnifiedDashboardSummary } from "@/components/dashboard/UnifiedDashboardSummary";
+import { BarangayDashboardCharts } from "@/components/dashboard/BarangayDashboardCharts";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
 
-interface Stats {
-  activePartnerships: number;
-  pendingSubmissions: number;
-  totalBeneficiaries: number;
-}
 interface RecentProgram {
   id:         string;
   title:      string;
@@ -23,9 +21,10 @@ interface ActionItem {
   task:     string;
   due:      string;
   priority: string;
+  /** Where the Secretary completes the item; absent on older responses. */
+  href?:    string;
 }
 interface DashboardData {
-  stats:          Stats;
   recentPrograms: RecentProgram[];
   actionItems:    ActionItem[];
 }
@@ -56,6 +55,7 @@ const fmtDue = (d: string) =>
   new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 export default function BarangayDashboard() {
+  const actor = useDashboardActor();
   const [data, setData]       = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,46 +70,30 @@ export default function BarangayDashboard() {
     })();
   }, []);
 
+  const dashboardSummary = <UnifiedDashboardSummary />;
+  // Charts load on their own, scoped to this Secretary's barangay by /api/barangay/charts.
+  const charts = <BarangayDashboardCharts actor={actor} />;
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        {dashboardSummary}
+        {charts}
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading dashboard details…</span>
+        </div>
       </div>
     );
   }
 
-  const stats          = data?.stats          ?? { activePartnerships: 0, pendingSubmissions: 0, totalBeneficiaries: 0 };
   const recentPrograms = data?.recentPrograms ?? [];
   const actionItems    = data?.actionItems    ?? [];
 
-  const statCards = [
-    { label: "Active Partnerships", value: stats.activePartnerships, icon: Handshake,      sub: "Programs in your barangay" },
-    { label: "Pending Submissions", value: stats.pendingSubmissions, icon: ClipboardCheck, sub: "Awaiting captain approval" },
-    { label: "Total Beneficiaries", value: stats.totalBeneficiaries.toLocaleString(), icon: Users, sub: "Across all programs" },
-  ];
-
   return (
     <div className="space-y-6">
-      <UnifiedDashboardSummary />
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label} className="border-border shadow-card border-l-4 border-l-accent">
-            <CardContent className="px-5 py-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-3xl font-bold text-foreground mt-1 font-heading">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {dashboardSummary}
+      {charts}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Programs */}
@@ -147,17 +131,25 @@ export default function BarangayDashboard() {
             {actionItems.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">No pending action items.</p>
             ) : (
-              actionItems.map((item) => (
-                <div key={item.id} className="p-3 rounded-lg bg-surface-alt border border-border">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium text-sm text-foreground">{item.task}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 capitalize ${priorityColors[item.priority] ?? "bg-muted text-muted-foreground"}`}>
-                      {item.priority}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Submitted {fmtDue(item.due)}</p>
-                </div>
-              ))
+              actionItems.map((item) => {
+                const body = (
+                  <>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm text-foreground">{item.task}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 capitalize ${priorityColors[item.priority] ?? "bg-muted text-muted-foreground"}`}>
+                        {item.priority}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
+                      <span>Submitted {fmtDue(item.due)}</span>
+                      {item.href && <span className="inline-flex items-center text-primary font-medium">Open <ChevronRight className="w-3 h-3" /></span>}
+                    </p>
+                  </>
+                );
+                return item.href
+                  ? <Link key={item.id} href={item.href} className="block p-3 rounded-lg bg-surface-alt border border-border hover:border-primary/40 transition-colors">{body}</Link>
+                  : <div key={item.id} className="p-3 rounded-lg bg-surface-alt border border-border">{body}</div>;
+              })
             )}
           </CardContent>
         </Card>

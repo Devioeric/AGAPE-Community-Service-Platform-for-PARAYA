@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
+import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
 import {
   Loader2, BarChart3, FileText, Users, CheckCircle2,
   XCircle, Clock, ChevronRight, Search, TrendingUp,
@@ -85,7 +87,7 @@ const CHART_STYLE = {
   tooltip: {
     contentStyle: {
       background: "#FFFFFF", border: "1px solid #E5DDD0",
-      borderRadius: "8px", fontSize: "12px", color: "#2C2416",
+      borderRadius: "8px", fontSize: "13px", color: "#2C2416",
     },
   },
 };
@@ -171,11 +173,11 @@ function QuestionCard({ q, index }: { q: QuestionStat; index: number }) {
               {q.is_required && <span className="text-danger ml-1">*</span>}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge className="text-[10px] capitalize" style={{ background: `${TYPE_COLORS[q.question_type]}18`, color: TYPE_COLORS[q.question_type], border: `1px solid ${TYPE_COLORS[q.question_type]}30` }}>
+              <Badge className="text-[11px] capitalize" style={{ background: `${TYPE_COLORS[q.question_type]}18`, color: TYPE_COLORS[q.question_type], border: `1px solid ${TYPE_COLORS[q.question_type]}30` }}>
                 {TYPE_LABELS[q.question_type] ?? q.question_type}
               </Badge>
               {q.section_title && (
-                <Badge className="text-[10px] bg-muted text-muted-foreground border">
+                <Badge className="text-[11px] bg-muted text-muted-foreground border">
                   {q.section_title}
                 </Badge>
               )}
@@ -183,7 +185,7 @@ function QuestionCard({ q, index }: { q: QuestionStat; index: number }) {
           </div>
           <div className="flex-shrink-0 text-right">
             <p className="text-xl font-bold font-heading text-foreground">{q.response_count}</p>
-            <p className="text-[10px] text-muted-foreground">responses</p>
+            <p className="text-[11px] text-muted-foreground">responses</p>
           </div>
         </div>
 
@@ -219,8 +221,8 @@ function QuestionCard({ q, index }: { q: QuestionStat; index: number }) {
                 margin={{ top: 0, right: 8, left: -20, bottom: 0 }}
               >
                 <CartesianGrid {...CHART_STYLE.cartesianGrid} />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
                 <Tooltip
                   {...CHART_STYLE.tooltip}
                   formatter={(v) => [Number(v), "Responses"]}
@@ -521,8 +523,8 @@ export default function SurveyAnalysisPage() {
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={overview.responses_by_month} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
                     <CartesianGrid {...CHART_STYLE.cartesianGrid} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
                     <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Responses"]} />
                     <Line type="monotone" dataKey="count" stroke="#6B5B3E" strokeWidth={2} dot={{ fill: "#6B5B3E", r: 3 }} activeDot={{ r: 5 }} />
                   </LineChart>
@@ -546,7 +548,7 @@ export default function SurveyAnalysisPage() {
                         {overview.by_status.map((e) => <Cell key={e.status} fill={e.color} />)}
                       </Pie>
                       <Tooltip {...CHART_STYLE.tooltip} formatter={(v, n) => [Number(v), String(n)]} />
-                      <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: "#6B6356" }}>{v}</span>} />
+                      <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 12, color: "#6B6356" }}>{v}</span>} />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
@@ -566,8 +568,8 @@ export default function SurveyAnalysisPage() {
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={overview.by_barangay} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
                     <CartesianGrid {...CHART_STYLE.cartesianGrid} horizontal={false} />
-                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12, fill: "#6B6356" }} axisLine={false} tickLine={false} />
                     <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Surveys"]} />
                     <Bar dataKey="count" fill="#C4A96A" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -633,161 +635,165 @@ export default function SurveyAnalysisPage() {
 
           {/* Survey table */}
           <div className="bg-card border border-border shadow-card rounded-xl">
-            <table className="w-full text-sm">
-              <thead className="sticky top-16 z-20 bg-muted/95 backdrop-blur-sm">
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium first:rounded-tl-xl">Survey Title</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Questions</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Responses</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Created</th>
-                  <th className="py-3 px-4 w-8 last:rounded-tr-xl" />
-                </tr>
-              </thead>
-                  <tbody>
-                    {filteredSurveys.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">
-                          {overview.surveys.length === 0
-                            ? "No surveys yet."
-                            : hasActiveFilters
-                              ? "No surveys match your filters."
-                              : "No surveys yet."}
-                        </td>
-                      </tr>
-                    ) : filteredSurveys.map((s, i) => (
-                      <>
-                        <tr
-                          key={s.id}
-                          onClick={() => setSelectedId(selectedId === s.id ? null : s.id)}
-                          className={cn(
-                            "border-b border-border/60 cursor-pointer transition-colors",
-                            selectedId === s.id
-                              ? "bg-primary/5"
-                              : i % 2 !== 0 ? "bg-muted/10 hover:bg-muted/20" : "hover:bg-muted/10",
-                          )}
-                        >
-                          <td className="py-3 px-4">
-                            <p className="font-medium text-foreground">{s.title}</p>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                            {s.barangay_name ?? <span className="italic">All</span>}
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground">{s.question_count}</td>
-                          <td className="py-3 px-4">
-                            <span className="font-semibold text-foreground">{s.response_count}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge className={`${STATUS_META[s.status].cls} text-[10px] capitalize`}>
-                              {STATUS_META[s.status].label}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{fmtDate(s.created_at)}</td>
-                          <td className="py-3 px-4">
-                            <ChevronRight className={cn(
-                              "w-4 h-4 text-muted-foreground transition-transform",
-                              selectedId === s.id ? "rotate-90 text-primary" : "",
-                            )} />
-                          </td>
-                        </tr>
-
-                        {/* Expanded detail row */}
-                        {selectedId === s.id && (
-                          <tr key={`${s.id}-detail`} className="bg-primary/5 border-b border-border/60">
-                            <td colSpan={7} className="px-4 py-5">
-                              {detailLoading ? (
-                                <div className="flex items-center gap-2 text-muted-foreground py-4">
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span className="text-sm">Loading survey details…</span>
-                                </div>
-                              ) : detail ? (
-                                <div className="space-y-4">
-                                  {/* Meta row */}
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {[
-                                      { label: "Opens",      value: fmtDate(detail.survey.opens_at) },
-                                      { label: "Closes",     value: fmtDate(detail.survey.closes_at) },
-                                      { label: "Anonymous",  value: detail.survey.is_anonymous ? "Yes" : "No" },
-                                      { label: "Responses",  value: String(detail.response_count) },
-                                    ].map(({ label, value }) => (
-                                      <div key={label} className="bg-card rounded-lg px-3 py-2 border border-border">
-                                        <p className="text-xs text-muted-foreground">{label}</p>
-                                        <p className="text-sm font-semibold text-foreground mt-0.5">{value}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {/* Charts row */}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                                    {/* Question types pie */}
-                                    {typeDistribution.length > 0 && (
-                                      <div className="bg-card rounded-xl border border-border p-4">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Questions by Type</p>
-                                        <ResponsiveContainer width="100%" height={160}>
-                                          <PieChart>
-                                            <Pie data={typeDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3}>
-                                              {typeDistribution.map((e) => <Cell key={e.name} fill={e.color} />)}
-                                            </Pie>
-                                            <Tooltip {...CHART_STYLE.tooltip} formatter={(v, n) => [Number(v), String(n)]} />
-                                            <Legend iconType="circle" iconSize={7} formatter={(v) => <span style={{ fontSize: 10, color: "#6B6356" }}>{v}</span>} />
-                                          </PieChart>
-                                        </ResponsiveContainer>
-                                      </div>
-                                    )}
-
-                                    {/* Questions by section bar */}
-                                    {sectionDistribution.length > 1 && (
-                                      <div className="bg-card rounded-xl border border-border p-4">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Questions by Section</p>
-                                        <ResponsiveContainer width="100%" height={160}>
-                                          <BarChart data={sectionDistribution} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
-                                            <CartesianGrid {...CHART_STYLE.cartesianGrid} />
-                                            <XAxis dataKey="section" tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                                            <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Questions"]} />
-                                            <Bar dataKey="count" fill="#6B5B3E" radius={[3, 3, 0, 0]} />
-                                          </BarChart>
-                                        </ResponsiveContainer>
-                                      </div>
-                                    )}
-
-                                    {/* Response timeline */}
-                                    {detail.timeline.length > 0 && (
-                                      <div className="bg-card rounded-xl border border-border p-4 md:col-span-2">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Response Timeline</p>
-                                        <ResponsiveContainer width="100%" height={140}>
-                                          <LineChart data={detail.timeline} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
-                                            <CartesianGrid {...CHART_STYLE.cartesianGrid} />
-                                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#6B6356" }} axisLine={false} tickLine={false} />
-                                            <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Responses"]} />
-                                            <Line type="monotone" dataKey="count" stroke="#4A7C59" strokeWidth={2} dot={{ fill: "#4A7C59", r: 3 }} />
-                                          </LineChart>
-                                        </ResponsiveContainer>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* CTA to question analysis */}
-                                  {detail.questions.length > 0 && (
-                                    <button
-                                      onClick={() => setActiveTab("questions")}
-                                      className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                                    >
-                                      View full question analysis <ChevronRight className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : null}
+            <PaginatedTable rows={filteredSurveys} label="Survey analysis" resetKey={JSON.stringify([search, statusFilter, barangayFilter])}>
+              {(pageRows) => (
+                <table aria-label="Survey analysis" className="w-full text-sm">
+                  <thead className="sticky top-0 z-20 bg-muted/95 backdrop-blur-sm">
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium first:rounded-tl-xl">Survey Title</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Questions</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Responses</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Created</th>
+                      <th className="py-3 px-4 w-8 last:rounded-tr-xl" />
+                    </tr>
+                  </thead>
+                      <tbody>
+                        {filteredSurveys.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="py-16 text-center text-muted-foreground text-sm">
+                              {overview.surveys.length === 0
+                                ? "No surveys yet."
+                                : hasActiveFilters
+                                  ? "No surveys match your filters."
+                                  : "No surveys yet."}
                             </td>
                           </tr>
-                        )}
-                      </>
-                    ))}
-              </tbody>
-            </table>
+                        ) : pageRows.map((s, i) => (
+                          <Fragment key={s.id}>
+                            <tr
+                              key={s.id}
+                              onClick={() => setSelectedId(selectedId === s.id ? null : s.id)}
+                              className={cn(
+                                "border-b border-border/60 cursor-pointer transition-colors",
+                                selectedId === s.id
+                                  ? "bg-primary/5"
+                                  : i % 2 !== 0 ? "bg-muted/10 hover:bg-muted/20" : "hover:bg-muted/10",
+                              )}
+                            >
+                              <td className="py-3 px-4">
+                                <p className="font-medium text-foreground">{s.title}</p>
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                                {s.barangay_name ?? <span className="italic">All</span>}
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground">{s.question_count}</td>
+                              <td className="py-3 px-4">
+                                <span className="font-semibold text-foreground">{s.response_count}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge className={`${STATUS_META[s.status].cls} text-[11px] capitalize`}>
+                                  {STATUS_META[s.status].label}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground hidden lg:table-cell">{fmtDate(s.created_at)}</td>
+                              <td className="py-3 px-4">
+                                <ChevronRight className={cn(
+                                  "w-4 h-4 text-muted-foreground transition-transform",
+                                  selectedId === s.id ? "rotate-90 text-primary" : "",
+                                )} />
+                              </td>
+                            </tr>
+
+                            {/* Expanded detail row */}
+                            {selectedId === s.id && (
+                              <tr key={`${s.id}-detail`} className="bg-primary/5 border-b border-border/60">
+                                <td colSpan={7} className="px-4 py-5">
+                                  {detailLoading ? (
+                                    <div className="flex items-center gap-2 text-muted-foreground py-4">
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      <span className="text-sm">Loading survey details…</span>
+                                    </div>
+                                  ) : detail ? (
+                                    <div className="space-y-4">
+                                      {/* Meta row */}
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        {[
+                                          { label: "Opens",      value: fmtDate(detail.survey.opens_at) },
+                                          { label: "Closes",     value: fmtDate(detail.survey.closes_at) },
+                                          { label: "Anonymous",  value: detail.survey.is_anonymous ? "Yes" : "No" },
+                                          { label: "Responses",  value: String(detail.response_count) },
+                                        ].map(({ label, value }) => (
+                                          <div key={label} className="bg-card rounded-lg px-3 py-2 border border-border">
+                                            <p className="text-xs text-muted-foreground">{label}</p>
+                                            <p className="text-sm font-semibold text-foreground mt-0.5">{value}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      {/* Charts row */}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                                        {/* Question types pie */}
+                                        {typeDistribution.length > 0 && (
+                                          <div className="bg-card rounded-xl border border-border p-4">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Questions by Type</p>
+                                            <ResponsiveContainer width="100%" height={160}>
+                                              <PieChart>
+                                                <Pie data={typeDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3}>
+                                                  {typeDistribution.map((e) => <Cell key={e.name} fill={e.color} />)}
+                                                </Pie>
+                                                <Tooltip {...CHART_STYLE.tooltip} formatter={(v, n) => [Number(v), String(n)]} />
+                                                <Legend iconType="circle" iconSize={7} formatter={(v) => <span style={{ fontSize: 11, color: "#6B6356" }}>{v}</span>} />
+                                              </PieChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                        )}
+
+                                        {/* Questions by section bar */}
+                                        {sectionDistribution.length > 1 && (
+                                          <div className="bg-card rounded-xl border border-border p-4">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Questions by Section</p>
+                                            <ResponsiveContainer width="100%" height={160}>
+                                              <BarChart data={sectionDistribution} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                                                <CartesianGrid {...CHART_STYLE.cartesianGrid} />
+                                                <XAxis dataKey="section" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                                                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                                                <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Questions"]} />
+                                                <Bar dataKey="count" fill="#6B5B3E" radius={[3, 3, 0, 0]} />
+                                              </BarChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                        )}
+
+                                        {/* Response timeline */}
+                                        {detail.timeline.length > 0 && (
+                                          <div className="bg-card rounded-xl border border-border p-4 md:col-span-2">
+                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Response Timeline</p>
+                                            <ResponsiveContainer width="100%" height={140}>
+                                              <LineChart data={detail.timeline} margin={{ top: 5, right: 16, left: 0, bottom: 5 }}>
+                                                <CartesianGrid {...CHART_STYLE.cartesianGrid} />
+                                                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                                                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#6B6356" }} axisLine={false} tickLine={false} />
+                                                <Tooltip {...CHART_STYLE.tooltip} formatter={(v) => [Number(v), "Responses"]} />
+                                                <Line type="monotone" dataKey="count" stroke="#4A7C59" strokeWidth={2} dot={{ fill: "#4A7C59", r: 3 }} />
+                                              </LineChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* CTA to question analysis */}
+                                      {detail.questions.length > 0 && (
+                                        <button
+                                          onClick={() => setActiveTab("questions")}
+                                          className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                                        >
+                                          View full question analysis <ChevronRight className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
 
         </div>
@@ -875,7 +881,7 @@ export default function SurveyAnalysisPage() {
                               : "—"}
                           </span>
                           {r.excluded && (
-                            <Badge className="bg-warning/10 text-warning border-warning/20 border text-[10px] px-1.5 py-0">
+                            <Badge className="bg-warning/10 text-warning border-warning/20 border text-[11px] px-1.5 py-0">
                               excluded
                             </Badge>
                           )}
@@ -1014,7 +1020,7 @@ export default function SurveyAnalysisPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           {q.section_title && (
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-0.5">
                               {q.section_title}
                             </p>
                           )}
@@ -1044,7 +1050,7 @@ export default function SurveyAnalysisPage() {
                                   <span
                                     key={c.label}
                                     className={cn(
-                                      "inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border",
+                                      "inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded-full border",
                                       c.agreed
                                         ? "bg-success/10 text-success border-success/30"
                                         : "bg-accent/10 text-accent-foreground border-accent/30"
@@ -1054,7 +1060,7 @@ export default function SurveyAnalysisPage() {
                                     <Tag className="w-2.5 h-2.5" />
                                     {c.label}
                                     {c.coders.length > 1 && (
-                                      <span className="text-[10px] text-muted-foreground">×{c.coders.length}</span>
+                                      <span className="text-[11px] text-muted-foreground">×{c.coders.length}</span>
                                     )}
                                     {/* Remove only your own code applications. We
                                         send each one separately so the API can
@@ -1088,14 +1094,14 @@ export default function SurveyAnalysisPage() {
                                   <button
                                     type="submit"
                                     disabled={codingAnswerId === a.id || !draft.trim()}
-                                    className="h-6 px-2 rounded-full border border-primary/30 text-primary text-[11px] hover:bg-primary/5 disabled:opacity-40"
+                                    className="h-6 px-2 rounded-full border border-primary/30 text-primary text-[12px] hover:bg-primary/5 disabled:opacity-40"
                                   >
                                     {codingAnswerId === a.id ? "…" : <Plus className="w-3 h-3" />}
                                   </button>
                                 </form>
                               </div>
                               {a.submitted_at && (
-                                <p className="text-[10px] text-muted-foreground">
+                                <p className="text-[11px] text-muted-foreground">
                                   Submitted {new Date(a.submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                 </p>
                               )}
@@ -1146,7 +1152,7 @@ export default function SurveyAnalysisPage() {
                               <Tag className="w-3 h-3 flex-shrink-0" />
                               <span className="truncate">{l.label}</span>
                               {l.coder_count >= 2 && (
-                                <Badge className="bg-success/10 text-success border-success/20 border text-[10px] px-1 py-0">
+                                <Badge className="bg-success/10 text-success border-success/20 border text-[11px] px-1 py-0">
                                   agreed
                                 </Badge>
                               )}

@@ -39,6 +39,12 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  if (role === "barangay_secretary" && !barangay_id) {
+    return NextResponse.json(
+      { error: "A Barangay Secretary invitation requires a barangay assignment." },
+      { status: 400 },
+    );
+  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
   const redirectTo = `${appUrl.replace(/\/$/, "")}/accept-invite`;

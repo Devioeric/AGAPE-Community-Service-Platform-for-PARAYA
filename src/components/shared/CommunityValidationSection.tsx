@@ -172,8 +172,8 @@ export function CommunityValidationSection({
             <li>
               <strong className="text-foreground">Link records</strong> (preferred):
               {" "}≥ 2 human-reviewed records from the system, including one
-              Captain-approved need for this barangay.
-              <span className="ml-1 text-[11px]">({validationLinks.length}/2 qualifying)</span>
+              PARAYA-reviewed need for this barangay.
+              <span className="ml-1 text-[12px]">({validationLinks.length}/2 qualifying)</span>
             </li>
             <li>
               <strong className="text-foreground">Or upload evidence</strong>:
@@ -198,10 +198,10 @@ export function CommunityValidationSection({
       {/* ── Linked Records (primary path) ───────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+          <p className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
             <LinkIcon className="w-3 h-3" /> Linked Records ({totalLinks})
             {linkPathMet && (
-              <Badge className="bg-success/10 text-success border-success/20 border text-[10px] font-normal ml-1">
+              <Badge className="bg-success/10 text-success border-success/20 border text-[11px] font-normal ml-1">
                 threshold met
               </Badge>
             )}
@@ -243,7 +243,7 @@ export function CommunityValidationSection({
           </div>
         )}
         {planningLinks.length > 0 && (
-          <p className="text-[11px] text-info">
+          <p className="text-[12px] text-info">
             {planningLinks.length} recommendation-derived source{planningLinks.length === 1 ? " is" : "s are"} retained as planning provenance and excluded from the human-validation threshold.
           </p>
         )}
@@ -260,7 +260,7 @@ export function CommunityValidationSection({
 
       {/* ── Supplementary: uploaded-evidence events ─────────────────────── */}
       <div className="pt-1">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
+        <p className="text-[12px] uppercase tracking-wide text-muted-foreground font-medium mb-1">
           Supplementary Evidence Uploads
         </p>
 
@@ -383,12 +383,12 @@ function ValidationEventCard({
             {METHOD_LABELS[v.method]} · {new Date(v.date_conducted).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           </p>
           {v.recorder_name && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-[12px] text-muted-foreground mt-0.5">
               Recorded by {v.recorder_name}
             </p>
           )}
         </div>
-        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title="Validation history is retained for traceability">
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" title="Validation history is retained for traceability">
           <LockKeyhole className="h-3 w-3" /> Retained
         </span>
       </div>
@@ -400,7 +400,7 @@ function ValidationEventCard({
 
       {/* Stakeholders */}
       <div>
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
+        <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
           <Users className="w-3 h-3" /> Stakeholders ({v.stakeholders.length})
           {!hasMinStakeholders && (
             <span className="text-warning normal-case font-normal lowercase">
@@ -424,7 +424,7 @@ function ValidationEventCard({
 
       {/* Evidence files */}
       <div>
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
+        <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
           <Paperclip className="w-3 h-3" /> Evidence ({v.evidence.length})
           {!hasMinEvidence && (
             <span className="text-warning normal-case font-normal lowercase">
@@ -480,7 +480,7 @@ function ValidationEventCard({
       </div>
 
       {!meetsThreshold && (
-        <p className="text-[11px] text-warning flex items-center gap-1 pt-1 border-t border-warning/20">
+        <p className="text-[12px] text-warning flex items-center gap-1 pt-1 border-t border-warning/20">
           <AlertCircle className="w-3 h-3" />
           Add the missing items above so this validation counts toward pre-screening.
         </p>
@@ -646,12 +646,12 @@ function NewValidationForm({
           placeholder="What did the community confirm, challenge, or ask to change? Did the consultation shape any objectives?"
           className="focus-visible:ring-primary/30 resize-none text-sm"
         />
-        <p className="text-[11px] text-muted-foreground">{summary.trim().length} / {MIN_SUMMARY_CHARS} min characters</p>
+        <p className="text-[12px] text-muted-foreground">{summary.trim().length} / {MIN_SUMMARY_CHARS} min characters</p>
       </div>
 
       <div className="rounded-lg bg-info/5 border border-info/20 p-2 flex gap-2 items-start">
         <FileText className="w-3.5 h-3.5 text-info shrink-0 mt-0.5" />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[12px] text-muted-foreground">
           You&apos;ll upload FGD minutes / signed attendance / photos / etc. after saving — at least
           {" "}{MIN_EVIDENCE} file is required for this validation to count toward pre-screening.
         </p>

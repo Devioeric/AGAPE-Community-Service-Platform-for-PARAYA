@@ -3,7 +3,7 @@ import type { ProfilingAggregateDTO, SuppressedCount } from "@/types/profiling";
 
 export const MINIMUM_SUPPRESSION_THRESHOLD = 5;
 
-const suppressedCountSchema = z.discriminatedUnion("suppressed", [
+export const suppressedCountSchema = z.discriminatedUnion("suppressed", [
   z.object({ suppressed: z.literal(false), value: z.number().int().nonnegative(), label: z.string().regex(/^\d+$/) }).strict(),
   z.object({ suppressed: z.literal(true), value: z.null(), label: z.string().regex(/^(suppressed|<([5-9]|[1-9][0-9]|100))$/) }).strict(),
 ]);

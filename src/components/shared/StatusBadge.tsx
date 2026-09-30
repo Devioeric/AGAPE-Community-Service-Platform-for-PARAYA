@@ -15,13 +15,9 @@ const STATUS_LABELS: Record<string, string> = {
   suspended: "Suspended",
 };
 
-// Color by group (PARAYA / barangay / volunteer / admin) so the three PARAYA
-// roles and three barangay roles each share a consistent visual identity.
+// Color by group (PARAYA / barangay / volunteer / admin).
 const ROLE_STYLES: Record<string, string> = {
   // PARAYA group — primary brown
-  paraya_director:        "bg-primary/10 text-primary border-primary/20",
-  paraya_associate:       "bg-primary/10 text-primary border-primary/20",
-  paraya_researcher:      "bg-primary/10 text-primary border-primary/20",
   paraya_officer:         "bg-primary/10 text-primary border-primary/20",
   // Volunteer — info blue
   volunteer:              "bg-info/10 text-info border-info/20",

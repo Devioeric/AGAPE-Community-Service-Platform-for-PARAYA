@@ -37,7 +37,9 @@ export default function ResetPasswordPage() {
   const [checking, setChecking] = useState(true);
   const [validRecovery, setValidRecovery] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [requiredChange, setRequiredChange] = useState(false);
 
   const {
     register,
@@ -48,12 +50,15 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     let cancelled = false;
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const query = new URLSearchParams(window.location.search);
+    const required = query.get("required") === "1" || query.get("reason") === "password_change_required";
+    setRequiredChange(required);
     const hasRecoveryFragment =
       hash.has("access_token") || hash.get("type") === "recovery";
     const hasFragmentError = hash.has("error") || hash.has("error_code");
 
     const acceptRecoveryUser = (user: User | null): boolean => {
-      if (!user || !isRecentPasswordRecovery(user.recovery_sent_at)) return false;
+      if (!user || (!required && !isRecentPasswordRecovery(user.recovery_sent_at))) return false;
       if (!cancelled) {
         if (window.location.hash) {
           window.history.replaceState(
@@ -106,14 +111,28 @@ export default function ResetPasswordPage() {
     if (!validRecovery) return;
     setSubmitting(true);
 
-    const { error } = await supabase.auth.updateUser({
-      password: data.password,
-    });
+    if (requiredChange) {
+      const completion = await fetch("/api/auth/complete-password-change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: data.password }),
+      });
+      if (!completion.ok) {
+        const payload = await completion.json().catch(() => ({}));
+        toast.error(payload.error ?? "Your password could not be updated. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      const { error } = await supabase.auth.updateUser({
+        password: data.password,
+      });
 
-    if (error) {
-      toast.error(error.message);
-      setSubmitting(false);
-      return;
+      if (error) {
+        toast.error(error.message);
+        setSubmitting(false);
+        return;
+      }
     }
 
     const signOutResponse = await fetch("/api/auth/signout", {
@@ -129,6 +148,13 @@ export default function ResetPasswordPage() {
     window.setTimeout(() => {
       window.location.replace("/login");
     }, 2000);
+  }
+
+  async function signOutAndReturn() {
+    setSigningOut(true);
+    await fetch("/api/auth/signout", { method: "POST" }).catch(() => undefined);
+    await supabase.auth.signOut().catch(() => undefined);
+    window.location.replace("/login");
   }
 
   if (checking) {
@@ -152,12 +178,22 @@ export default function ResetPasswordPage() {
         <p className="mb-6 text-muted-foreground">
           This password reset link is missing, expired, or has already been used.
         </p>
-        <Link
-          href="/forgot-password"
-          className="font-medium text-primary transition-colors hover:text-primary-dark"
-        >
-          Request a new reset link
-        </Link>
+        <div className="flex flex-col items-center gap-3">
+          <Link
+            href="/forgot-password"
+            className="font-medium text-primary transition-colors hover:text-primary-dark"
+          >
+            Request a new reset link
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={signingOut}
+            onClick={signOutAndReturn}
+          >
+            {signingOut ? "Signing out…" : "Back to Sign In"}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -249,6 +285,15 @@ export default function ResetPasswordPage() {
             >
               Back to Sign In
             </Link>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={signingOut || submitting}
+              onClick={signOutAndReturn}
+              className="text-sm text-muted-foreground"
+            >
+              {signingOut ? "Signing out…" : "Sign out without changing password"}
+            </Button>
           </CardFooter>
         </form>
       </Card>

@@ -1,5 +1,7 @@
 "use client";
 
+import { PaginatedTable } from "@/components/shared/PaginatedTable";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -9,12 +11,16 @@ import Link from "next/link";
 import {
   Search, Loader2, Plus, MoreHorizontal, Pencil, Trash2,
   Users, Calendar, MapPin, DollarSign, ClipboardList, FileText, Map,
-  CheckCircle2, Circle, AlertTriangle, Flag, BarChart3,
+  CheckCircle2, Circle, AlertTriangle, Flag, BarChart3, List,
 } from "lucide-react";
 import { ActivityPhotos } from "@/components/shared/ActivityPhotos";
+import { TargetFigureField } from "@/components/community-profile/TargetFigureField";
 import { ProgramVolunteerMatchingPanel } from "@/components/volunteers/ProgramVolunteerMatchingPanel";
 import { toast } from "sonner";
+import { programCompletionChecks } from "@/lib/programs/completion-contract";
 import { Button } from "@/components/ui/button";
+import { useDashboardActor } from "@/components/layout/DashboardActorContext";
+import { hasCapability } from "@/lib/auth/capabilities";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import dynamic from "next/dynamic";
 import type { MapProgram } from "@/components/maps/ProgramMap";
@@ -37,6 +43,7 @@ const ProgramMap = dynamic(() => import("@/components/maps/ProgramMap"), {
     </div>
   ),
 });
+
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +58,7 @@ interface Program {
   end_date: string | null;
   status: string;
   max_volunteers: number | null;
+  target_profile_figure: string | null;
   created_at: string;
   barangays: { name: string; latitude: number | null; longitude: number | null } | null;
   signup_count: number;
@@ -73,7 +81,7 @@ interface BudgetItem {
   category: string;
   allocated: number;
   spent: number;
-  description: string | null;
+  notes: string | null;
 }
 
 interface Signup {
@@ -84,6 +92,7 @@ interface Signup {
 }
 
 interface ProgramDetail extends Program {
+  active_signup_count?: number;
   activities: Activity[];
   budgets: BudgetItem[];
   signups: Signup[];
@@ -116,6 +125,7 @@ const programSchema = z.object({
   end_date:       z.string().optional(),
   status:         z.string(),
   max_volunteers: z.string().optional(),
+  target_profile_figure: z.string().optional(),
 });
 type ProgramForm = z.infer<typeof programSchema>;
 
@@ -149,6 +159,9 @@ const fmtDate = (d: string) =>
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OfficerProgramsPage() {
+  const actor = useDashboardActor();
+  const canReadImpact = hasCapability(actor.role, actor.permissions, "impact.read");
+  const canReadProfile = hasCapability(actor.role, actor.permissions, "profiling.aggregate.read");
   const searchParams = useSearchParams();
   const router       = useRouter();
   const [programs, setPrograms]   = useState<Program[]>([]);
@@ -166,6 +179,7 @@ export default function OfficerProgramsPage() {
   const [detailOpen, setDetailOpen]       = useState(false);
   const [detailProg, setDetailProg]       = useState<ProgramDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [completingProgram, setCompletingProgram] = useState(false);
   const [detailTab, setDetailTab]         = useState<DetailTab>("overview");
 
   // Assign-volunteer dialog
@@ -193,7 +207,13 @@ export default function OfficerProgramsPage() {
   // Delete dialog
 
   // Map
-  const [mapFilter, setMapFilter] = useState<"all" | "active" | "upcoming">("all");
+  // List or map of the same filtered programs; ?view=map keeps the map across reloads.
+  const [view, setView] = useState<"list" | "map">(searchParams.get("view") === "map" ? "map" : "list");
+  function changeView(next: "list" | "map") {
+    setView(next);
+    // Only the address bar changes; no navigation or server round trip is needed.
+    window.history.replaceState(null, "", next === "map" ? "/officer/programs?view=map" : "/officer/programs");
+  }
 
   const programForm  = useForm<ProgramForm>({ resolver: zodResolver(programSchema), defaultValues: { title: "", status: "draft" } });
   const activityForm = useForm<ActivityForm>({ resolver: zodResolver(activitySchema), defaultValues: { title: "", status: "planned" } });
@@ -203,13 +223,20 @@ export default function OfficerProgramsPage() {
 
   const fetchPrograms = useCallback(async () => {
     setLoading(true);
-    const [progRes, barRes] = await Promise.all([
-      fetch("/api/programs"),
-      fetch("/api/partnerships"),
-    ]);
-    if (progRes.ok) { const j = await progRes.json(); setPrograms(j.data ?? []); }
-    if (barRes.ok)  { const j = await barRes.json(); setBarangays(j.data ?? []); }
-    setLoading(false);
+    try {
+      const [progRes, barRes] = await Promise.all([
+        fetch("/api/programs"),
+        fetch("/api/partnerships"),
+      ]);
+      if (!progRes.ok || !barRes.ok) throw new Error("programs_unavailable");
+      const [programsJson, barangaysJson] = await Promise.all([progRes.json(), barRes.json()]);
+      setPrograms(programsJson.data ?? []);
+      setBarangays(barangaysJson.data ?? []);
+    } catch {
+      toast.error("Programs could not be loaded. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchPrograms(); }, [fetchPrograms]);
@@ -230,7 +257,7 @@ export default function OfficerProgramsPage() {
       if (!res.ok) {
         toast.error("Could not load the proposal — opening a blank form.");
         setEditProg(null);
-        programForm.reset({ title: "", status: "draft" });
+        programForm.reset({ title: "", status: "draft", target_profile_figure: "" });
         setFormOpen(true);
         router.replace("/officer/programs");
         return;
@@ -245,6 +272,7 @@ export default function OfficerProgramsPage() {
         end_date:       p.timeline_end ?? "",
         status:         "upcoming",
         max_volunteers: "",
+        target_profile_figure: "",
       });
       setFormOpen(true);
       toast.success("Pre-filled from approved proposal — review and save.");
@@ -254,9 +282,21 @@ export default function OfficerProgramsPage() {
 
   const fetchDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
-    const res = await fetch(`/api/programs/${id}`);
-    if (res.ok) { const j = await res.json(); setDetailProg(j.data); }
-    setDetailLoading(false);
+    try {
+      const res = await fetch(`/api/programs/${id}`);
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDetailProg(null);
+        toast.error(result.error ?? "Program details could not be loaded. Please try again.");
+        return;
+      }
+      setDetailProg(result.data);
+    } catch {
+      setDetailProg(null);
+      toast.error("Program details could not be loaded. Please try again.");
+    } finally {
+      setDetailLoading(false);
+    }
   }, []);
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -277,9 +317,9 @@ export default function OfficerProgramsPage() {
     completed: programs.filter((p) => p.status === "completed").length,
   }), [programs]);
 
+  // The map shows the same programs as the list: search and status filters apply to both.
   const mapPrograms = useMemo<MapProgram[]>(() =>
-    programs
-      .filter((p) => mapFilter === "all" || p.status === mapFilter)
+    filtered
       .map((p) => ({
         id: p.id, title: p.title, status: p.status,
         start_date: p.start_date, end_date: p.end_date,
@@ -288,7 +328,7 @@ export default function OfficerProgramsPage() {
           ? { name: p.barangays.name, latitude: p.barangays.latitude, longitude: p.barangays.longitude }
           : null,
       })),
-    [programs, mapFilter]
+    [filtered]
   );
 
   const budgetTotals = useMemo(() => {
@@ -302,61 +342,35 @@ export default function OfficerProgramsPage() {
   // ── Completion readiness ─────────────────────────────────────────────────────
   // Gates that must pass before a program can be marked complete.
   const completionGates = useMemo(() => {
-    if (!detailProg) return { allPass: false, checks: [] as { label: string; passed: boolean }[] };
-    const activeSignups = detailProg.signups.filter((s) => s.status !== "withdrawn").length;
-    const activities    = detailProg.activities;
-    const activitiesReady = activities.length > 0 && activities.every(
-      (a) => !!a.report_1 && !!a.report_2
-    );
-    const photosOk = activities.length === 0 || activities.every((a) => (a.photo_count ?? 0) > 0);
-    const overspent = budgetTotals.allocated > 0 && budgetTotals.spent > budgetTotals.allocated;
-
-    const checks = [
-      {
-        label: activities.length === 0
-          ? "Add at least one activity"
-          : `All ${activities.length} activit${activities.length === 1 ? "y has" : "ies have"} both Activity & Financial reports`,
-        passed: activitiesReady,
-      },
-      {
-        label: activities.length === 0
-          ? "Every activity has at least one photo"
-          : `Every activity has at least one photo (${activities.filter((a) => (a.photo_count ?? 0) > 0).length}/${activities.length})`,
-        passed: photosOk,
-      },
-      {
-        label: "At least one budget item recorded",
-        passed: detailProg.budgets.length > 0,
-      },
-      {
-        label: "Spending within allocated budget",
-        passed: !overspent,
-      },
-      {
-        label: "At least one volunteer signed up",
-        passed: activeSignups > 0,
-      },
-    ];
-    return { allPass: checks.every((c) => c.passed), checks };
-  }, [detailProg, budgetTotals]);
+    if (!detailProg) return { allPass: false, checks: [] as { key: string; label: string; passed: boolean }[] };
+    return programCompletionChecks(detailProg);
+  }, [detailProg]);
 
   async function markProgramComplete() {
-    if (!detailProg) return;
+    if (!detailProg || completingProgram) return;
     if (!completionGates.allPass) {
-      toast.error("Resolve all completion gates first.");
+      toast.error("Resolve all completion requirements first.");
       return;
     }
-    const res = await fetch(`/api/programs/${detailProg.id}`, {
-      method:  "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ status: "completed" }),
-    });
-    if (res.ok) {
+    setCompletingProgram(true);
+    try {
+      const res = await fetch(`/api/programs/${detailProg.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? "Program evidence changed. Reload and try again.");
+        await fetchDetail(detailProg.id);
+        return;
+      }
       toast.success("Program marked as complete.");
-      fetchDetail(detailProg.id);
-      fetchPrograms();
-    } else {
-      toast.error("Failed to update program status.");
+      await fetchDetail(detailProg.id);
+      await fetchPrograms();
+    } catch {
+      toast.error("Program could not be updated. Please try again.");
+    } finally {
+      setCompletingProgram(false);
     }
   }
 
@@ -364,7 +378,7 @@ export default function OfficerProgramsPage() {
 
   function openCreate() {
     setEditProg(null);
-    programForm.reset({ title: "", description: "", status: "draft" });
+    programForm.reset({ title: "", description: "", status: "draft", target_profile_figure: "" });
     setFormOpen(true);
   }
 
@@ -378,36 +392,44 @@ export default function OfficerProgramsPage() {
       end_date:       p.end_date    ?? "",
       status:         p.status,
       max_volunteers: p.max_volunteers?.toString() ?? "",
+      target_profile_figure: p.target_profile_figure ?? "",
     });
     setFormOpen(true);
   }
 
   async function onProgramSubmit(values: ProgramForm) {
     setSaving(true);
-    const payload = {
-      title:          values.title,
-      description:    values.description    || null,
-      barangay_id:    values.barangay_id    || null,
-      start_date:     values.start_date     || null,
-      end_date:       values.end_date       || null,
-      status:         values.status,
-      max_volunteers: values.max_volunteers ? parseInt(values.max_volunteers) : null,
-    };
-    const res = editProg
-      ? await fetch(`/api/programs/${editProg.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        })
-      : await fetch("/api/programs", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-    if (res.ok) {
+    try {
+      const payload = {
+        title:          values.title,
+        description:    values.description    || null,
+        barangay_id:    values.barangay_id    || null,
+        start_date:     values.start_date     || null,
+        end_date:       values.end_date       || null,
+        status:         values.status,
+        max_volunteers: values.max_volunteers ? parseInt(values.max_volunteers) : null,
+        target_profile_figure: values.target_profile_figure || null,
+      };
+      const res = editProg
+        ? await fetch(`/api/programs/${editProg.id}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          })
+        : await fetch("/api/programs", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? "Failed to save program.");
+        return;
+      }
       toast.success(editProg ? "Program updated." : "Program created.");
       setFormOpen(false);
-      fetchPrograms();
-    } else {
-      toast.error("Failed to save program.");
+      await fetchPrograms();
+    } catch {
+      toast.error("Failed to save program. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   async function openDetail(p: Program) {
@@ -488,28 +510,34 @@ export default function OfficerProgramsPage() {
   async function onActivitySubmit(values: ActivityForm) {
     if (!detailProg) return;
     setActSaving(true);
-    const payload = {
-      title:       values.title,
-      description: values.description || null,
-      date:        values.date        || null,
-      location:    values.location    || null,
-      status:      values.status,
-    };
-    const res = editAct
-      ? await fetch(`/api/programs/${detailProg.id}/activities/${editAct.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        })
-      : await fetch(`/api/programs/${detailProg.id}/activities`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-    if (res.ok) {
+    try {
+      const payload = {
+        title:       values.title,
+        description: values.description || null,
+        date:        values.date        || null,
+        location:    values.location    || null,
+        status:      values.status,
+      };
+      const res = editAct
+        ? await fetch(`/api/programs/${detailProg.id}/activities/${editAct.id}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          })
+        : await fetch(`/api/programs/${detailProg.id}/activities`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+          });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? "Failed to save activity.");
+        return;
+      }
       toast.success(editAct ? "Activity updated." : "Activity added.");
       setActFormOpen(false);
-      fetchDetail(detailProg.id);
-    } else {
-      toast.error("Failed to save activity.");
+      await fetchDetail(detailProg.id);
+    } catch {
+      toast.error("Failed to save activity. Please try again.");
+    } finally {
+      setActSaving(false);
     }
-    setActSaving(false);
   }
 
   // ── Reports ──────────────────────────────────────────────────────────────────
@@ -523,19 +551,25 @@ export default function OfficerProgramsPage() {
   async function saveReport() {
     if (!detailProg || !reportAct) return;
     setReportSaving(true);
-    const res = await fetch(`/api/programs/${detailProg.id}/activities/${reportAct.id}`, {
-      method:  "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ [reportField]: reportText }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/programs/${detailProg.id}/activities/${reportAct.id}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ [reportField]: reportText }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? "Failed to save report.");
+        return;
+      }
       toast.success("Report saved.");
       setReportAct(null);
-      fetchDetail(detailProg.id);
-    } else {
-      toast.error("Failed to save report.");
+      await fetchDetail(detailProg.id);
+    } catch {
+      toast.error("Failed to save report. Please try again.");
+    } finally {
+      setReportSaving(false);
     }
-    setReportSaving(false);
   }
 
   // ── Budget ───────────────────────────────────────────────────────────────────
@@ -543,24 +577,30 @@ export default function OfficerProgramsPage() {
   async function onBudgetSubmit(values: BudgetForm) {
     if (!detailProg) return;
     setBudgetSaving(true);
-    const payload = {
-      category:    values.category,
-      allocated:   parseFloat(values.allocated)      || 0,
-      spent:       parseFloat(values.spent ?? "0")   || 0,
-      notes:       values.notes || null,
-    };
-    const res = await fetch(`/api/programs/${detailProg.id}/budget`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-    });
-    if (res.ok) {
+    try {
+      const payload = {
+        category:    values.category,
+        allocated:   parseFloat(values.allocated)      || 0,
+        spent:       parseFloat(values.spent ?? "0")   || 0,
+        notes:       values.notes || null,
+      };
+      const res = await fetch(`/api/programs/${detailProg.id}/budget`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(result.error ?? "Failed to add budget item.");
+        return;
+      }
       toast.success("Budget item added.");
       setBudgetFormOpen(false);
       budgetForm.reset({ category: "", allocated: "0", spent: "0" });
-      fetchDetail(detailProg.id);
-    } else {
-      toast.error("Failed to add budget item.");
+      await fetchDetail(detailProg.id);
+    } catch {
+      toast.error("Failed to add budget item. Please try again.");
+    } finally {
+      setBudgetSaving(false);
     }
-    setBudgetSaving(false);
   }
 
   // ── Delete ───────────────────────────────────────────────────────────────────
@@ -568,7 +608,7 @@ export default function OfficerProgramsPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col space-y-6">
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -589,50 +629,28 @@ export default function OfficerProgramsPage() {
         ))}
       </div>
 
-      {/* Program Coverage Map */}
-      <Card className="border-border shadow-card">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-heading text-lg flex items-center gap-2">
-              <Map className="w-5 h-5 text-primary" /> Program Coverage Map
-            </CardTitle>
-            <div className="flex gap-1 p-1 bg-surface-alt rounded-lg border border-border text-xs">
-              {(["all", "active", "upcoming"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setMapFilter(v)}
-                  className={`px-3 py-1 rounded-md font-medium transition-all capitalize ${
-                    mapFilter === v
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {v === "all" ? "All" : v.charAt(0).toUpperCase() + v.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Each pin represents a barangay with programs. Click to see program details.
-            Pins show the barangay&apos;s most urgent program status.
-          </p>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {loading ? (
-            <div className="flex items-center justify-center bg-surface-alt rounded-xl border border-border" style={{ height: 420 }}>
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <ProgramMap programs={mapPrograms} height="420px" />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Programs table */}
+      {/* Programs: one card, shown as a list or as a coverage map */}
       <Card className="border-border shadow-card">
         <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="font-heading text-lg">Programs</CardTitle>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle className="font-heading text-lg">Programs</CardTitle>
+              <div role="group" aria-label="Program view" className="flex gap-1 p-1 bg-surface-alt rounded-lg border border-border text-xs">
+                {([["list", "List", List], ["map", "Map", Map]] as const).map(([key, label, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={view === key}
+                    onClick={() => changeView(key)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md font-medium transition-all ${
+                      view === key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" aria-hidden="true" />{label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -641,11 +659,13 @@ export default function OfficerProgramsPage() {
                   className="pl-9 h-9 w-48 focus-visible:ring-primary/30"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  aria-label="Search programs"
                 />
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter programs by status"
                 className="h-9 rounded-xl border border-border bg-transparent px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="all">All Status</option>
@@ -660,82 +680,102 @@ export default function OfficerProgramsPage() {
               </Button>
             </div>
           </div>
+          {view === "map" && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Each pin is a barangay with programs matching the search and status filter. Click a pin to see its programs;
+              its color shows the barangay&apos;s most urgent program status.
+            </p>
+          )}
         </CardHeader>
+        {view === "map" ? (
+          <CardContent className="pt-0">
+            {loading ? (
+              <div className="flex items-center justify-center bg-surface-alt rounded-xl border border-border" style={{ height: 480 }}>
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <ProgramMap programs={mapPrograms} height="480px" />
+            )}
+          </CardContent>
+        ) : (
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border bg-surface-alt/50">
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Program</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Dates</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Volunteers</th>
-                  <th className="py-3 px-4 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                      {programs.length === 0 ? "No programs yet. Create your first program." : "No programs match your search."}
-                    </td>
-                  </tr>
-                ) : filtered.map((p, i) => (
-                  <tr
-                    key={p.id}
-                    className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
-                    onClick={() => openDetail(p)}
-                  >
-                    <td className="py-3 px-4">
-                      <p className="font-medium text-foreground">{p.title}</p>
-                      {p.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{p.description}</p>}
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
-                      {p.barangays?.name ?? <span className="italic text-muted-foreground/50">Unassigned</span>}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-muted-foreground hidden lg:table-cell">
-                      {p.start_date
-                        ? `${fmtDate(p.start_date)}${p.end_date ? ` – ${fmtDate(p.end_date)}` : ""}`
-                        : "—"}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge className={`${PROGRAM_BADGE[p.status] ?? ""} capitalize text-xs`}>{p.status}</Badge>
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">
-                      <span className="flex items-center gap-1.5">
-                        <Users className="w-3.5 h-3.5" />
-                        {p.signup_count}{p.max_volunteers ? ` / ${p.max_volunteers}` : ""}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(p)}>View Details</DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(p)}>Edit</DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
-            {filtered.length} of {programs.length} programs
+            <PaginatedTable rows={filtered} label="Programs" resetKey={JSON.stringify([search, statusFilter])} loading={loading}>
+              {(pageRows) => (
+                <table aria-label="Programs" className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-alt/50">
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Program</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden md:table-cell">Barangay</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden lg:table-cell">Dates</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium">Status</th>
+                      <th className="text-left py-3 px-4 text-muted-foreground font-medium hidden sm:table-cell">Volunteers</th>
+                      <th className="py-3 px-4 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center text-muted-foreground">
+                          <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /> Loading…
+                        </td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-16 text-center text-muted-foreground">
+                          {programs.length === 0 ? "No programs yet. Create your first program." : "No programs match your search."}
+                        </td>
+                      </tr>
+                    ) : pageRows.map((p, i) => (
+                      <tr
+                        key={p.id}
+                        data-program-id={p.id}
+                        className={`border-b border-border/60 hover:bg-surface-alt/40 transition-colors cursor-pointer ${i % 2 !== 0 ? "bg-surface-alt/20" : ""}`}
+                        onClick={() => openDetail(p)}
+                      >
+                        <td className="py-3 px-4">
+                          <p className="font-medium text-foreground">{p.title}</p>
+                          {p.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{p.description}</p>}
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden md:table-cell">
+                          {p.barangays?.name ?? <span className="italic text-muted-foreground/50">Unassigned</span>}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-muted-foreground hidden lg:table-cell">
+                          {p.start_date
+                            ? `${fmtDate(p.start_date)}${p.end_date ? ` – ${fmtDate(p.end_date)}` : ""}`
+                            : "—"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge className={`${PROGRAM_BADGE[p.status] ?? ""} capitalize text-xs`}>{p.status}</Badge>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground hidden sm:table-cell">
+                          <span className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            {p.signup_count}{p.max_volunteers ? ` / ${p.max_volunteers}` : ""}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-muted transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => openDetail(p)}>View Details</DropdownMenuItem>
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => openEdit(p)}>Edit</DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
           </div>
         </CardContent>
+        )}
       </Card>
 
       {/* ── Create / Edit Program Sheet ─────────────────────────────────────────── */}
@@ -745,7 +785,7 @@ export default function OfficerProgramsPage() {
             <SheetTitle className="font-heading text-lg">{editProg ? "Edit Program" : "New Program"}</SheetTitle>
           </SheetHeader>
           <form onSubmit={programForm.handleSubmit(onProgramSubmit)} className="flex flex-col flex-1 min-h-0">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            <div data-sheet-scroll-region className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin px-4 sm:px-6 py-5 space-y-5">
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">Title <span className="text-danger">*</span></label>
@@ -774,7 +814,7 @@ export default function OfficerProgramsPage() {
                   <option value="draft">Draft</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="active">Active</option>
-                  <option value="completed">Completed</option>
+                  {editProg && <option value="completed">Completed (requirements checked on save)</option>}
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
@@ -790,6 +830,13 @@ export default function OfficerProgramsPage() {
                   {barangays.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
+
+              <TargetFigureField
+                barangayId={programForm.watch("barangay_id") || null}
+                value={programForm.watch("target_profile_figure") ?? ""}
+                onChange={(value) => programForm.setValue("target_profile_figure", value, { shouldDirty: true })}
+                canReadProfile={canReadProfile}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -822,20 +869,30 @@ export default function OfficerProgramsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* ── Program Detail Sheet ────────────────────────────────────────────────── */}
-      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full sm:max-w-4xl p-0 flex flex-col">
+      {/* ── Program Detail Modal ────────────────────────────────────────────────── */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent
+          className="w-[calc(100%-2rem)] sm:max-w-4xl h-[85dvh] max-h-[52rem] p-0 flex flex-col gap-0 overflow-hidden"
+          data-testid="program-details-modal"
+        >
+          <DialogDescription className="sr-only">
+            Program overview, activities, budget, volunteers, and completion readiness.
+          </DialogDescription>
           {detailLoading || !detailProg ? (
-            <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
+            <>
+              <DialogTitle className="sr-only">Program details</DialogTitle>
+              <div className="flex-1 flex items-center justify-center gap-2" role="status" aria-busy="true">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                <span className="text-muted-foreground">Loading program details…</span>
+              </div>
+            </>
           ) : (
             <>
               {/* Header */}
-              <SheetHeader className="px-6 pt-5 border-b border-border shrink-0">
-                <div className="flex items-start justify-between gap-3 pb-1">
+              <DialogHeader className="px-4 sm:px-6 pt-5 border-b border-border shrink-0 min-w-0">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-3 pb-1 pr-8">
                   <div className="flex-1 min-w-0">
-                    <SheetTitle className="font-heading text-xl leading-tight">{detailProg.title}</SheetTitle>
+                    <DialogTitle className="font-heading text-xl leading-tight break-words">{detailProg.title}</DialogTitle>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <Badge className={`${PROGRAM_BADGE[detailProg.status] ?? ""} capitalize text-xs`}>
                         {detailProg.status}
@@ -853,6 +910,13 @@ export default function OfficerProgramsPage() {
                         <BarChart3 className="w-3.5 h-3.5 mr-1" /> Analytics
                       </Button>
                     </Link>
+                    {canReadImpact && (
+                      <Link href={`/officer/impact/programs/${detailProg.id}`} prefetch={false}>
+                        <Button size="sm" variant="outline" className="text-primary border-primary/30 hover:bg-primary/10">
+                          <ClipboardList className="w-3.5 h-3.5 mr-1" /> Impact report
+                        </Button>
+                      </Link>
+                    )}
                     <Button
                       size="sm" variant="outline"
                       onClick={() => { setDetailOpen(false); openEdit(detailProg); }}
@@ -863,12 +927,13 @@ export default function OfficerProgramsPage() {
                 </div>
 
                 {/* Tab nav */}
-                <div className="flex -mb-px mt-3">
+                <div className="flex -mb-px mt-3 overflow-x-auto" role="group" aria-label="Program detail views">
                   {(["overview", "activities", "budget", "volunteers"] as DetailTab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setDetailTab(tab)}
-                      className={`px-4 py-2.5 text-sm font-medium capitalize border-b-2 transition-colors ${
+                      aria-pressed={detailTab === tab}
+                      className={`shrink-0 px-3 sm:px-4 py-2.5 text-sm font-medium capitalize border-b-2 transition-colors ${
                         detailTab === tab
                           ? "border-primary text-primary"
                           : "border-transparent text-muted-foreground hover:text-foreground"
@@ -878,10 +943,10 @@ export default function OfficerProgramsPage() {
                     </button>
                   ))}
                 </div>
-              </SheetHeader>
+              </DialogHeader>
 
               {/* Tab content */}
-              <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-6 py-5" data-testid="program-details-body">
 
                 {/* Overview */}
                 {detailTab === "overview" && (
@@ -893,7 +958,7 @@ export default function OfficerProgramsPage() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {[
                         { icon: Users,         label: "Volunteers", value: `${detailProg.signups.length}${detailProg.max_volunteers ? ` / ${detailProg.max_volunteers}` : ""}` },
                         { icon: ClipboardList, label: "Activities", value: String(detailProg.activities.length) },
@@ -961,7 +1026,7 @@ export default function OfficerProgramsPage() {
                         </ul>
                         <Button
                           onClick={markProgramComplete}
-                          disabled={!completionGates.allPass}
+                          disabled={!completionGates.allPass || completingProgram}
                           className="w-full bg-success hover:bg-success/90 text-white disabled:bg-muted disabled:text-muted-foreground gap-2"
                           size="sm"
                         >
@@ -1095,7 +1160,7 @@ export default function OfficerProgramsPage() {
                       <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-transparent-alt/20">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground">{b.category}</p>
-                          {b.description && <p className="text-xs text-muted-foreground mt-0.5">{b.description}</p>}
+                          {b.notes && <p className="text-xs text-muted-foreground mt-0.5">{b.notes}</p>}
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-semibold text-foreground">{fmt(b.spent)}</p>
@@ -1164,8 +1229,11 @@ export default function OfficerProgramsPage() {
               </div>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+          <DialogFooter className="shrink-0 mx-0 mb-0 px-4 sm:px-6 py-3">
+            <Button type="button" variant="outline" onClick={() => setDetailOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Activity Dialog ─────────────────────────────────────────────────────── */}
       <Dialog open={actFormOpen} onOpenChange={setActFormOpen}>

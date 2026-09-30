@@ -119,34 +119,13 @@ export function MyBarangayView({ emptyMessage }: { emptyMessage: string }) {
   return (
     <div className="space-y-6">
 
-      {/* Header card */}
+      {/* Barangay details: name, location, and status are rows, not a page header. */}
       <Card className="border-border shadow-card">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-6 h-6 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <CardTitle className="font-heading text-xl">{barangay.name}</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {barangay.municipality}, {barangay.province}
-                </p>
-              </div>
-            </div>
-            <Badge
-              className={
-                barangay.is_active
-                  ? "bg-success/10 text-success border-success/20 border"
-                  : "bg-muted text-muted-foreground border"
-              }
-            >
-              {barangay.is_active ? "Active Partnership" : "Inactive"}
-            </Badge>
-          </div>
-        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InfoRow icon={Building2}    label="Barangay"       value={barangay.name} />
+            <InfoRow icon={MapPin}       label="Location"       value={[barangay.municipality, barangay.province].filter(Boolean).join(", ") || null} />
+            <InfoRow icon={CheckCircle2} label="Partnership"    value={barangay.is_active ? "Active" : "Inactive"} />
             <InfoRow icon={User}         label="Contact Person" value={barangay.contact_person} />
             <InfoRow icon={Phone}        label="Phone"          value={barangay.contact_phone} />
             <InfoRow icon={Mail}         label="Email"          value={barangay.contact_email} />
@@ -183,7 +162,7 @@ export function MyBarangayView({ emptyMessage }: { emptyMessage: string }) {
                         {fmtDate(p.start_date)}{p.end_date ? ` – ${fmtDate(p.end_date)}` : ""}
                       </p>
                     </div>
-                    <Badge className={`${PROGRAM_BADGE[p.status] ?? "bg-muted text-muted-foreground border"} text-[10px] capitalize flex-shrink-0`}>
+                    <Badge className={`${PROGRAM_BADGE[p.status] ?? "bg-muted text-muted-foreground border"} text-[11px] capitalize flex-shrink-0`}>
                       {p.status}
                     </Badge>
                   </li>
